@@ -4,8 +4,8 @@
   "description": "MYOPS business operations and personal shopper management platform.",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#09111d",
-  "theme_color": "#0b1020",
+  "background_color": "#071b49",
+  "theme_color": "#071b49",
   "icons": [
     { "src": "/favicon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" }
   ]
