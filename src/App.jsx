@@ -3,15 +3,15 @@ import PropTypes from 'prop-types';
 const products = [
   {
     name: 'OpsHub',
-    tag: 'Business Operations Platform',
+    tag: 'Operations Marketplace',
     description:
-      'Centralize workflows, teams, processes, and key performance insights in one modern operations command center.',
+      'Connect teams, services, and operational demand through a centralized marketplace for execution.',
     cta: 'Explore OpsHub',
     accent: 'blue',
   },
   {
     name: 'OpsPS',
-    tag: 'Personal Shopper Management',
+    tag: 'Personal Shopper Management Platform',
     description:
       'Coordinate shoppers, demand, fulfillment, and service quality with a platform built for speed and visibility.',
     cta: 'Explore OpsPS',
@@ -93,8 +93,8 @@ export default function App() {
               <span className="eyebrow">ONE ECOSYSTEM. MULTIPLE SOLUTIONS.</span>
               <h1>Turn complexity into clear, scalable business performance.</h1>
               <p>
-                MYOPS is a connected business technology ecosystem that brings together operations and service
-                management solutions for businesses, operators, and growing teams.
+                MYOPS is a connected ecosystem that brings together operational execution and service management
+                solutions for businesses, operators, and growing teams.
               </p>
               <div className="hero-actions">
                 <a href="#products" className="btn btn-primary">
@@ -205,7 +205,7 @@ export default function App() {
           <div className="container about-grid">
             <div>
               <span className="eyebrow">About MYOPS</span>
-              <h2>We connect business operations with measurable performance.</h2>
+              <h2>We connect operational teams with measurable performance.</h2>
             </div>
             <div>
               <p>

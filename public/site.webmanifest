@@ -1,7 +1,7 @@
 {
   "name": "MYOPS",
   "short_name": "MYOPS",
-  "description": "MYOPS business operations and personal shopper management platform.",
+  "description": "MYOPS operations marketplace and personal shopper management platform.",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#071b49",
