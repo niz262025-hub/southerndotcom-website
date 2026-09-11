@@ -19,7 +19,7 @@ const products = [
   },
 ];
 
-const ecosystemNodes = ['MYOPS', 'OpsHub', 'OpsPS', 'Future Apps'];
+const ecosystemNodes = ['MYOPS', 'OpsHub', 'OpsPS'];
 
 const benefits = [
   'Unified operations for every team and workflow',
@@ -93,8 +93,8 @@ export default function App() {
               <span className="eyebrow">ONE ECOSYSTEM. MULTIPLE SOLUTIONS.</span>
               <h1>Turn complexity into clear, scalable business performance.</h1>
               <p>
-                MYOPS is a connected business technology ecosystem that brings together operations, service
-                management, and future-ready digital solutions for businesses, operators, and growing teams.
+                MYOPS is a connected business technology ecosystem that brings together operations and service
+                management solutions for businesses, operators, and growing teams.
               </p>
               <div className="hero-actions">
                 <a href="#products" className="btn btn-primary">
@@ -156,7 +156,7 @@ export default function App() {
           <div className="container">
             <div className="section-heading">
               <span className="eyebrow">MYOPS Ecosystem</span>
-              <h2>Purpose-built solutions for operational excellence.</h2>
+              <h2>One ecosystem. Multiple solutions.</h2>
             </div>
 
             <div className="product-grid">
