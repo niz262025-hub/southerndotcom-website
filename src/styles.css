@@ -111,11 +111,28 @@ select {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 30px;
-  height: 30px;
-  border-radius: 10px;
-  background: linear-gradient(135deg, var(--primary), var(--secondary-strong), var(--primary-strong));
-  box-shadow: 0 12px 24px rgba(236, 22, 122, 0.26);
+  width: 34px;
+  height: 34px;
+  min-width: 34px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.9);
+  box-shadow: 0 10px 22px rgba(236, 22, 122, 0.15);
+  overflow: hidden;
+}
+
+.brand-mark-svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.brand-mark-svg.compact {
+  transform: scale(1.06);
+}
+
+.brand-wordmark {
+  font-size: 1.15rem;
+  letter-spacing: 0.09em;
 }
 
 .nav-links {
@@ -361,6 +378,36 @@ select {
   padding: 96px 0;
 }
 
+.ecosystem-rail {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-top: 26px;
+}
+
+.ecosystem-node {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px;
+  padding: 0.7rem 1rem;
+  border-radius: 999px;
+  background: linear-gradient(135deg, rgba(236, 22, 122, 0.09), rgba(255, 138, 0, 0.08));
+  border: 1px solid rgba(236, 22, 122, 0.14);
+  color: var(--text);
+  font-weight: 700;
+  box-shadow: 0 10px 20px rgba(7, 27, 73, 0.04);
+}
+
+.ecosystem-arrow {
+  color: var(--primary);
+  font-size: 1.25rem;
+  line-height: 1;
+  padding: 0 0.15rem;
+}
+
 .alt-bg {
   background: linear-gradient(180deg, rgba(255, 241, 248, 0.55), rgba(255, 248, 239, 0.68));
   border-top: 1px solid var(--border);
@@ -552,6 +599,32 @@ select {
   flex-wrap: wrap;
 }
 
+.legal-footer {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 24px;
+  padding-top: 28px;
+  margin-top: 28px;
+  border-top: 1px solid var(--border);
+}
+
+.legal-block {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  color: var(--muted);
+  font-size: 0.88rem;
+}
+
+.legal-block p,
+.legal-block a {
+  margin: 0;
+}
+
+.legal-links {
+  align-items: flex-start;
+}
+
 @media (max-width: 900px) {
   .hero-grid,
   .about-grid,
@@ -583,8 +656,11 @@ select {
     flex-wrap: wrap;
   }
 
-  .footer-inner {
+  .footer-inner,
+  .legal-footer {
     display: flex;
+    flex-direction: column;
+    align-items: flex-start;
   }
 }
 

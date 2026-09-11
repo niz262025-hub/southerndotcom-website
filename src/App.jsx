@@ -17,6 +17,8 @@ const products = [
   },
 ];
 
+const ecosystemNodes = ['MYOPS', 'OpsHub', 'OpsPS', 'Future Apps'];
+
 const benefits = [
   'Unified operations for every team and workflow',
   'Faster decisions with real-time visibility',
@@ -32,14 +34,39 @@ const stats = [
   { value: '1 platform', label: 'For smarter execution' },
 ];
 
+function LogoMark({ compact = false }) {
+  return (
+    <svg
+      viewBox="0 0 120 120"
+      className={compact ? 'brand-mark-svg compact' : 'brand-mark-svg'}
+      role="img"
+      aria-label="MYOPS logo"
+    >
+      <defs>
+        <linearGradient id="myopsBrandGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%" stopColor="#EC167A" />
+          <stop offset="45%" stopColor="#F0187A" />
+          <stop offset="78%" stopColor="#FF8A00" />
+          <stop offset="100%" stopColor="#8B3DFF" />
+        </linearGradient>
+      </defs>
+      <path d="M25 92L60 22L95 92H82L60 52L38 92H25Z" fill="url(#myopsBrandGradient)" opacity="0.96" />
+      <path d="M18 96L60 15L102 96H86L60 46L34 96H18Z" fill="none" stroke="#071B49" strokeWidth="6" strokeLinejoin="round" opacity="0.9" />
+      <path d="M31 84V35H45L60 58L75 35H89V84H75V54L60 79L45 54V84H31Z" fill="#071B49" />
+    </svg>
+  );
+}
+
 export default function App() {
   return (
     <div className="page-shell">
       <header className="topbar">
         <div className="container nav">
           <div className="brand" aria-label="MYOPS home">
-            <span className="brand-mark">M</span>
-            <span>MYOPS</span>
+            <span className="brand-mark">
+              <LogoMark compact />
+            </span>
+            <span className="brand-wordmark">MYOPS</span>
           </div>
           <nav className="nav-links" aria-label="Main navigation">
             <a href="#products">Products</a>
@@ -57,11 +84,11 @@ export default function App() {
         <section className="hero">
           <div className="container hero-grid">
             <div className="hero-copy">
-              <span className="eyebrow">Built for modern operations</span>
+              <span className="eyebrow">ONE ECOSYSTEM. MULTIPLE SOLUTIONS.</span>
               <h1>Turn complexity into clear, scalable business performance.</h1>
               <p>
-                MYOPS helps organizations streamline operations, improve visibility, and move faster with
-                purpose-built platforms for business management and personal shopper operations.
+                MYOPS is a connected business technology ecosystem that brings together operations, service
+                management, and future-ready digital solutions for businesses, operators, and growing teams.
               </p>
               <div className="hero-actions">
                 <a href="#products" className="btn btn-primary">
@@ -122,7 +149,7 @@ export default function App() {
         <section id="products" className="section">
           <div className="container">
             <div className="section-heading">
-              <span className="eyebrow">Our platforms</span>
+              <span className="eyebrow">MYOPS Ecosystem</span>
               <h2>Purpose-built solutions for operational excellence.</h2>
             </div>
 
@@ -136,6 +163,15 @@ export default function App() {
                     {product.cta}
                   </a>
                 </article>
+              ))}
+            </div>
+
+            <div className="ecosystem-rail" aria-label="MYOPS ecosystem hierarchy">
+              {ecosystemNodes.map((node, index) => (
+                <div className="ecosystem-node" key={node}>
+                  {index > 0 && <span className="ecosystem-arrow">↓</span>}
+                  <span>{node}</span>
+                </div>
               ))}
             </div>
           </div>
@@ -192,10 +228,12 @@ export default function App() {
         <div className="container footer-inner">
           <div>
             <div className="brand footer-brand" aria-label="MYOPS footer brand">
-              <span className="brand-mark">M</span>
-              <span>MYOPS</span>
+              <span className="brand-mark">
+                <LogoMark compact />
+              </span>
+              <span className="brand-wordmark">MYOPS</span>
             </div>
-            <p>Smarter operations for growth, visibility, and execution.</p>
+            <p>MYOPS is a business technology ecosystem operated by Southern Dotcom Enterprise.</p>
           </div>
 
           <div className="footer-links">
@@ -206,8 +244,28 @@ export default function App() {
           </div>
 
           <div className="footer-meta">
-            <a href="mailto:hello@myops.com.my">hello@myops.com.my</a>
+            <a href="mailto:support@myops.com.my">support@myops.com.my</a>
             <span>© 2026 MYOPS</span>
+          </div>
+        </div>
+
+        <div className="container legal-footer">
+          <div className="legal-block">
+            <p>Southern Dotcom Enterprise</p>
+            <p>Registration No.: 202303050959 (003472425-X)</p>
+            <p>Malaysia</p>
+          </div>
+          <div className="legal-block">
+            <a href="https://myops.com.my">Official website</a>
+            <a href="tel:+60122719377">Phone: 012-271 9377</a>
+            <a href="mailto:support@myops.com.my">Support email</a>
+          </div>
+          <div className="legal-block legal-links">
+            <a href="#">Privacy Policy</a>
+            <a href="#">Terms of Service</a>
+            <a href="#">Cookie Policy</a>
+            <a href="#">Refund &amp; Cancellation Policy</a>
+            <a href="#">Acceptable Use Policy</a>
           </div>
         </div>
       </footer>
