@@ -1,3 +1,5 @@
+import PropTypes from 'prop-types';
+
 const products = [
   {
     name: 'OpsHub',
@@ -56,6 +58,10 @@ function LogoMark({ compact = false }) {
     </svg>
   );
 }
+
+LogoMark.propTypes = {
+  compact: PropTypes.bool,
+};
 
 export default function App() {
   return (
