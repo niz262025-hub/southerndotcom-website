@@ -2,7 +2,7 @@
 Official MYOPS landing page for the OpsHub and OpsPS platform ecosystem.
 
 ## Overview
-MYOPS is a modern operations platform brand focused on business management and personal shopper operations.
+MYOPS is the master ecosystem for OpsHub and OpsPS, bringing together operational execution and personal shopper management under one connected platform.
 
 ## Stack
 - React
