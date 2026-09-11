@@ -12,8 +12,7 @@ const products = [
   {
     name: 'OpsHub',
     tag: 'Operations Marketplace',
-    description:
-      'Connect teams, services, and operational demand through a centralized marketplace for execution.',
+    description: 'Discover and connect through a marketplace designed around operational needs.',
     cta: 'Explore OpsHub',
     accent: 'blue',
   },
@@ -21,7 +20,7 @@ const products = [
     name: 'OpsPS',
     tag: 'Personal Shopper Management Platform',
     description:
-      'Coordinate shoppers, demand, fulfillment, and service quality with a platform built for speed and visibility.',
+      'Manage products, orders, inventory, and fulfilment with a platform built for day-to-day personal shopper operations.',
     cta: 'Explore OpsPS',
     accent: 'purple',
   },
@@ -30,18 +29,22 @@ const products = [
 const ecosystemNodes = ['MYOPS', 'OpsHub', 'OpsPS'];
 
 const benefits = [
-  'Unified operations for every team and workflow',
-  'Faster decisions with real-time visibility',
-  'Automation that reduces friction and manual work',
-  'Scalable systems designed for business growth',
-  'Clearer accountability across teams',
-  'Better customer experience and service quality',
-];
-
-const stats = [
-  { value: '360°', label: 'Operational visibility' },
-  { value: '24/7', label: 'Business continuity focus' },
-  { value: '1 platform', label: 'For smarter execution' },
+  {
+    title: 'Built Around Real Business Needs',
+    text: 'Practical digital solutions built to support everyday operations and service workflows.',
+  },
+  {
+    title: 'Connected Solutions',
+    text: 'Different solutions brought together under one ecosystem for clearer coordination.',
+  },
+  {
+    title: 'Simple & Practical',
+    text: 'Designed to help teams work more effectively without unnecessary complexity.',
+  },
+  {
+    title: 'Built to Scale',
+    text: 'A foundation that can evolve with changing business requirements and growth.',
+  },
 ];
 
 const routes = {
@@ -103,7 +106,7 @@ function LandingPage() {
             <a href="#contact">Contact</a>
           </nav>
           <a href="#contact" className="btn btn-primary nav-cta">
-            Talk to us
+            Get Started
           </a>
         </div>
       </header>
@@ -113,26 +116,22 @@ function LandingPage() {
           <div className="container hero-grid">
             <div className="hero-copy">
               <span className="eyebrow">ONE ECOSYSTEM. MULTIPLE SOLUTIONS.</span>
-              <h1>Turn complexity into clear, scalable business performance.</h1>
+              <h1>One Ecosystem. Multiple Solutions.</h1>
               <p>
-                MYOPS is a connected ecosystem that brings together operational execution and service management
-                solutions for businesses, operators, and growing teams.
+                MYOPS brings connected digital solutions together to help businesses and professionals work
+                smarter, manage better and move forward.
+              </p>
+              <p className="positioning-copy">
+                MYOPS is a business technology ecosystem built around practical digital solutions for modern
+                businesses and professionals.
               </p>
               <div className="hero-actions">
                 <a href="#products" className="btn btn-primary">
-                  Explore solutions
+                  Explore Our Solutions
                 </a>
-                <a href="#about" className="btn btn-secondary">
-                  Learn more
+                <a href="#contact" className="btn btn-secondary">
+                  Get Started
                 </a>
-              </div>
-              <div className="hero-stats" aria-label="MYOPS key metrics">
-                {stats.map((stat) => (
-                  <div className="stat" key={stat.label}>
-                    <strong>{stat.value}</strong>
-                    <span>{stat.label}</span>
-                  </div>
-                ))}
               </div>
             </div>
 
@@ -150,14 +149,14 @@ function LandingPage() {
                     <span className="bar b3" />
                     <span className="bar b4" />
                   </div>
-                  <div className="panel-metrics">
+                  <div className="panel-metrics panel-labels">
                     <div>
-                      <label>Efficiency</label>
-                      <strong>92%</strong>
+                      <label>Operations</label>
+                      <strong>Connected</strong>
                     </div>
                     <div>
-                      <label>Growth</label>
-                      <strong>+41%</strong>
+                      <label>Workflow</label>
+                      <strong>Clear</strong>
                     </div>
                   </div>
                 </div>
@@ -178,7 +177,7 @@ function LandingPage() {
           <div className="container">
             <div className="section-heading">
               <span className="eyebrow">MYOPS Ecosystem</span>
-              <h2>One ecosystem. Multiple solutions.</h2>
+              <h2>Explore MYOPS Solutions</h2>
             </div>
 
             <div className="product-grid">
@@ -209,14 +208,17 @@ function LandingPage() {
           <div className="container">
             <div className="section-heading narrow">
               <span className="eyebrow">Why MYOPS</span>
-              <h2>Built to help teams operate smarter, faster, and more confidently.</h2>
+              <h2>Built around real business needs.</h2>
             </div>
 
             <div className="benefits-grid">
               {benefits.map((benefit) => (
-                <div className="benefit-item" key={benefit}>
+                <div className="benefit-item" key={benefit.title}>
                   <span className="check">✓</span>
-                  <p>{benefit}</p>
+                  <div>
+                    <h3>{benefit.title}</h3>
+                    <p>{benefit.text}</p>
+                  </div>
                 </div>
               ))}
             </div>
@@ -227,13 +229,11 @@ function LandingPage() {
           <div className="container about-grid">
             <div>
               <span className="eyebrow">About MYOPS</span>
-              <h2>We connect operational teams with measurable performance.</h2>
+              <h2>MYOPS is a technology ecosystem focused on creating practical digital solutions for modern businesses and professionals.</h2>
             </div>
             <div>
               <p>
-                MYOPS brings together operational strategy, platform thinking, and execution support to help
-                businesses unlock clarity at every stage of growth. From operational planning to daily delivery,
-                our solutions help teams work with less friction and more confidence.
+                MYOPS is operated by Southern Dotcom Enterprise, a registered Malaysian business.
               </p>
             </div>
           </div>
@@ -242,12 +242,18 @@ function LandingPage() {
         <section id="contact" className="section cta-section">
           <div className="container cta-box">
             <div>
-              <span className="eyebrow">Let’s build smarter operations</span>
-              <h2>Ready to modernize the way your business runs?</h2>
+              <span className="eyebrow">Explore the ecosystem</span>
+              <h2>Ready to explore MYOPS?</h2>
+              <p>Discover the digital solutions designed to help you work smarter and move forward.</p>
             </div>
-            <a href="mailto:hello@myops.com.my" className="btn btn-primary large-btn">
-              hello@myops.com.my
-            </a>
+            <div className="hero-actions compact-actions">
+              <a href="#products" className="btn btn-primary large-btn">
+                Explore Solutions
+              </a>
+              <a href="mailto:support@myops.com.my" className="btn btn-secondary large-btn">
+                Contact MYOPS
+              </a>
+            </div>
           </div>
         </section>
       </main>
@@ -261,39 +267,37 @@ function LandingPage() {
               </span>
               <span className="brand-wordmark">MYOPS</span>
             </div>
-            <p>MYOPS is a business technology ecosystem operated by Southern Dotcom Enterprise.</p>
+            <p>One Ecosystem. Multiple Solutions.</p>
           </div>
 
           <div className="footer-links">
-            <a href="#products">Products</a>
-            <a href="#benefits">Why MYOPS</a>
-            <a href="#about">About</a>
-            <a href="#contact">Contact / Support</a>
+            <div>
+              <h3>Products</h3>
+              <a href="#products">OpsHub</a>
+              <a href="#products">OpsPS</a>
+            </div>
+            <div>
+              <h3>Company</h3>
+              <a href="#about">About</a>
+              <a href="#contact">Contact</a>
+            </div>
+            <div>
+              <h3>Legal</h3>
+              <a href="/privacy">Privacy Policy</a>
+              <a href="/terms">Terms of Service</a>
+              <a href="/cookies">Cookie Policy</a>
+              <a href="/refund-cancellation">Refund &amp; Cancellation</a>
+              <a href="/acceptable-use">Acceptable Use</a>
+            </div>
           </div>
 
           <div className="footer-meta">
             <a href="mailto:support@myops.com.my">support@myops.com.my</a>
+            <a href="tel:+60122719377">012-271 9377</a>
+            <span>Southern Dotcom Enterprise</span>
+            <span>Registration No. 202303050959 (003472425-X)</span>
+            <span>MYOPS is a business technology ecosystem operated by Southern Dotcom Enterprise.</span>
             <span>© 2026 MYOPS. All rights reserved.</span>
-          </div>
-        </div>
-
-        <div className="container legal-footer">
-          <div className="legal-block">
-            <p>Southern Dotcom Enterprise</p>
-            <p>Registration No.: 202303050959 (003472425-X)</p>
-            <p>Malaysia</p>
-          </div>
-          <div className="legal-block">
-            <a href="https://myops.com.my">Official website</a>
-            <a href="tel:+60122719377">Phone: 012-271 9377</a>
-            <a href="mailto:support@myops.com.my">Support email</a>
-          </div>
-          <div className="legal-block legal-links">
-            <a href="/privacy">Privacy Policy</a>
-            <a href="/terms">Terms of Service</a>
-            <a href="/cookies">Cookie Policy</a>
-            <a href="/refund-cancellation">Refund &amp; Cancellation</a>
-            <a href="/acceptable-use">Acceptable Use</a>
           </div>
         </div>
       </footer>

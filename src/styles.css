@@ -216,11 +216,21 @@ select {
   color: var(--muted);
 }
 
+.positioning-copy {
+  margin-top: 14px !important;
+  font-size: 0.98rem !important;
+}
+
 .hero-actions {
   margin-top: 28px;
   display: flex;
   flex-wrap: wrap;
   gap: 16px;
+}
+
+.compact-actions {
+  flex-direction: column;
+  align-items: flex-start;
 }
 
 .hero-stats {
@@ -518,6 +528,12 @@ select {
   flex-shrink: 0;
 }
 
+.benefit-item h3 {
+  margin: 0 0 8px;
+  font-size: 1.05rem;
+  color: var(--text);
+}
+
 .benefit-item p {
   margin: 0;
   color: var(--muted);
@@ -591,12 +607,34 @@ select {
   color: var(--muted);
 }
 
-.footer-links,
-.footer-meta {
+.footer-links {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   gap: 20px;
   flex-wrap: wrap;
+}
+
+.footer-links h3 {
+  margin: 0 0 10px;
+  font-size: 0.78rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--text);
+}
+
+.footer-links a,
+.footer-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  align-items: flex-start;
+}
+
+.footer-meta {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  color: var(--muted);
 }
 
 .legal-footer {
