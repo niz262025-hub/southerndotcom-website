@@ -1,4 +1,12 @@
 import PropTypes from 'prop-types';
+import { useEffect, useState } from 'react';
+import {
+  AcceptableUsePage,
+  CookiePolicyPage,
+  PrivacyPolicyPage,
+  RefundCancellationPage,
+  TermsOfServicePage,
+} from './legalPages';
 
 const products = [
   {
@@ -36,6 +44,20 @@ const stats = [
   { value: '1 platform', label: 'For smarter execution' },
 ];
 
+const routes = {
+  '/privacy': PrivacyPolicyPage,
+  '/terms': TermsOfServicePage,
+  '/cookies': CookiePolicyPage,
+  '/refund-cancellation': RefundCancellationPage,
+  '/acceptable-use': AcceptableUsePage,
+};
+
+function normalizePath(pathname) {
+  const filtered = pathname.split('?')[0].split('#')[0];
+  const cleaned = filtered === '' ? '/' : filtered.replace(/\/+$/, '') || '/';
+  return cleaned;
+}
+
 function LogoMark({ compact = false }) {
   return (
     <svg
@@ -63,17 +85,17 @@ LogoMark.propTypes = {
   compact: PropTypes.bool,
 };
 
-export default function App() {
+function LandingPage() {
   return (
     <div className="page-shell">
       <header className="topbar">
         <div className="container nav">
-          <div className="brand" aria-label="MYOPS home">
+          <a href="/" className="brand" aria-label="MYOPS home">
             <span className="brand-mark">
               <LogoMark compact />
             </span>
             <span className="brand-wordmark">MYOPS</span>
-          </div>
+          </a>
           <nav className="nav-links" aria-label="Main navigation">
             <a href="#products">Products</a>
             <a href="#benefits">Why MYOPS</a>
@@ -246,12 +268,12 @@ export default function App() {
             <a href="#products">Products</a>
             <a href="#benefits">Why MYOPS</a>
             <a href="#about">About</a>
-            <a href="#contact">Contact</a>
+            <a href="#contact">Contact / Support</a>
           </div>
 
           <div className="footer-meta">
             <a href="mailto:support@myops.com.my">support@myops.com.my</a>
-            <span>© 2026 MYOPS</span>
+            <span>© 2026 MYOPS. All rights reserved.</span>
           </div>
         </div>
 
@@ -267,14 +289,30 @@ export default function App() {
             <a href="mailto:support@myops.com.my">Support email</a>
           </div>
           <div className="legal-block legal-links">
-            <a href="#">Privacy Policy</a>
-            <a href="#">Terms of Service</a>
-            <a href="#">Cookie Policy</a>
-            <a href="#">Refund &amp; Cancellation Policy</a>
-            <a href="#">Acceptable Use Policy</a>
+            <a href="/privacy">Privacy Policy</a>
+            <a href="/terms">Terms of Service</a>
+            <a href="/cookies">Cookie Policy</a>
+            <a href="/refund-cancellation">Refund &amp; Cancellation</a>
+            <a href="/acceptable-use">Acceptable Use</a>
           </div>
         </div>
       </footer>
     </div>
   );
+}
+
+export default function App() {
+  const [pathname, setPathname] = useState(() => normalizePath(window.location.pathname));
+
+  useEffect(() => {
+    const handleLocationChange = () => {
+      setPathname(normalizePath(window.location.pathname));
+    };
+
+    window.addEventListener('popstate', handleLocationChange);
+    return () => window.removeEventListener('popstate', handleLocationChange);
+  }, []);
+
+  const PageComponent = routes[pathname] || LandingPage;
+  return <PageComponent />;
 }
