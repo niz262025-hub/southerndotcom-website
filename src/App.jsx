@@ -12,7 +12,8 @@ const products = [
   {
     name: 'OpsHub',
     tag: 'Operations Marketplace',
-    description: 'Discover and connect through a marketplace designed around operational needs.',
+    description:
+      'Discover and connect through a marketplace designed to support business operations software, resourcing, and service coordination for growing teams.',
     cta: 'Explore OpsHub',
     accent: 'blue',
   },
@@ -20,7 +21,7 @@ const products = [
     name: 'OpsPS',
     tag: 'Personal Shopper Management Platform',
     description:
-      'Manage products, orders, inventory, and fulfilment with a platform built for day-to-day personal shopper operations.',
+      'Manage personal shopper operations, inventory, fulfilment, and customer coordination with a practical system for business management and service delivery.',
     cta: 'Explore OpsPS',
     accent: 'purple',
   },
@@ -53,6 +54,49 @@ const routes = {
   '/cookies': CookiePolicyPage,
   '/refund-cancellation': RefundCancellationPage,
   '/acceptable-use': AcceptableUsePage,
+};
+
+const siteBaseUrl = 'https://www.myops.com.my';
+
+const pageMeta = {
+  '/': {
+    title: 'MYOPS | Business Operations Software Malaysia',
+    description:
+      'MYOPS brings together business operations software, workflow coordination, and service management tools for modern businesses in Malaysia.',
+    ogTitle: 'MYOPS | Business Operations Software Malaysia',
+    ogDescription:
+      'Connected business operations software, service coordination, and management tools for growing businesses in Malaysia.',
+  },
+  '/privacy': {
+    title: 'MYOPS Privacy Policy | Business Operations Software Malaysia',
+    description: 'Read the MYOPS privacy policy covering website use, data handling, and operational services for our business software ecosystem.',
+    ogTitle: 'MYOPS Privacy Policy',
+    ogDescription: 'Website privacy policy for MYOPS and the business operations solutions ecosystem.',
+  },
+  '/terms': {
+    title: 'MYOPS Terms of Service | Business Operations Software Malaysia',
+    description: 'Review the MYOPS terms of service for our business operations, marketplace, and service management solutions.',
+    ogTitle: 'MYOPS Terms of Service',
+    ogDescription: 'MYOPS service terms for business operations software and operational platforms.',
+  },
+  '/cookies': {
+    title: 'MYOPS Cookie Policy | Business Operations Software Malaysia',
+    description: 'Learn how MYOPS uses cookies and website data to support service delivery and business operations tools.',
+    ogTitle: 'MYOPS Cookie Policy',
+    ogDescription: 'Cookie policy for the MYOPS website and operational service ecosystem.',
+  },
+  '/refund-cancellation': {
+    title: 'MYOPS Refund & Cancellation Policy | Business Operations Software Malaysia',
+    description: 'Review the MYOPS refund and cancellation policy for service requests and business operations support.',
+    ogTitle: 'MYOPS Refund & Cancellation Policy',
+    ogDescription: 'MYOPS refund and cancellation policy for operational services and support arrangements.',
+  },
+  '/acceptable-use': {
+    title: 'MYOPS Acceptable Use Policy | Business Operations Software Malaysia',
+    description: 'Read the MYOPS acceptable use policy covering responsible use of our operations management and service portal.',
+    ogTitle: 'MYOPS Acceptable Use Policy',
+    ogDescription: 'MYOPS acceptable use policy for operational platforms and business service tools.',
+  },
 };
 
 function normalizePath(pathname) {
@@ -119,11 +163,10 @@ function LandingPage() {
               <h1>One Ecosystem. Multiple Solutions.</h1>
               <p>
                 MYOPS brings connected digital solutions together to help businesses and professionals work
-                smarter, manage better and move forward.
+                smarter, manage operations more effectively, and move forward with practical tools for daily business management.
               </p>
               <p className="positioning-copy">
-                MYOPS is a business technology ecosystem built around practical digital solutions for modern
-                businesses and professionals.
+                MYOPS is a business technology ecosystem focused on business operations software, operational workflows, marketplace coordination, and service management for growing organisations in Malaysia.
               </p>
               <div className="hero-actions">
                 <a href="#products" className="btn btn-primary">
@@ -305,6 +348,38 @@ function LandingPage() {
   );
 }
 
+function updateSeoMeta(pathname) {
+  const routeMeta = pageMeta[pathname] || pageMeta['/'];
+  const pageUrl = `${siteBaseUrl}${pathname === '/' ? '/' : pathname}`;
+
+  document.title = routeMeta.title;
+
+  const metaDescription = document.querySelector('meta[name="description"]');
+  if (metaDescription) {
+    metaDescription.setAttribute('content', routeMeta.description);
+  }
+
+  const canonical = document.querySelector('link[rel="canonical"]');
+  if (canonical) {
+    canonical.setAttribute('href', pageUrl);
+  }
+
+  const ogUrl = document.querySelector('meta[property="og:url"]');
+  if (ogUrl) {
+    ogUrl.setAttribute('content', pageUrl);
+  }
+
+  const ogTitle = document.querySelector('meta[property="og:title"]');
+  if (ogTitle) {
+    ogTitle.setAttribute('content', routeMeta.ogTitle);
+  }
+
+  const ogDescription = document.querySelector('meta[property="og:description"]');
+  if (ogDescription) {
+    ogDescription.setAttribute('content', routeMeta.ogDescription);
+  }
+}
+
 export default function App() {
   const [pathname, setPathname] = useState(() => normalizePath(window.location.pathname));
 
@@ -316,6 +391,10 @@ export default function App() {
     window.addEventListener('popstate', handleLocationChange);
     return () => window.removeEventListener('popstate', handleLocationChange);
   }, []);
+
+  useEffect(() => {
+    updateSeoMeta(pathname);
+  }, [pathname]);
 
   const PageComponent = routes[pathname] || LandingPage;
   return <PageComponent />;
