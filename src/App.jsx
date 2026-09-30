@@ -229,7 +229,10 @@ function LandingPage() {
                   <div className="product-badge">{product.tag}</div>
                   <h3>{product.name}</h3>
                   <p>{product.description}</p>
-                  <a href="#contact" className="card-link">
+                  <a
+                    href={product.name === 'OpsHub' ? 'https://opshub.myops.com.my/' : '#contact'}
+                    className="card-link"
+                  >
                     {product.cta}
                   </a>
                 </article>
