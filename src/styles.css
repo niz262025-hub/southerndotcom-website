@@ -96,7 +96,7 @@ select {
   align-items: center;
   justify-content: space-between;
   gap: 18px;
-  min-height: 64px;
+  min-height: 58px;
 }
 
 .brand {
@@ -178,7 +178,7 @@ select {
 }
 
 .hero {
-  padding: 28px 0 42px;
+  padding: 18px 0 32px;
   background: linear-gradient(180deg, rgba(255, 241, 248, 0.8) 0%, rgba(255, 248, 239, 0.75) 100%);
 }
 
@@ -186,7 +186,7 @@ select {
   display: grid;
   grid-template-columns: 0.9fr 1.1fr;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
 }
 
 .eyebrow {
@@ -211,8 +211,8 @@ select {
   display: inline-flex;
   align-items: center;
   gap: 12px;
-  margin-bottom: 12px;
-  font-size: clamp(3.4rem, 5vw, 7rem);
+  margin-bottom: 10px;
+  font-size: clamp(2.8rem, 3.5vw, 5rem);
   line-height: 0.82;
   letter-spacing: -0.08em;
   font-weight: 900;
@@ -223,16 +223,16 @@ select {
 }
 
 .hero-brand-mark {
-  width: 57px;
-  height: 57px;
-  min-width: 57px;
+  width: 56px;
+  height: 56px;
+  min-width: 56px;
   border-radius: 18px;
 }
 
 .hero-copy h1 {
-  margin: 0 0 18px;
-  font-size: clamp(2.8rem, 3.9vw, 5.2rem);
-  line-height: 0.98;
+  margin: 0 0 14px;
+  font-size: clamp(2.6rem, 3.7vw, 4.6rem);
+  line-height: 0.94;
   letter-spacing: -0.07em;
   color: var(--text);
   max-width: 500px;
@@ -240,8 +240,8 @@ select {
 
 .hero-copy p {
   margin: 0;
-  max-width: 470px;
-  font-size: 1.08rem;
+  max-width: 460px;
+  font-size: 1.03rem;
   color: var(--muted);
 }
 
@@ -287,7 +287,7 @@ select {
 
 .hero-visual {
   position: relative;
-  min-height: 560px;
+  min-height: 520px;
   display: block;
   isolation: isolate;
   transform: translateY(2px);
@@ -296,7 +296,7 @@ select {
 .hero-visual::before {
   content: '';
   position: absolute;
-  inset: 28px 0 0 18px;
+  inset: 26px 10px 0 10px;
   border-radius: 36px;
   background: radial-gradient(circle at center, rgba(255, 138, 0, 0.12), rgba(139, 61, 255, 0.14) 40%, rgba(255, 255, 255, 0) 72%);
   z-index: 0;
@@ -304,15 +304,15 @@ select {
 
 .dashboard-panel {
   position: absolute;
-  right: 28px;
-  top: 18px;
+  right: 16px;
+  top: 10px;
   z-index: 1;
-  width: min(100%, 430px);
+  width: min(100%, 390px);
   background: rgba(255, 255, 255, 0.86);
   border: 1px solid rgba(7, 27, 73, 0.08);
   border-radius: 28px;
   box-shadow: 0 22px 38px rgba(7, 27, 73, 0.12);
-  padding: 14px 16px 18px;
+  padding: 12px 14px 16px;
 }
 
 .dashboard-header {
@@ -454,11 +454,12 @@ select {
   position: relative;
   z-index: 2;
   display: block;
-  width: min(100%, 690px);
-  max-height: 520px;
+  width: min(100%, 640px);
+  max-height: 500px;
   object-fit: contain;
   object-position: center bottom;
-  margin-top: 10px;
+  margin-top: 18px;
+  margin-left: 10px;
   filter: drop-shadow(0 30px 36px rgba(7, 27, 73, 0.18));
 }
 
@@ -688,12 +689,12 @@ select {
 .product-card {
   display: flex;
   flex-direction: column;
-  padding: 18px 18px 20px;
-  border-radius: 30px;
+  padding: 18px 18px 22px;
+  border-radius: 28px;
   background: linear-gradient(180deg, #ffffff 0%, #fffaf7 100%);
   border: 1px solid var(--border);
   box-shadow: 0 20px 32px rgba(7, 27, 73, 0.06);
-  min-height: 360px;
+  min-height: 340px;
   position: relative;
   overflow: hidden;
 }
