@@ -13,18 +13,16 @@ const products = [
     name: 'OpsPS',
     tag: 'Personal Shopper Operations',
     icon: 'PS',
-    description:
-      'Manage personal shopper operations, fulfilment, inventory, and customer coordination with confidence and clarity.',
+    description: 'Manage trips, products, orders and customers easily.',
     cta: 'Explore OpsPS',
-    accent: 'purple',
+    accent: 'pink',
     href: '#contact',
   },
   {
     name: 'OpsHub',
     tag: 'Business Marketplace & Operations',
     icon: 'HB',
-    description:
-      'Connect business operations, vendor coordination, and marketplace activity through one connected operating layer.',
+    description: 'Sell, manage and grow your business online.',
     cta: 'Explore OpsHub',
     accent: 'blue',
     href: 'https://opshub.myops.com.my/',
@@ -33,18 +31,16 @@ const products = [
     name: 'OpsFinance',
     tag: 'Accounting & Financial Management',
     icon: 'FX',
-    description:
-      'Bring financial visibility and management into the same ecosystem that supports everyday business operations.',
+    description: 'Keep your business finances organised and clear.',
     cta: 'Explore OpsFinance',
-    accent: 'orange',
+    accent: 'purple',
     href: '#contact',
   },
   {
     name: 'OpsFlow',
     tag: 'Workflow & Business Automation',
     icon: 'FL',
-    description:
-      'Automate recurring workflows and operational tasks to help your team move faster with less friction.',
+    description: 'Streamline your operations and work smarter.',
     cta: 'Explore OpsFlow',
     accent: 'green',
     href: '#contact',
@@ -202,17 +198,19 @@ function LandingPage() {
         <section className="hero">
           <div className="container hero-grid">
             <div className="hero-copy">
-              <span className="eyebrow">ONE ECOSYSTEM. MULTIPLE SOLUTIONS.</span>
+              <div className="hero-wordmark" aria-label="MYOPS logo wordmark">
+                <span className="brand-mark hero-brand-mark">
+                  <LogoMark compact />
+                </span>
+                <span>MYOPS</span>
+              </div>
               <h1>Digital Solutions for the Way You Work</h1>
               <p>
                 Practical business technology to help you manage, sell, operate and grow — all in one ecosystem.
               </p>
-              <p className="positioning-copy">
-                MYOPS brings connected digital solutions together to help businesses and professionals work smarter, manage operations more effectively, and move forward with practical tools for daily business management.
-              </p>
               <div className="hero-actions">
                 <a href="#products" className="btn btn-primary">
-                  Explore Solutions
+                  Explore Solutions <span aria-hidden="true">→</span>
                 </a>
                 <a href="#contact" className="btn btn-secondary">
                   Get Started
@@ -248,7 +246,7 @@ function LandingPage() {
               </div>
               <img
                 className="hero-character"
-                src="/images/myops-master-characters.png"
+                src="/images/myops-master-characters-transparent.png"
                 alt="MYOPS master characters"
               />
               <div className="floating-card floating-one">
@@ -273,14 +271,17 @@ function LandingPage() {
             <div className="product-grid">
               {products.map((product) => (
                 <article className={`product-card ${product.accent}`} key={product.name}>
-                  <div className="product-card-top">
-                    <span className="product-icon">{product.icon}</span>
-                    <span className="product-badge">{product.tag}</span>
+                  <div className="product-visual-wrap">
+                    <div className="product-visual">
+                      <span className="product-icon">{product.icon}</span>
+                    </div>
                   </div>
                   <h3>{product.name}</h3>
+                  <p className="product-tagline">{product.tag}</p>
                   <p>{product.description}</p>
-                  <a href={product.href} className="card-link">
-                    {product.cta}
+                  <a href={product.href} className="card-link" aria-label={product.cta}>
+                    <span className="card-link-text">{product.cta}</span>
+                    <span className="card-link-arrow" aria-hidden="true">→</span>
                   </a>
                 </article>
               ))}
