@@ -16,6 +16,7 @@ const products = [
     description: 'Manage trips, products, orders and customers easily.',
     cta: 'Explore OpsPS',
     accent: 'pink',
+    art: 'opsps',
     href: '#contact',
   },
   {
@@ -25,6 +26,7 @@ const products = [
     description: 'Sell, manage and grow your business online.',
     cta: 'Explore OpsHub',
     accent: 'orange',
+    art: 'opshub',
     href: 'https://opshub.myops.com.my/',
   },
   {
@@ -34,6 +36,7 @@ const products = [
     description: 'Keep your business finances organised and clear.',
     cta: 'Explore OpsFinance',
     accent: 'purple',
+    art: 'opsfinance',
     href: '#contact',
   },
   {
@@ -43,47 +46,8 @@ const products = [
     description: 'Streamline your operations and work smarter.',
     cta: 'Explore OpsFlow',
     accent: 'blue',
+    art: 'opsflow',
     href: '#contact',
-  },
-];
-
-const ecosystemNodes = ['MYOPS', 'OpsPS', 'OpsHub', 'OpsFinance', 'OpsFlow'];
-
-const benefits = [
-  {
-    title: 'Built Around Real Business Needs',
-    text: 'Practical digital solutions built to support everyday operations and service workflows.',
-  },
-  {
-    title: 'Connected Solutions',
-    text: 'Different solutions brought together under one ecosystem for clearer coordination.',
-  },
-  {
-    title: 'Simple & Practical',
-    text: 'Designed to help teams work more effectively without unnecessary complexity.',
-  },
-  {
-    title: 'Built to Scale',
-    text: 'A foundation that can evolve with changing business requirements and growth.',
-  },
-];
-
-const pricingPlans = [
-  {
-    name: 'OpsHub',
-    tag: 'Operations Marketplace',
-    summary: 'Custom pricing available for teams needing marketplace access, coordination, and operational visibility.',
-    cta: 'Contact OpsHub',
-    href: 'https://opshub.myops.com.my/',
-    accent: 'blue',
-  },
-  {
-    name: 'OpsPS',
-    tag: 'Personal Shopper Platform',
-    summary: 'Custom pricing available for personal shopper operations, fulfilment coordination, and service management workflows.',
-    cta: 'Contact OpsPS',
-    href: '#contact',
-    accent: 'purple',
   },
 ];
 
@@ -173,7 +137,7 @@ LogoMark.propTypes = {
 
 function LandingPage() {
   return (
-    <div className="page-shell">
+    <div className="page-shell reference-page">
       <header className="topbar">
         <div className="container nav">
           <a href="/" className="brand" aria-label="MYOPS home">
@@ -191,9 +155,9 @@ function LandingPage() {
         </div>
       </header>
 
-      <main>
+      <main className="reference-main">
         <section className="hero">
-          <div className="container hero-grid">
+          <div className="container hero-layout">
             <div className="hero-copy">
               <div className="hero-wordmark" aria-label="MYOPS logo wordmark">
                 <span className="brand-mark hero-brand-mark">
@@ -201,40 +165,46 @@ function LandingPage() {
                 </span>
                 <span>MYOPS</span>
               </div>
-              <h1>Digital Solutions for the Way You Work</h1>
+              <h1>
+                Digital Solutions
+                <br />
+                for the Way
+                <br />
+                You Work
+              </h1>
               <p>
                 Practical business technology to help you manage, sell, operate and grow — all in one ecosystem.
               </p>
-              <div className="hero-actions">
-                <a href="#products" className="btn btn-primary">
-                  Explore Solutions <span aria-hidden="true">→</span>
-                </a>
-              </div>
+              <a href="#products" className="btn btn-primary hero-cta">
+                Explore Solutions <span aria-hidden="true">→</span>
+              </a>
             </div>
 
             <div className="hero-visual" aria-label="MYOPS platform overview">
-              <div className="visual-card main-panel">
-                <div className="panel-header">
-                  <span className="dot dot-red" />
-                  <span className="dot dot-yellow" />
-                  <span className="dot dot-green" />
+              <div className="dashboard-panel">
+                <div className="panel-head">
+                  <span className="myops-panel-wordmark">MYOPS</span>
                 </div>
                 <div className="panel-body">
-                  <div className="mini-chart">
-                    <span className="bar b1" />
-                    <span className="bar b2" />
-                    <span className="bar b3" />
-                    <span className="bar b4" />
+                  <div className="panel-metrics">
+                    <div className="metric-box">
+                      <span>Dashboard</span>
+                      <strong>1,298</strong>
+                    </div>
+                    <div className="metric-box">
+                      <span>Products</span>
+                      <strong>+12%</strong>
+                    </div>
                   </div>
-                  <div className="panel-metrics panel-labels">
-                    <div>
-                      <label>Operations</label>
-                      <strong>Connected</strong>
-                    </div>
-                    <div>
-                      <label>Workflow</label>
-                      <strong>Clear</strong>
-                    </div>
+                  <div className="chart-box">
+                    <div className="chart curve-a" />
+                    <div className="chart curve-b" />
+                  </div>
+                  <div className="recent-orders">
+                    <div className="order-header"><span>Recent Orders</span></div>
+                    <div className="order-row"><span>#OD2401</span><span>Customer</span><span className="status success">Ready Stock</span></div>
+                    <div className="order-row"><span>#OD2402</span><span>Customer</span><span className="status info">Pre-Order</span></div>
+                    <div className="order-row"><span>#OD2403</span><span>Customer</span><span className="status warning">Processing</span></div>
                   </div>
                 </div>
               </div>
@@ -247,23 +217,16 @@ function LandingPage() {
           </div>
         </section>
 
-        <section id="products" className="section">
+        <section id="products" className="product-section">
           <div className="container">
-            <div className="section-heading">
-              <span className="eyebrow">MYOPS Ecosystem</span>
-              <h2>Explore MYOPS Solutions</h2>
-            </div>
-
             <div className="product-grid">
               {products.map((product) => (
                 <article className={`product-card ${product.accent}`} key={product.name}>
-                  <div className="product-visual-wrap">
-                    <div className="product-visual">
-                      <div className="mini-scene">
-                        <span className="scene-top" />
-                        <span className="scene-base" />
-                        <span className="scene-icon">{product.icon}</span>
-                      </div>
+                  <div className="product-art">
+                    <div className={`mini-scene ${product.art}`}>
+                      <div className="mini-window" />
+                      <div className="mini-detail" />
+                      <span className="scene-icon">{product.icon}</span>
                     </div>
                   </div>
                   <h3>{product.name}</h3>
@@ -276,147 +239,9 @@ function LandingPage() {
                 </article>
               ))}
             </div>
-
-            <div className="ecosystem-rail" aria-label="MYOPS ecosystem hierarchy">
-              {ecosystemNodes.map((node, index) => (
-                <div className="ecosystem-node" key={node}>
-                  {index > 0 && <span className="ecosystem-arrow">↓</span>}
-                  <span>{node}</span>
-                </div>
-              ))}
-            </div>
-          </div>
-        </section>
-
-        <section id="pricing" className="section alt-bg pricing-section">
-          <div className="container">
-            <div className="section-heading narrow">
-              <span className="eyebrow">Pricing</span>
-              <h2>Flexible subscriptions for each MYOPS product.</h2>
-            </div>
-
-            <div className="pricing-grid">
-              {pricingPlans.map((plan) => (
-                <article className={`pricing-card ${plan.accent}`} key={plan.name}>
-                  <div className="product-badge">{plan.tag}</div>
-                  <h3>{plan.name}</h3>
-                  <div className="price-row">
-                    <span className="price-label">Custom pricing</span>
-                  </div>
-                  <p>{plan.summary}</p>
-                  <ul className="pricing-points">
-                    <li>Dedicated product identity</li>
-                    <li>Business-specific configuration</li>
-                    <li>Contact for tailored onboarding</li>
-                  </ul>
-                  <a href={plan.href} className="card-link">
-                    {plan.cta}
-                  </a>
-                </article>
-              ))}
-            </div>
-          </div>
-        </section>
-
-        <section id="benefits" className="section alt-bg">
-          <div className="container">
-            <div className="section-heading narrow">
-              <span className="eyebrow">Why MYOPS</span>
-              <h2>Built around real business needs.</h2>
-            </div>
-
-            <div className="benefits-grid">
-              {benefits.map((benefit) => (
-                <div className="benefit-item" key={benefit.title}>
-                  <span className="check">✓</span>
-                  <div>
-                    <h3>{benefit.title}</h3>
-                    <p>{benefit.text}</p>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        </section>
-
-        <section id="about" className="section about-section">
-          <div className="container about-grid">
-            <div>
-              <span className="eyebrow">About MYOPS</span>
-              <h2>MYOPS is a technology ecosystem focused on creating practical digital solutions for modern businesses and professionals.</h2>
-            </div>
-            <div>
-              <p>
-                MYOPS is operated by Southern Dotcom Enterprise, a registered Malaysian business.
-              </p>
-            </div>
-          </div>
-        </section>
-
-        <section id="contact" className="section cta-section">
-          <div className="container cta-box">
-            <div>
-              <span className="eyebrow">Explore the ecosystem</span>
-              <h2>Ready to explore MYOPS?</h2>
-              <p>Discover the digital solutions designed to help you work smarter and move forward.</p>
-            </div>
-            <div className="hero-actions compact-actions">
-              <a href="#products" className="btn btn-primary large-btn">
-                Explore Solutions
-              </a>
-              <a href="mailto:support@myops.com.my" className="btn btn-secondary large-btn">
-                Contact MYOPS
-              </a>
-            </div>
           </div>
         </section>
       </main>
-
-      <footer className="footer">
-        <div className="container footer-inner">
-          <div>
-            <div className="brand footer-brand" aria-label="MYOPS footer brand">
-              <span className="brand-mark">
-                <LogoMark compact />
-              </span>
-              <span className="brand-wordmark">MYOPS</span>
-            </div>
-            <p>One Ecosystem. Multiple Solutions.</p>
-          </div>
-
-          <div className="footer-links">
-            <div>
-              <h3>Products</h3>
-              <a href="#products">OpsHub</a>
-              <a href="#products">OpsPS</a>
-              <a href="#products">OpsFinance</a>
-              <a href="#products">OpsFlow</a>
-            </div>
-            <div>
-              <h3>Company</h3>
-              <a href="#about">About</a>
-              <a href="#contact">Contact</a>
-            </div>
-            <div>
-              <h3>Legal</h3>
-              <a href="/privacy">Privacy Policy</a>
-              <a href="/terms">Terms of Service</a>
-              <a href="/cookies">Cookie Policy</a>
-              <a href="/refund-cancellation">Refund &amp; Cancellation</a>
-              <a href="/acceptable-use">Acceptable Use</a>
-            </div>
-          </div>
-
-          <div className="footer-meta">
-            <a href="mailto:support@myops.com.my">support@myops.com.my</a>
-            <a href="tel:+60122719377">012-271 9377</a>
-            <span>Southern Dotcom Enterprise</span>
-            <span>Registration No. 202303050959 (003472425-X)</span>
-            <span>MYOPS is a business technology ecosystem operated by Southern Dotcom Enterprise.</span>
-            <span>© 2026 MYOPS. All rights reserved.</span>
-          </div>
-        </div>
-      </footer>
     </div>
   );
 }
