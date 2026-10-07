@@ -204,6 +204,11 @@ function LandingPage() {
                   </div>
                 </div>
               </div>
+              <img
+                className="hero-character"
+                src="/images/myops-master-characters.png"
+                alt="MYOPS master characters"
+              />
               <div className="floating-card floating-one">
                 <span>OpsHub</span>
                 <strong>Business clarity</strong>
