@@ -24,7 +24,7 @@ const products = [
     icon: 'HB',
     description: 'Sell, manage and grow your business online.',
     cta: 'Explore OpsHub',
-    accent: 'blue',
+    accent: 'orange',
     href: 'https://opshub.myops.com.my/',
   },
   {
@@ -42,7 +42,7 @@ const products = [
     icon: 'FL',
     description: 'Streamline your operations and work smarter.',
     cta: 'Explore OpsFlow',
-    accent: 'green',
+    accent: 'blue',
     href: '#contact',
   },
 ];
@@ -188,9 +188,6 @@ function LandingPage() {
             <a href="#about">About</a>
             <a href="#contact">Contact</a>
           </nav>
-          <a href="#contact" className="btn btn-primary nav-cta">
-            Get Started
-          </a>
         </div>
       </header>
 
@@ -211,9 +208,6 @@ function LandingPage() {
               <div className="hero-actions">
                 <a href="#products" className="btn btn-primary">
                   Explore Solutions <span aria-hidden="true">→</span>
-                </a>
-                <a href="#contact" className="btn btn-secondary">
-                  Get Started
                 </a>
               </div>
             </div>
@@ -249,14 +243,6 @@ function LandingPage() {
                 src="/images/myops-master-characters-transparent.png"
                 alt="MYOPS master characters"
               />
-              <div className="floating-card floating-one">
-                <span>OpsHub</span>
-                <strong>Business clarity</strong>
-              </div>
-              <div className="floating-card floating-two">
-                <span>OpsPS</span>
-                <strong>Service speed</strong>
-              </div>
             </div>
           </div>
         </section>
@@ -273,7 +259,11 @@ function LandingPage() {
                 <article className={`product-card ${product.accent}`} key={product.name}>
                   <div className="product-visual-wrap">
                     <div className="product-visual">
-                      <span className="product-icon">{product.icon}</span>
+                      <div className="mini-scene">
+                        <span className="scene-top" />
+                        <span className="scene-base" />
+                        <span className="scene-icon">{product.icon}</span>
+                      </div>
                     </div>
                   </div>
                   <h3>{product.name}</h3>
