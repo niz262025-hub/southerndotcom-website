@@ -10,24 +10,48 @@ import {
 
 const products = [
   {
-    name: 'OpsHub',
-    tag: 'Operations Marketplace',
-    description:
-      'Discover and connect through a marketplace designed to support business operations software, resourcing, and service coordination for growing teams.',
-    cta: 'Explore OpsHub',
-    accent: 'blue',
-  },
-  {
     name: 'OpsPS',
-    tag: 'Personal Shopper Management Platform',
+    tag: 'Personal Shopper Operations',
+    icon: 'PS',
     description:
-      'Manage personal shopper operations, inventory, fulfilment, and customer coordination with a practical system for business management and service delivery.',
+      'Manage personal shopper operations, fulfilment, inventory, and customer coordination with confidence and clarity.',
     cta: 'Explore OpsPS',
     accent: 'purple',
+    href: '#contact',
+  },
+  {
+    name: 'OpsHub',
+    tag: 'Business Marketplace & Operations',
+    icon: 'HB',
+    description:
+      'Connect business operations, vendor coordination, and marketplace activity through one connected operating layer.',
+    cta: 'Explore OpsHub',
+    accent: 'blue',
+    href: 'https://opshub.myops.com.my/',
+  },
+  {
+    name: 'OpsFinance',
+    tag: 'Accounting & Financial Management',
+    icon: 'FX',
+    description:
+      'Bring financial visibility and management into the same ecosystem that supports everyday business operations.',
+    cta: 'Explore OpsFinance',
+    accent: 'orange',
+    href: '#contact',
+  },
+  {
+    name: 'OpsFlow',
+    tag: 'Workflow & Business Automation',
+    icon: 'FL',
+    description:
+      'Automate recurring workflows and operational tasks to help your team move faster with less friction.',
+    cta: 'Explore OpsFlow',
+    accent: 'green',
+    href: '#contact',
   },
 ];
 
-const ecosystemNodes = ['MYOPS', 'OpsHub', 'OpsPS'];
+const ecosystemNodes = ['MYOPS', 'OpsPS', 'OpsHub', 'OpsFinance', 'OpsFlow'];
 
 const benefits = [
   {
@@ -179,17 +203,16 @@ function LandingPage() {
           <div className="container hero-grid">
             <div className="hero-copy">
               <span className="eyebrow">ONE ECOSYSTEM. MULTIPLE SOLUTIONS.</span>
-              <h1>One Ecosystem. Multiple Solutions.</h1>
+              <h1>Digital Solutions for the Way You Work</h1>
               <p>
-                MYOPS brings connected digital solutions together to help businesses and professionals work
-                smarter, manage operations more effectively, and move forward with practical tools for daily business management.
+                Practical business technology to help you manage, sell, operate and grow — all in one ecosystem.
               </p>
               <p className="positioning-copy">
-                MYOPS is a business technology ecosystem focused on business operations software, operational workflows, marketplace coordination, and service management for growing organisations in Malaysia.
+                MYOPS brings connected digital solutions together to help businesses and professionals work smarter, manage operations more effectively, and move forward with practical tools for daily business management.
               </p>
               <div className="hero-actions">
                 <a href="#products" className="btn btn-primary">
-                  Explore Our Solutions
+                  Explore Solutions
                 </a>
                 <a href="#contact" className="btn btn-secondary">
                   Get Started
@@ -250,13 +273,13 @@ function LandingPage() {
             <div className="product-grid">
               {products.map((product) => (
                 <article className={`product-card ${product.accent}`} key={product.name}>
-                  <div className="product-badge">{product.tag}</div>
+                  <div className="product-card-top">
+                    <span className="product-icon">{product.icon}</span>
+                    <span className="product-badge">{product.tag}</span>
+                  </div>
                   <h3>{product.name}</h3>
                   <p>{product.description}</p>
-                  <a
-                    href={product.name === 'OpsHub' ? 'https://opshub.myops.com.my/' : '#contact'}
-                    className="card-link"
-                  >
+                  <a href={product.href} className="card-link">
                     {product.cta}
                   </a>
                 </article>
@@ -375,6 +398,8 @@ function LandingPage() {
               <h3>Products</h3>
               <a href="#products">OpsHub</a>
               <a href="#products">OpsPS</a>
+              <a href="#products">OpsFinance</a>
+              <a href="#products">OpsFlow</a>
             </div>
             <div>
               <h3>Company</h3>
