@@ -48,6 +48,25 @@ const benefits = [
   },
 ];
 
+const pricingPlans = [
+  {
+    name: 'OpsHub',
+    tag: 'Operations Marketplace',
+    summary: 'Custom pricing available for teams needing marketplace access, coordination, and operational visibility.',
+    cta: 'Contact OpsHub',
+    href: 'https://opshub.myops.com.my/',
+    accent: 'blue',
+  },
+  {
+    name: 'OpsPS',
+    tag: 'Personal Shopper Platform',
+    summary: 'Custom pricing available for personal shopper operations, fulfilment coordination, and service management workflows.',
+    cta: 'Contact OpsPS',
+    href: '#contact',
+    accent: 'purple',
+  },
+];
+
 const routes = {
   '/privacy': PrivacyPolicyPage,
   '/terms': TermsOfServicePage,
@@ -250,6 +269,36 @@ function LandingPage() {
                   {index > 0 && <span className="ecosystem-arrow">↓</span>}
                   <span>{node}</span>
                 </div>
+              ))}
+            </div>
+          </div>
+        </section>
+
+        <section id="pricing" className="section alt-bg pricing-section">
+          <div className="container">
+            <div className="section-heading narrow">
+              <span className="eyebrow">Pricing</span>
+              <h2>Flexible subscriptions for each MYOPS product.</h2>
+            </div>
+
+            <div className="pricing-grid">
+              {pricingPlans.map((plan) => (
+                <article className={`pricing-card ${plan.accent}`} key={plan.name}>
+                  <div className="product-badge">{plan.tag}</div>
+                  <h3>{plan.name}</h3>
+                  <div className="price-row">
+                    <span className="price-label">Custom pricing</span>
+                  </div>
+                  <p>{plan.summary}</p>
+                  <ul className="pricing-points">
+                    <li>Dedicated product identity</li>
+                    <li>Business-specific configuration</li>
+                    <li>Contact for tailored onboarding</li>
+                  </ul>
+                  <a href={plan.href} className="card-link">
+                    {plan.cta}
+                  </a>
+                </article>
               ))}
             </div>
           </div>

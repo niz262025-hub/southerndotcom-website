@@ -48,6 +48,7 @@ body {
   margin: 0;
   min-width: 320px;
   min-height: 100vh;
+  overflow-x: hidden;
   background:
     radial-gradient(circle at top left, rgba(236, 22, 122, 0.12), transparent 24%),
     radial-gradient(circle at top right, rgba(255, 138, 0, 0.12), transparent 26%),
@@ -266,25 +267,40 @@ select {
   min-height: 470px;
   display: grid;
   place-items: center;
+  isolation: isolate;
+}
+
+.hero-visual::before {
+  content: '';
+  position: absolute;
+  inset: 48px 30px 10px 30px;
+  border-radius: 36px;
+  background: radial-gradient(circle at center, rgba(255, 138, 0, 0.08), rgba(139, 61, 255, 0.12) 42%, rgba(255, 255, 255, 0) 72%);
+  z-index: 0;
 }
 
 .hero-character {
   position: relative;
-  z-index: 1;
+  z-index: 2;
   display: block;
-  width: min(100%, 520px);
-  max-height: 420px;
+  width: min(100%, 540px);
+  max-height: 440px;
+  margin-left: 72px;
   object-fit: contain;
   object-position: center;
-  filter: drop-shadow(0 26px 32px rgba(7, 27, 73, 0.12));
+  filter: drop-shadow(0 26px 32px rgba(7, 27, 73, 0.16));
 }
 
 .visual-card {
-  width: min(100%, 460px);
+  position: absolute;
+  left: 10%;
+  bottom: 32px;
+  width: min(100%, 430px);
   background: linear-gradient(180deg, rgba(255, 255, 255, 0.92), rgba(255, 248, 239, 0.9));
   border: 1px solid var(--border);
   border-radius: 26px;
   box-shadow: var(--shadow);
+  z-index: 1;
 }
 
 .main-panel {
@@ -373,6 +389,7 @@ select {
   border: 1px solid var(--border);
   background: rgba(255, 255, 255, 0.92);
   box-shadow: var(--shadow);
+  z-index: 3;
 }
 
 .floating-card span {
@@ -386,17 +403,89 @@ select {
 }
 
 .floating-one {
-  left: 0;
-  bottom: 40px;
+  left: 14px;
+  bottom: 56px;
 }
 
 .floating-two {
-  right: 14px;
-  top: 60px;
+  right: 18px;
+  top: 56px;
 }
 
 .section {
   padding: 96px 0;
+}
+
+.pricing-section {
+  border-top: 1px solid var(--border);
+}
+
+.pricing-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 24px;
+}
+
+.pricing-card {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 28px 24px;
+  border-radius: 24px;
+  background: linear-gradient(180deg, #ffffff 0%, #fffaf7 100%);
+  border: 1px solid var(--border);
+  box-shadow: 0 18px 40px rgba(7, 27, 73, 0.05);
+}
+
+.pricing-card.blue {
+  background: linear-gradient(180deg, #ffffff 0%, #f4f8ff 100%);
+}
+
+.pricing-card.purple {
+  background: linear-gradient(180deg, #ffffff 0%, #f9f1ff 100%);
+}
+
+.pricing-card h3 {
+  margin: 0;
+  font-size: clamp(1.7rem, 2vw, 2.3rem);
+  line-height: 1.1;
+  color: var(--text);
+}
+
+.price-row {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+}
+
+.price-label {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.5rem 0.8rem;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.9);
+  border: 1px solid var(--border);
+  color: var(--text);
+  font-size: 0.82rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.pricing-card p {
+  margin: 0;
+  color: var(--muted);
+  line-height: 1.7;
+  font-size: 1.02rem;
+}
+
+.pricing-points {
+  margin: 0;
+  padding-left: 1.1rem;
+  color: var(--text);
+  display: grid;
+  gap: 8px;
+  line-height: 1.6;
 }
 
 .ecosystem-rail {
@@ -678,6 +767,7 @@ select {
   .hero-grid,
   .about-grid,
   .product-grid,
+  .pricing-grid,
   .benefits-grid,
   .footer-inner,
   .cta-box {
@@ -689,8 +779,58 @@ select {
   .hero-grid,
   .about-grid,
   .product-grid,
+  .pricing-grid,
   .benefits-grid {
     display: grid;
+  }
+
+  .hero {
+    padding-top: 48px;
+  }
+
+  .hero-grid {
+    gap: 32px;
+  }
+
+  .hero-copy {
+    width: 100%;
+  }
+
+  .hero-copy h1 {
+    font-size: clamp(2.3rem, 12vw, 3.6rem);
+  }
+
+  .hero-visual {
+    width: 100%;
+    min-height: 360px;
+    padding-top: 8px;
+  }
+
+  .hero-character {
+    width: min(100%, 350px);
+    margin-left: 28px;
+    max-height: 320px;
+  }
+
+  .visual-card {
+    left: 5%;
+    bottom: 18px;
+    width: min(100%, 300px);
+  }
+
+  .floating-card {
+    transform: scale(0.9);
+    transform-origin: center;
+  }
+
+  .floating-one {
+    left: 4px;
+    bottom: 18px;
+  }
+
+  .floating-two {
+    right: 8px;
+    top: 26px;
   }
 
   .nav {
