@@ -202,7 +202,7 @@ select {
   display: grid;
   grid-template-columns: 0.96fr 1.04fr;
   align-items: center;
-  column-gap: 16px;
+  column-gap: 18px;
 }
 
 .eyebrow {
@@ -247,11 +247,11 @@ select {
 
 .hero-copy h1 {
   margin: 0 0 18px;
-  font-size: clamp(3.2rem, 4.8vw, 5.9rem);
-  line-height: 0.9;
+  font-size: clamp(3.2rem, 4.8vw, 5.8rem);
+  line-height: 0.86;
   letter-spacing: -0.085em;
   color: var(--text);
-  max-width: 500px;
+  max-width: 510px;
 }
 
 .hero-copy p {
@@ -303,7 +303,7 @@ select {
 
 .hero-visual {
   position: relative;
-  min-height: 560px;
+  min-height: 620px;
   display: block;
   isolation: isolate;
   transform: translateY(2px);
@@ -323,7 +323,7 @@ select {
   right: 0;
   top: 14px;
   z-index: 1;
-  width: min(100%, 440px);
+  width: min(100%, 450px);
   background: rgba(255, 255, 255, 0.75);
   border: 1px solid rgba(7, 27, 73, 0.08);
   border-radius: 28px;
@@ -450,14 +450,14 @@ select {
 .hero-character {
   position: absolute;
   left: 10px;
-  bottom: -8px;
+  bottom: -4px;
   z-index: 2;
   display: block;
   width: min(100%, 720px);
-  max-height: 540px;
+  max-height: 548px;
   object-fit: contain;
   object-position: left bottom;
-  filter: drop-shadow(0 26px 34px rgba(0, 0, 0, 0.12));
+  filter: drop-shadow(0 24px 30px rgba(0, 0, 0, 0.12));
 }
 
 .dashboard-header {
@@ -843,7 +843,7 @@ select {
   background: linear-gradient(180deg, #ffffff 0%, #fffaf7 100%);
   border: 1px solid rgba(7,27,73,0.06);
   box-shadow: 0 20px 30px rgba(7, 27, 73, 0.06);
-  min-height: 380px;
+  min-height: 390px;
   position: relative;
   overflow: hidden;
 }
@@ -868,41 +868,41 @@ select {
   display: flex;
   justify-content: center;
   align-items: center;
-  min-height: 190px;
-  margin-bottom: 18px;
+  min-height: 220px;
+  margin-bottom: 12px;
 }
 
 .mini-scene {
   position: relative;
   width: 100%;
-  max-width: 220px;
-  height: 160px;
+  max-width: 240px;
+  height: 190px;
   border-radius: 26px;
   background-color: #f4f7ff;
   background-repeat: no-repeat;
-  background-size: 150% auto;
+  background-size: 180% auto;
   overflow: hidden;
   box-shadow: inset 0 0 0 1px rgba(255,255,255,0.22);
 }
 
 .product-card.pink .mini-scene {
   background-image: linear-gradient(135deg, rgba(255, 142, 197, 0.32), rgba(255, 97, 171, 0.24)), url('/images/myops-master-characters-transparent.png');
-  background-position: 22% 18%;
+  background-position: 18% 12%;
 }
 
 .product-card.orange .mini-scene {
   background-image: linear-gradient(135deg, rgba(255, 184, 113, 0.36), rgba(255, 124, 79, 0.18)), url('/images/myops-master-characters-transparent.png');
-  background-position: 72% 22%;
+  background-position: 72% 18%;
 }
 
 .product-card.blue .mini-scene {
   background-image: linear-gradient(135deg, rgba(116, 221, 255, 0.28), rgba(104, 106, 255, 0.18)), url('/images/myops-master-characters-transparent.png');
-  background-position: 58% 18%;
+  background-position: 58% 16%;
 }
 
 .product-card.purple .mini-scene {
   background-image: linear-gradient(135deg, rgba(206, 179, 255, 0.32), rgba(153, 110, 255, 0.16)), url('/images/myops-master-characters-transparent.png');
-  background-position: 40% 18%;
+  background-position: 35% 16%;
 }
 
 .mini-window {
@@ -945,7 +945,7 @@ select {
 
 .product-card h3 {
   margin: 0 0 8px;
-  font-size: clamp(1.7rem, 2vw, 2.1rem);
+  font-size: clamp(1.85rem, 1.9vw, 2.2rem);
   line-height: 1.2;
   color: var(--text);
   letter-spacing: -0.05em;
@@ -955,7 +955,7 @@ select {
   margin: 0 0 10px !important;
   color: var(--text) !important;
   font-weight: 700;
-  font-size: 0.96rem !important;
+  font-size: 1rem !important;
   line-height: 1.5 !important;
 }
 
