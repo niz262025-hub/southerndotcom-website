@@ -628,12 +628,23 @@ function SolutionsPage() {
   return (
     <PageShell pageClass="page-shell-plain">
       <section className="page-hero">
-        <div className="container">
-          <SectionIntro label="Solutions" title="MYOPS product ecosystem" text="Each MYOPS product supports a distinct operating need while staying connected to the same business layer. Our Southern Dotcom development service complements the MYOPS product suite with bespoke web and application build support." />
-          <div className="cards-grid">
+        <div className="container solutions-showcase">
+          <div className="solutions-intro">
+            <SectionIntro
+              label="Solutions"
+              title="A connected ecosystem for modern business operations"
+              text="Each MYOPS product supports a distinct operating need while staying connected to the same business layer. Our Southern Dotcom development service complements the MYOPS product suite with bespoke web and application build support."
+            />
+            <div className="inline-actions">
+              <a href="/contact" className="btn btn-primary">Get a Quote</a>
+              <a href="/solutions/business-website-application-development" className="btn btn-secondary">Explore Services</a>
+            </div>
+          </div>
+
+          <div className="solution-tile-grid">
             {products.map((product) => (
-              <article className={`info-card ${product.accent}`} key={product.name}>
-                <div className="info-card-top">
+              <article className={`solution-tile ${product.accent}`} key={product.name}>
+                <div className="solution-tile-head">
                   <span className="solution-pill">{product.name}</span>
                   <span className="solution-symbol">{product.icon}</span>
                 </div>
@@ -642,8 +653,8 @@ function SolutionsPage() {
                 <a href={product.href} className="text-link">Learn more →</a>
               </article>
             ))}
-            <article className="info-card service-card">
-              <div className="info-card-top">
+            <article className="solution-tile service-tile">
+              <div className="solution-tile-head">
                 <span className="solution-pill">Southern Dotcom</span>
                 <span className="solution-symbol">SD</span>
               </div>
@@ -747,21 +758,23 @@ function BusinessWebsiteDevelopmentPage() {
   return (
     <PageShell pageClass="page-shell-plain">
       <section className="page-hero">
-        <div className="container narrow-content">
-          <SectionIntro
-            label="Southern Dotcom Service"
-            title="Website & Business Application Development"
-            text="We design and build professional websites and custom business applications tailored to your business needs — from company websites and customer portals to internal management systems and complete digital solutions."
-          />
-          <div className="inline-actions">
-            <a href="/contact" className="btn btn-primary">Get a Quote</a>
-            <a href="/contact" className="btn btn-secondary">Discuss Your Project</a>
+        <div className="container service-showcase-grid">
+          <div className="service-intro">
+            <SectionIntro
+              label="Southern Dotcom Service"
+              title="Website & Business Application Development"
+              text="We design and build professional websites and custom business applications tailored to your business needs — from company websites and customer portals to internal management systems and complete digital solutions."
+            />
+            <div className="inline-actions">
+              <a href="/contact" className="btn btn-primary">Get a Quote</a>
+              <a href="/contact" className="btn btn-secondary">Discuss Your Project</a>
+            </div>
           </div>
 
-          <div className="cards-grid service-scope-grid">
+          <div className="service-tile-grid">
             {digitalDevelopmentScope.map((item, index) => (
-              <article className="info-card service-card" key={item}>
-                <div className="info-card-top">
+              <article className="service-tile" key={item}>
+                <div className="solution-tile-head">
                   <span className="solution-pill">Scope</span>
                   <span className="solution-symbol">0{index + 1}</span>
                 </div>
