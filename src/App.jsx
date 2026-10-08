@@ -15,7 +15,7 @@ const companyDetails = {
   phone: '012-271 9377',
   phoneHref: 'tel:+60122719377',
   website: 'https://myops.com.my',
-  supportEmail: 'support@myops.com.my',
+  supportEmail: 'southerndotcom8@gmail.com',
 };
 
 const products = [
@@ -70,6 +70,20 @@ const topNavItems = [
   { label: 'Contact', href: '/contact' },
 ];
 
+const digitalDevelopmentScope = [
+  'Company Website Development',
+  'E-commerce Website',
+  'Business Web Application',
+  'Customer Portal',
+  'Internal Management System',
+  'Booking & Appointment System',
+  'Business Dashboard',
+  'Database & Business Automation',
+  'Mobile-Responsive Applications',
+  'Custom API & System Integration',
+  'Custom Business Software',
+];
+
 const faqItems = [
   {
     q: 'What is MYOPS?',
@@ -85,7 +99,7 @@ const faqItems = [
   },
   {
     q: 'How do I contact the team?',
-    a: 'Use the contact page, email support@myops.com.my or call 012-271 9377 for direct support and business enquiries.',
+    a: 'Use the contact page, email southerndotcom8@gmail.com or call 012-271 9377 for direct support and business enquiries.',
   },
 ];
 
@@ -105,6 +119,8 @@ const routes = {
   '/solutions/opshub': SolutionPage,
   '/solutions/opsfinance': SolutionPage,
   '/solutions/opsflow': SolutionPage,
+  '/solutions/business-website-application-development': BusinessWebsiteDevelopmentPage,
+  '/services/web-and-business-applications': BusinessWebsiteDevelopmentPage,
   '/pricing': PricingPage,
   '/about': AboutPage,
   '/contact': ContactPage,
@@ -118,7 +134,7 @@ const routes = {
   '/pdpa': PDPAPage,
 };
 
-const siteBaseUrl = 'https://www.myops.com.my';
+const siteBaseUrl = 'https://myops.com.my';
 
 const pageMeta = {
   '/': {
@@ -156,6 +172,18 @@ const pageMeta = {
     description: 'OpsFlow automates workflow execution so teams can reduce operational friction and improve speed.',
     ogTitle: 'OpsFlow | MYOPS',
     ogDescription: 'Workflow automation and operational coordination for modern teams.',
+  },
+  '/solutions/business-website-application-development': {
+    title: 'Business Website & Application Development | MYOPS',
+    description: 'Southern Dotcom builds professional websites and custom business applications for businesses, including company websites, customer portals, dashboards, internal systems and business automation.',
+    ogTitle: 'Business Website & Application Development | MYOPS',
+    ogDescription: 'Professional websites and custom business applications from Southern Dotcom.',
+  },
+  '/services/web-and-business-applications': {
+    title: 'Website & Business Application Development | Southern Dotcom',
+    description: 'Southern Dotcom builds professional websites and custom business applications for businesses, including company websites, customer portals, dashboards, internal systems and business automation.',
+    ogTitle: 'Website & Business Application Development | Southern Dotcom',
+    ogDescription: 'Southern Dotcom helps businesses build websites, customer portals, dashboards and integrated digital systems.',
   },
   '/pricing': {
     title: 'Pricing | MYOPS',
@@ -524,6 +552,31 @@ function LandingPage() {
       </section>
 
       <section className="content-section">
+        <div className="container two-column service-showcase">
+          <div>
+            <SectionIntro
+              label="Southern Dotcom Service"
+              title="Website & Business Application Development"
+              text="We design and build professional websites and custom business applications tailored to your business needs — from company websites and customer portals to internal management systems and complete digital solutions."
+            />
+            <div className="inline-actions">
+              <a href="/contact" className="btn btn-primary">Get a Quote</a>
+              <a href="/contact" className="btn btn-secondary">Discuss Your Project</a>
+            </div>
+          </div>
+          <div className="feature-stack">
+            {digitalDevelopmentScope.map((item, index) => (
+              <div className="feature-card" key={item}>
+                <span>{String(index + 1).padStart(2, '0')}</span>
+                <h3>{item}</h3>
+                <p>Practical digital support built around the way your business operates.</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      <section className="content-section">
         <div className="container pricing-teaser">
           <div>
             <SectionIntro
@@ -576,7 +629,7 @@ function SolutionsPage() {
     <PageShell pageClass="page-shell-plain">
       <section className="page-hero">
         <div className="container">
-          <SectionIntro label="Solutions" title="MYOPS product ecosystem" text="Each MYOPS product supports a distinct operating need while staying connected to the same business layer." />
+          <SectionIntro label="Solutions" title="MYOPS product ecosystem" text="Each MYOPS product supports a distinct operating need while staying connected to the same business layer. Our Southern Dotcom development service complements the MYOPS product suite with bespoke web and application build support." />
           <div className="cards-grid">
             {products.map((product) => (
               <article className={`info-card ${product.accent}`} key={product.name}>
@@ -589,6 +642,15 @@ function SolutionsPage() {
                 <a href={product.href} className="text-link">Learn more →</a>
               </article>
             ))}
+            <article className="info-card service-card">
+              <div className="info-card-top">
+                <span className="solution-pill">Southern Dotcom</span>
+                <span className="solution-symbol">SD</span>
+              </div>
+              <h3>Website &amp; Business Application Development</h3>
+              <p>Custom websites, customer portals, internal systems and business applications built for the way your business operates.</p>
+              <a href="/solutions/business-website-application-development" className="text-link">Learn more →</a>
+            </article>
           </div>
         </div>
       </section>
@@ -681,11 +743,46 @@ SolutionPage.propTypes = {
   route: PropTypes.string.isRequired,
 };
 
+function BusinessWebsiteDevelopmentPage() {
+  return (
+    <PageShell pageClass="page-shell-plain">
+      <section className="page-hero">
+        <div className="container narrow-content">
+          <SectionIntro
+            label="Southern Dotcom Service"
+            title="Website & Business Application Development"
+            text="We design and build professional websites and custom business applications tailored to your business needs — from company websites and customer portals to internal management systems and complete digital solutions."
+          />
+          <div className="inline-actions">
+            <a href="/contact" className="btn btn-primary">Get a Quote</a>
+            <a href="/contact" className="btn btn-secondary">Discuss Your Project</a>
+          </div>
+
+          <div className="cards-grid service-scope-grid">
+            {digitalDevelopmentScope.map((item, index) => (
+              <article className="info-card service-card" key={item}>
+                <div className="info-card-top">
+                  <span className="solution-pill">Scope</span>
+                  <span className="solution-symbol">0{index + 1}</span>
+                </div>
+                <h3>{item}</h3>
+                <p>Business-focused delivery designed for practical operational outcomes.</p>
+              </article>
+            ))}
+          </div>
+        </div>
+      </section>
+    </PageShell>
+  );
+}
+
 const routePageMap = {
   '/solutions/opsp': () => <SolutionPage route="/solutions/opsp" />,
   '/solutions/opshub': () => <SolutionPage route="/solutions/opshub" />,
   '/solutions/opsfinance': () => <SolutionPage route="/solutions/opsfinance" />,
   '/solutions/opsflow': () => <SolutionPage route="/solutions/opsflow" />,
+  '/solutions/business-website-application-development': () => <BusinessWebsiteDevelopmentPage />,
+  '/services/web-and-business-applications': () => <BusinessWebsiteDevelopmentPage />,
 };
 
 function PricingPage() {
@@ -693,49 +790,49 @@ function PricingPage() {
     <PageShell pageClass="page-shell-plain">
       <section className="page-hero">
         <div className="container narrow-content">
-          <SectionIntro label="Pricing" title="Simple product access for modern operations" text="MYOPS pricing is structured around operational needs. The exact plan mix depends on the product or ecosystem configuration you need." />
+          <SectionIntro label="Pricing" title="Simple product access for modern operations" text="MYOPS pricing is structured around product access and business needs. OpsFinance is currently listed at RM29/month/company with a 7-day free trial. Custom development services are quoted separately based on project scope." />
           <div className="pricing-grid">
             <article className="pricing-card highlight">
-              <span className="pricing-tag">Starter</span>
-              <h3>Essential operations</h3>
+              <span className="pricing-tag">OpsFinance</span>
+              <h3>Accounting &amp; Financial Management</h3>
               <div className="price-line">
-                <strong>Custom</strong>
-                <span>pricing</span>
+                <strong>RM29</strong>
+                <span>/month/company</span>
               </div>
               <ul>
-                <li>Core product access</li>
-                <li>Operational management workflows</li>
-                <li>Email support</li>
+                <li>7-day free trial</li>
+                <li>Core accounting and operational visibility</li>
+                <li>Business financial coordination</li>
               </ul>
-              <a href="/contact" className="btn btn-primary">Request quote</a>
+              <a href="/contact" className="btn btn-primary">Talk to Us</a>
             </article>
             <article className="pricing-card">
-              <span className="pricing-tag">Growth</span>
-              <h3>Connected ecosystem</h3>
+              <span className="pricing-tag">MYOPS</span>
+              <h3>Product ecosystem</h3>
               <div className="price-line">
                 <strong>Custom</strong>
                 <span>pricing</span>
               </div>
               <ul>
                 <li>Multi-solution access</li>
-                <li>Business coordination</li>
-                <li>Priority support</li>
+                <li>Business coordination and workflows</li>
+                <li>Tailored setup guidance</li>
               </ul>
-              <a href="/contact" className="btn btn-secondary">Talk to sales</a>
+              <a href="/contact" className="btn btn-secondary">Request quote</a>
             </article>
             <article className="pricing-card">
-              <span className="pricing-tag">Scale</span>
-              <h3>Enterprise operations</h3>
+              <span className="pricing-tag">Services</span>
+              <h3>Website &amp; application solutions</h3>
               <div className="price-line">
                 <strong>Custom</strong>
-                <span>pricing</span>
+                <span>quote</span>
               </div>
               <ul>
-                <li>Advanced operational planning</li>
-                <li>Business workflow alignment</li>
-                <li>Strategic support</li>
+                <li>Website design and build</li>
+                <li>Business applications and integration</li>
+                <li>Project scoping and consultation</li>
               </ul>
-              <a href="/contact" className="btn btn-primary">Book a call</a>
+              <a href="/contact" className="btn btn-primary">Get a Quote</a>
             </article>
           </div>
         </div>
@@ -778,14 +875,14 @@ function ContactPage() {
     <PageShell pageClass="page-shell-plain">
       <section className="page-hero">
         <div className="container narrow-content">
-          <SectionIntro label="Contact" title="Speak with the MYOPS team" text="Use the details below for product enquiries, support and ecosystem discussions." />
+          <SectionIntro label="Contact" title="Speak with the MYOPS team" text="Use the details below for product enquiries, support and project discussions." />
           <div className="contact-panel">
             <div className="contact-card">
               <h3>Email</h3>
               <a href={`mailto:${companyDetails.supportEmail}`}>{companyDetails.supportEmail}</a>
             </div>
             <div className="contact-card">
-              <h3>Phone</h3>
+              <h3>Phone / WhatsApp</h3>
               <a href={companyDetails.phoneHref}>{companyDetails.phone}</a>
             </div>
             <div className="contact-card">
@@ -796,19 +893,36 @@ function ContactPage() {
           <form className="contact-form" action={`mailto:${companyDetails.supportEmail}`} method="post" encType="text/plain">
             <label>
               Name
-              <input type="text" name="name" placeholder="Your name" />
-            </label>
-            <label>
-              Email
-              <input type="email" name="email" placeholder="name@example.com" />
+              <input type="text" name="name" placeholder="Your name" required />
             </label>
             <label>
               Company
               <input type="text" name="company" placeholder="Business name" />
             </label>
             <label>
+              Email
+              <input type="email" name="email" placeholder="name@example.com" required />
+            </label>
+            <label>
+              Phone
+              <input type="tel" name="phone" placeholder="012-271 9377" />
+            </label>
+            <label>
+              What do you need?
+              <select name="interest" defaultValue="">
+                <option value="" disabled>Select an option</option>
+                <option value="MYOPS Product">MYOPS Product</option>
+                <option value="Business Website">Business Website</option>
+                <option value="Business Application">Business Application</option>
+                <option value="Mobile Application">Mobile Application</option>
+                <option value="Business System">Business System</option>
+                <option value="Integration">Integration</option>
+                <option value="Other">Other</option>
+              </select>
+            </label>
+            <label>
               Message
-              <textarea name="message" rows="5" placeholder="How can MYOPS help?" />
+              <textarea name="message" rows="5" placeholder="Tell us what your business needs." required />
             </label>
             <button type="submit" className="btn btn-primary">Send enquiry</button>
           </form>
@@ -870,7 +984,7 @@ function PDPAPage() {
             <p>Personal data may include contact details, communications records, operational information and technical information required to deliver the website and connected services.</p>
             <p>We process personal data for legitimate business purposes such as service delivery, support administration, security, website operations and compliance with applicable legal obligations.</p>
             <p>We retain personal data only as long as necessary to fulfil the purpose for which it was collected and to comply with relevant legal and business record requirements.</p>
-            <p>If you have concerns about your personal data or want to understand how your information is handled, contact support@myops.com.my or call 012-271 9377.</p>
+            <p>If you have concerns about your personal data or want to understand how your information is handled, contact southerndotcom8@gmail.com or call 012-271 9377.</p>
           </div>
         </div>
       </section>
@@ -901,8 +1015,15 @@ export default function App() {
 
   const PageComponent = routes[pathname] || LandingPage;
 
-  if (pathname === '/solutions/opsp' || pathname === '/solutions/opshub' || pathname === '/solutions/opsfinance' || pathname === '/solutions/opsflow') {
-    return routePageMap[pathname]();
+  if (
+    pathname === '/solutions/opsp' ||
+    pathname === '/solutions/opshub' ||
+    pathname === '/solutions/opsfinance' ||
+    pathname === '/solutions/opsflow' ||
+    pathname === '/solutions/business-website-application-development' ||
+    pathname === '/services/web-and-business-applications'
+  ) {
+    return routePageMap[pathname] ? routePageMap[pathname]() : <PageComponent />;
   }
 
   return <PageComponent />;

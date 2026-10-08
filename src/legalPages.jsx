@@ -7,7 +7,7 @@ const companyDetails = {
   registration: '202303050959 (003472425-X)',
   phone: '012-271 9377',
   website: 'https://myops.com.my',
-  supportEmail: 'support@myops.com.my',
+  supportEmail: 'southerndotcom8@gmail.com',
 };
 
 const legalLinks = [
@@ -106,7 +106,7 @@ function LegalPageLayout({ title, intro, children }) {
           </div>
 
           <div className="footer-meta">
-            <a href="mailto:support@myops.com.my">support@myops.com.my</a>
+            <a href="mailto:southerndotcom8@gmail.com">southerndotcom8@gmail.com</a>
             <a href="tel:+60122719377">012-271 9377</a>
             <span>© 2026 MYOPS. All rights reserved.</span>
           </div>
@@ -192,7 +192,7 @@ export function PrivacyPolicyPage() {
         </p>
         <ul className="legal-list">
           <li>Website: https://myops.com.my</li>
-          <li>Email: support@myops.com.my</li>
+          <li>Email: southerndotcom8@gmail.com</li>
           <li>Phone: 012-271 9377</li>
         </ul>
       </Section>
@@ -292,7 +292,7 @@ export function PrivacyPolicyPage() {
 
       <Section title="13. Contact">
         <p>
-          If you have questions, requests, or concerns about this Privacy Policy or personal data handling, please contact us at support@myops.com.my or call 012-271 9377.
+          If you have questions, requests, or concerns about this Privacy Policy or personal data handling, please contact us at southerndotcom8@gmail.com or call 012-271 9377.
         </p>
       </Section>
     </LegalPageLayout>
@@ -418,7 +418,7 @@ export function TermsOfServicePage() {
 
       <Section title="17. Contact">
         <p>
-          If you have questions about these Terms of Service, please contact MYOPS at support@myops.com.my or call 012-271 9377.
+          If you have questions about these Terms of Service, please contact MYOPS at southerndotcom8@gmail.com or call 012-271 9377.
         </p>
       </Section>
     </LegalPageLayout>
@@ -478,7 +478,7 @@ export function CookiePolicyPage() {
 
       <Section title="8. Contact">
         <p>
-          If you have questions about cookies or this website, please contact support@myops.com.my or call 012-271 9377.
+          If you have questions about cookies or this website, please contact southerndotcom8@gmail.com or call 012-271 9377.
         </p>
       </Section>
     </LegalPageLayout>
@@ -534,7 +534,7 @@ export function RefundCancellationPage() {
 
       <Section title="7. Contact and Support">
         <p>
-          To request a cancellation or discuss a refund matter, please contact MYOPS at support@myops.com.my or call 012-271 9377.
+          To request a cancellation or discuss a refund matter, please contact MYOPS at southerndotcom8@gmail.com or call 012-271 9377.
         </p>
       </Section>
     </LegalPageLayout>
@@ -583,7 +583,7 @@ export function AcceptableUsePage() {
 
       <Section title="5. Reporting Concerns">
         <p>
-          If you believe a user or activity violates this policy, please contact us at support@myops.com.my with the relevant details so we can review and take appropriate action where necessary.
+          If you believe a user or activity violates this policy, please contact us at southerndotcom8@gmail.com with the relevant details so we can review and take appropriate action where necessary.
         </p>
       </Section>
     </LegalPageLayout>
