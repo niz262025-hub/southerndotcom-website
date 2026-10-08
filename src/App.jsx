@@ -1,4 +1,3 @@
-import PropTypes from 'prop-types';
 import { useEffect, useState } from 'react';
 import {
   AcceptableUsePage,
@@ -11,9 +10,9 @@ import {
 const products = [
   {
     name: 'OpsPS',
-    tag: 'Personal Shopper Operations',
+    tag: ['Personal Shopper', 'Operations'],
     icon: 'PS',
-    description: 'Manage trips, products, orders and customers easily.',
+    description: ['Manage trips, products,', 'orders and customers easily.'],
     cta: 'Explore OpsPS',
     accent: 'pink',
     art: 'opsps',
@@ -21,9 +20,9 @@ const products = [
   },
   {
     name: 'OpsHub',
-    tag: 'Business Marketplace & Operations',
+    tag: ['Business Marketplace', '& Operations'],
     icon: 'HB',
-    description: 'Sell, manage and grow your business online.',
+    description: ['Sell, manage and grow', 'your business online.'],
     cta: 'Explore OpsHub',
     accent: 'orange',
     art: 'opshub',
@@ -31,9 +30,9 @@ const products = [
   },
   {
     name: 'OpsFinance',
-    tag: 'Accounting & Financial Management',
+    tag: ['Accounting &', 'Financial Management'],
     icon: 'FX',
-    description: 'Keep your business finances organised and clear.',
+    description: ['Keep your business finances', 'organised and clear.'],
     cta: 'Explore OpsFinance',
     accent: 'purple',
     art: 'opsfinance',
@@ -41,9 +40,9 @@ const products = [
   },
   {
     name: 'OpsFlow',
-    tag: 'Workflow & Business Automation',
+    tag: ['Workflow &', 'Business Automation'],
     icon: 'FL',
-    description: 'Streamline your operations and work smarter.',
+    description: ['Streamline your operations', 'and work smarter.'],
     cta: 'Explore OpsFlow',
     accent: 'blue',
     art: 'opsflow',
@@ -108,63 +107,22 @@ function normalizePath(pathname) {
   return cleaned;
 }
 
-function LogoMark({ compact = false }) {
-  return (
-    <svg
-      viewBox="0 0 120 120"
-      className={compact ? 'brand-mark-svg compact' : 'brand-mark-svg'}
-      role="img"
-      aria-label="MYOPS logo"
-    >
-      <defs>
-        <linearGradient id="myopsBrandGradient" x1="0%" y1="0%" x2="100%" y2="100%">
-          <stop offset="0%" stopColor="#EC167A" />
-          <stop offset="45%" stopColor="#F0187A" />
-          <stop offset="78%" stopColor="#FF8A00" />
-          <stop offset="100%" stopColor="#8B3DFF" />
-        </linearGradient>
-      </defs>
-      <path d="M25 92L60 22L95 92H82L60 52L38 92H25Z" fill="url(#myopsBrandGradient)" opacity="0.96" />
-      <path d="M18 96L60 15L102 96H86L60 46L34 96H18Z" fill="none" stroke="#071B49" strokeWidth="6" strokeLinejoin="round" opacity="0.9" />
-      <path d="M31 84V35H45L60 58L75 35H89V84H75V54L60 79L45 54V84H31Z" fill="#071B49" />
-    </svg>
-  );
-}
-
-LogoMark.propTypes = {
-  compact: PropTypes.bool,
-};
-
 function LandingPage() {
   return (
     <div className="page-shell reference-page">
-      <header className="topbar">
-        <div className="container nav">
-          <a href="/" className="brand" aria-label="MYOPS home">
-            <span className="brand-mark">
-              <LogoMark compact />
-            </span>
-            <span className="brand-wordmark">MYOPS</span>
-          </a>
-          <nav className="nav-links" aria-label="Main navigation">
+      <main className="reference-main">
+        <section className="hero">
+          <nav className="site-nav" aria-label="Main navigation">
             <a href="#products">Products</a>
             <a href="#benefits">Why MYOPS</a>
             <a href="#about">About</a>
             <a href="#contact">Contact</a>
           </nav>
-        </div>
-      </header>
-
-      <main className="reference-main">
-        <section className="hero">
-          <div className="container hero-layout">
-            <div className="hero-copy">
-              <div className="hero-wordmark" aria-label="MYOPS logo wordmark">
-                <span className="brand-mark hero-brand-mark">
-                  <LogoMark compact />
-                </span>
-                <span>MYOPS</span>
-              </div>
+          <div className="hero-assembly">
+            <div className="hero-content-layer">
+              <a href="/" className="hero-logo" aria-label="MYOPS home">
+                <img src="/images/myops-logo-wordmark.png" alt="MYOPS" width="397" height="102" />
+              </a>
               <h1>
                 Digital Solutions
                 <br />
@@ -173,72 +131,64 @@ function LandingPage() {
                 You Work
               </h1>
               <p>
-                Practical business technology to help you manage, sell, operate and grow — all in one ecosystem.
+                Practical business technology
+                <br className="desktop-break" /> to help you manage, sell,
+                <br className="desktop-break" /> operate and grow — all in one
+                <br className="desktop-break" /> ecosystem.
               </p>
-              <a href="#products" className="btn btn-primary hero-cta">
-                Explore Solutions <span aria-hidden="true">→</span>
-              </a>
+              <div className="hero-actions">
+                <a href="#products" className="btn btn-primary hero-cta">
+                  Explore Solutions <span aria-hidden="true">→</span>
+                </a>
+              </div>
             </div>
 
-            <div className="hero-visual" aria-label="MYOPS platform overview">
-              <div className="dashboard-panel">
-                <div className="panel-head">
-                  <span className="myops-panel-wordmark">MYOPS</span>
-                </div>
-                <div className="panel-body">
-                  <div className="panel-metrics">
-                    <div className="metric-box">
-                      <span>Dashboard</span>
-                      <strong>1,298</strong>
-                    </div>
-                    <div className="metric-box">
-                      <span>Products</span>
-                      <strong>+12%</strong>
-                    </div>
-                  </div>
-                  <div className="chart-box">
-                    <div className="chart curve-a" />
-                    <div className="chart curve-b" />
-                  </div>
-                  <div className="recent-orders">
-                    <div className="order-header"><span>Recent Orders</span></div>
-                    <div className="order-row"><span>#OD2401</span><span>Customer</span><span className="status success">Ready Stock</span></div>
-                    <div className="order-row"><span>#OD2402</span><span>Customer</span><span className="status info">Pre-Order</span></div>
-                    <div className="order-row"><span>#OD2403</span><span>Customer</span><span className="status warning">Processing</span></div>
-                  </div>
-                </div>
-              </div>
+            <div className="hero-scene">
               <img
-                className="hero-character"
-                src="/images/myops-master-characters-transparent.png"
-                alt="MYOPS master characters"
+                src="/images/myops-hero-bg.webp"
+                alt="Two MYOPS characters looking at a laptop in front of the MYOPS orders dashboard"
+                width="1536"
+                height="617"
               />
             </div>
           </div>
         </section>
 
-        <section id="products" className="product-section">
-          <div className="container">
-            <div className="product-grid">
-              {products.map((product) => (
-                <article className={`product-card ${product.accent}`} key={product.name}>
-                  <div className="product-art">
-                    <div className={`mini-scene ${product.art}`}>
-                      <div className="mini-window" />
-                      <div className="mini-detail" />
-                      <span className="scene-icon">{product.icon}</span>
-                    </div>
-                  </div>
-                  <h3>{product.name}</h3>
-                  <p className="product-tagline">{product.tag}</p>
-                  <p>{product.description}</p>
-                  <a href={product.href} className="card-link" aria-label={product.cta}>
-                    <span className="card-link-text">{product.cta}</span>
-                    <span className="card-link-arrow" aria-hidden="true">→</span>
-                  </a>
-                </article>
-              ))}
-            </div>
+        <section id="products" className="product-section" aria-label="MYOPS products">
+          <div className="product-grid">
+            {products.map((product) => (
+              <article className={`product-card ${product.accent}`} key={product.name}>
+                <div className="product-art">
+                  <img
+                    src={`/images/${product.art}-card-art.png`}
+                    alt={`${product.name} illustration`}
+                    width="380"
+                    height="248"
+                  />
+                </div>
+                <img
+                  className="product-badge"
+                  src={`/images/${product.art}-card-badge.png`}
+                  alt=""
+                  width="88"
+                  height="88"
+                />
+                <h3>{product.name}</h3>
+                <p className="product-tagline">
+                  {product.tag.map((line) => (
+                    <span key={line}>{line}</span>
+                  ))}
+                </p>
+                <p className="product-desc">
+                  {product.description.map((line) => (
+                    <span key={line}>{line}</span>
+                  ))}
+                </p>
+                <a href={product.href} className="card-link" aria-label={product.cta}>
+                  <span aria-hidden="true">→</span>
+                </a>
+              </article>
+            ))}
           </div>
         </section>
       </main>
