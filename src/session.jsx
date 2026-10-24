@@ -118,7 +118,13 @@ export function ProductAction({ product }) {
   if (state === 'active') {
     return (
       <div className="product-action">
-        <button type="button" className="btn btn-primary" disabled={busy} onClick={open}>Open App</button>
+        {product.slug === 'opsfinance' ? (
+          <button type="button" className="card-link" aria-label="Open OpsFinance dashboard" disabled={busy} onClick={open}>
+            <span aria-hidden="true">→</span>
+          </button>
+        ) : (
+          <button type="button" className="btn btn-primary" disabled={busy} onClick={open}>Open App</button>
+        )}
         <p role="status" aria-live="polite">{message}</p>
       </div>
     );
