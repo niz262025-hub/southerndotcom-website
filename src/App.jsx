@@ -1,7 +1,7 @@
 import PropTypes from 'prop-types';
 import { AccountPreview } from './AccountPreview';
 import { AuthPortal } from './AuthPortal';
-import { AuthNav, ProductAction, SessionProvider } from './session';
+import { AuthNav, ProductAction, SessionProvider, useSession } from './session';
 import { FoundersPromo } from './FoundersPromo';
 import { AdminAudit } from './AdminAudit';
 import { useEffect, useState } from 'react';
@@ -127,20 +127,21 @@ const resources = [
   { title: 'PDPA notice', href: '/pdpa', type: 'Policy' },
 ];
 
-const customerAuthEnabled = ['preview-auth', 'production-auth'].includes(import.meta.env.MODE);
+const buildMode = import.meta.env?.MODE ?? 'production';
+const customerAuthEnabled = ['preview-auth', 'production-auth'].includes(buildMode);
 const portal = (mode) => customerAuthEnabled
-  ? <AuthPortal mode={mode} production={import.meta.env.MODE === 'production-auth'} />
+  ? <AuthPortal mode={mode} production={buildMode === 'production-auth'} />
   : <AccountPreview mode={['dashboard', 'login', 'register'].includes(mode) ? mode : 'login'} />;
 
 const routes = {
-  '/': LandingPage,
+  '/': MyOpsHomePage,
   '/login': () => <PageShell>{portal('login')}</PageShell>,
   '/register': () => <PageShell>{portal('register')}</PageShell>,
   '/forgot-password': () => <PageShell>{portal('forgot')}</PageShell>,
   '/account/update-password': () => <PageShell>{portal('reset')}</PageShell>,
   '/auth/callback': () => <PageShell>{portal('callback')}</PageShell>,
   '/account': () => <PageShell>{portal('dashboard')}</PageShell>,
-  '/admin/audit': () => <PageShell>{import.meta.env.MODE === 'preview-auth' ? <AdminAudit /> : portal('login')}</PageShell>,
+  '/admin/audit': () => <PageShell>{buildMode === 'preview-auth' ? <AdminAudit /> : portal('login')}</PageShell>,
   '/solutions': SolutionsPage,
   '/solutions/opsp': SolutionPage,
   '/solutions/opsfinance': SolutionPage,
@@ -429,6 +430,22 @@ function PageShell({ children, pageClass = '' }) {
   );
 }
 
+export function MyOpsHomePage({ authEnabled = customerAuthEnabled, production = buildMode === 'production-auth' } = {}) {
+  const session = useSession();
+  if (!authEnabled) return <LandingPage />;
+  if (session.status === 'loading') {
+    return <PageShell><p role="status" className="container">Checking your MYOPS session…</p></PageShell>;
+  }
+  if (!session.signedIn) {
+    return <PageShell>{production
+      ? <AuthPortal mode="login" production />
+      : <AuthPortal mode="login" />}</PageShell>;
+  }
+  return <LandingPage />;
+}
+
+MyOpsHomePage.propTypes = { authEnabled: PropTypes.bool, production: PropTypes.bool };
+
 PageShell.propTypes = {
   children: PropTypes.node.isRequired,
   pageClass: PropTypes.string,
@@ -528,7 +545,7 @@ function LandingPage() {
         </div>
       </section>
 
-      <FoundersPromo production={import.meta.env.MODE === 'production-auth'} />
+      <FoundersPromo production={buildMode === 'production-auth'} />
 
       <section className="content-section alt-panel home-benefits">
         <div className="container">
@@ -782,7 +799,7 @@ function PricingPage() {
   if (customerAuthEnabled) {
     return (
       <PageShell pageClass="page-shell-plain">
-        <FoundersPromo production={import.meta.env.MODE === 'production-auth'} />
+        <FoundersPromo production={buildMode === 'production-auth'} />
         <section className="content-section">
           <div className="container narrow-content">
             <SectionIntro label="Services" title="Website & application solutions" text="Custom website development, business applications and integrations are quoted separately based on project scope." />
