@@ -5,6 +5,7 @@ on:
   push:
     branches:
       - main
+      - audit/opsfinance-launch-12e71ef
       - recovery/phase1b-security-ui
       - fix/myops-logout-retry
       - feature/myops-central-auth-foundation
