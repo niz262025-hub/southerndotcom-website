@@ -25,7 +25,7 @@ const baseEnv = {
 };
 
 function make({ entitlement = 'active', nonceAccepted = true, redeemStatus = 'redeemed',
-  sessionActive = true, service = true, rate = true } = {}) {
+  sessionActive = true, service = true, rate = true, env = baseEnv } = {}) {
   const calls = [];
   const clientData = {
     app_id: appId, product_slug: 'opsp', enabled: true,
@@ -46,7 +46,7 @@ function make({ entitlement = 'active', nonceAccepted = true, redeemStatus = 're
   } };
   const serviceFactory = () => service ? admin : null;
   const handler = createAppAccess({
-    env: baseEnv, adminFactory: serviceFactory, now: () => NOW,
+    env, adminFactory: serviceFactory, now: () => NOW,
     entitlementResolver: async () => entitlement === 'error' ? null : { opsp: entitlement },
   });
   return { handler, calls, admin, clientData };
@@ -222,6 +222,28 @@ test('requests require Preview configuration and do not use a service role in th
   assert.equal((await call(production.redeem, req)).statusCode, 404);
 });
 
+test('production app access needs explicit opt-in and accepts only the official MYOPS host', async () => {
+  const body = { ticket: Buffer.alloc(32, 9).toString('base64url') };
+  const productionEnv = {
+    ...baseEnv,
+    VERCEL_ENV: 'production',
+    MYOPS_ENVIRONMENT: 'production',
+    MYOPS_ENABLE_PRODUCTION_APP_ACCESS: 'true',
+  };
+  const disabled = createAppAccess({ env: { ...productionEnv, MYOPS_ENABLE_PRODUCTION_APP_ACCESS: 'false' } });
+  assert.equal((await call(disabled.redeem, signedRequest({ path: '/api/app/redeem', body,
+    headers: { host: 'www.myops.com.my' } }))).statusCode, 404);
+
+  const { handler } = make({ env: productionEnv });
+  const accepted = await call(handler.redeem, signedRequest({ path: '/api/app/redeem', body,
+    headers: { host: 'www.myops.com.my' } }));
+  assert.equal(accepted.statusCode, 200);
+  for (const host of ['myops.com.my', 'attacker.example', 'myops-preview.vercel.app']) {
+    const rejected = await call(handler.redeem, signedRequest({ path: '/api/app/redeem', body, headers: { host } }));
+    assert.equal(rejected.statusCode, 403, host);
+  }
+});
+
 test('regression S1-B review: only Ed25519 public keys are accepted', () => {
   const message = 'signed message';
   // A 512-bit RSA key produces a 64-byte signature that matches the Ed25519 signature format.
@@ -284,10 +306,10 @@ test('regression S1-B review: a transient lookup failure keeps the session and r
   assert.equal(flaky.calls.some(([name]) => name === 'myops_revoke_app_session'), false);
 });
 
-test('regression S1-B review: staging isolation and revocation fail closed', async () => {
+test('regression S1-B review: an unconfigured preview stays disabled and revocation fails closed', async () => {
   const body = { ticket: Buffer.alloc(32, 9).toString('base64url') };
   const notStaging = createAppAccess({ env: { ...baseEnv, MYOPS_ENVIRONMENT: undefined }, adminFactory: () => ({}), now: () => NOW });
-  assert.equal((await call(notStaging.redeem, signedRequest({ path: '/api/app/redeem', body }))).statusCode, 503);
+  assert.equal((await call(notStaging.redeem, signedRequest({ path: '/api/app/redeem', body }))).statusCode, 404);
   assert.equal(await notStaging.revokeUserSessions(userId), false);
   const noService = createAppAccess({ env: baseEnv, adminFactory: () => null, now: () => NOW });
   await assert.rejects(noService.revokeUserSessions(userId));
