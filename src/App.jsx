@@ -516,9 +516,9 @@ function LandingPage() {
                   <span className="coming-soon-label">Coming Soon</span>
                 ) : (
                   <>
-                    <a href={product.href} className="card-link" aria-label={product.name}>
+                    {product.slug !== 'opsfinance' && (<a href={product.href} className="card-link" aria-label={product.name}>
                       <span aria-hidden="true">→</span>
-                    </a>
+                    </a>)}
                     <ProductAction product={product} />
                   </>
                 )}
