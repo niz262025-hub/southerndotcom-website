@@ -57,8 +57,11 @@ async function rpc(client, name, args, signal) {
 }
 
 function configured(env) {
-  return env.VERCEL_ENV === 'preview'
-    && env.MYOPS_ENVIRONMENT === 'staging'
+  const staging = env.VERCEL_ENV === 'preview' && env.MYOPS_ENVIRONMENT === 'staging';
+  const production = env.VERCEL_ENV === 'production'
+    && env.MYOPS_ENVIRONMENT === 'production'
+    && env.MYOPS_ENABLE_PRODUCTION_APP_ACCESS === 'true';
+  return (staging || production)
     && env.VITE_SUPABASE_URL === PROJECT
     && typeof env.MYOPS_APP_USER_REF_SECRET === 'string'
     && env.MYOPS_APP_USER_REF_SECRET.length >= 32;
@@ -120,8 +123,12 @@ function requestContext(req, res, env, now) {
   res.setHeader('Referrer-Policy', 'no-referrer');
   res.setHeader('X-Content-Type-Options', 'nosniff');
   res.setHeader('Vary', 'Origin');
-  if (env.VERCEL_ENV !== 'preview') return { done: reply(404, { error: 'Preview-only.' }) };
-  const expectedHost = env.VERCEL_BRANCH_URL;
+  const staging = env.VERCEL_ENV === 'preview' && env.MYOPS_ENVIRONMENT === 'staging';
+  const production = env.VERCEL_ENV === 'production'
+    && env.MYOPS_ENVIRONMENT === 'production'
+    && env.MYOPS_ENABLE_PRODUCTION_APP_ACCESS === 'true';
+  if (!staging && !production) return { done: reply(404, { error: 'Application access is not enabled.' }) };
+  const expectedHost = production ? 'www.myops.com.my' : env.VERCEL_BRANCH_URL;
   if (!expectedHost || req.headers.host !== expectedHost) return { done: reply(403, { error: 'Request rejected.' }) };
   if (req.method !== 'POST') return { done: reply(405, { error: 'Method not allowed.' }) };
   if (req.headers.origin || !/^application\/json(?:;|$)/i.test(req.headers['content-type'] || '')) {

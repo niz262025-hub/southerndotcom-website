@@ -40,6 +40,13 @@ test('production disabled regardless of configured values', async () => {
   const result = await run(login, { env: { VERCEL_ENV: 'production' }, factory: () => assert.fail('no upstream call') });
   assert.equal(result.code, 404);
 });
+test('production app launch requires the explicit production app-access switch', async () => {
+  const result = await run({ action: 'launch', product: 'opsp' }, {
+    env: { VERCEL_ENV: 'production', MYOPS_ENABLE_PRODUCTION_AUTH: 'true' },
+    headers: { host: 'www.myops.com.my', origin: 'https://www.myops.com.my', cookie: signedIn() },
+  });
+  assert.equal(result.code, 404);
+});
 test('exact trusted host, same-origin JSON and POST required', async () => {
   for (const options of [{ headers: { origin: 'https://evil.example' } }, { headers: { host: 'other.vercel.app' } },
     { headers: { origin: undefined } }, { headers: { 'content-type': 'text/plain' } }]) {
@@ -370,6 +377,39 @@ test('launch: active subscription returns only the configured HTTPS destination'
     assert.equal(result.code, 503);
     assert.equal(result.data.next, undefined);
   }
+});
+test('production launch uses the central package entitlement and issues an app-specific ticket', async () => {
+  const productionEnv = {
+    VERCEL_ENV: 'production',
+    MYOPS_ENABLE_PRODUCTION_AUTH: 'true',
+    MYOPS_ENABLE_PRODUCTION_APP_ACCESS: 'true',
+    MYOPS_ENVIRONMENT: 'production',
+    MYOPS_APP_URL_OPSP: 'https://opsp.example.test/',
+  };
+  const headers = {
+    host: 'www.myops.com.my',
+    origin: 'https://www.myops.com.my',
+    cookie: signedIn(),
+  };
+  let issued;
+  const appAccessFactory = () => ({ issueTicket: async (request) => {
+    issued = request;
+    return { status: 200, next: 'https://opsp.example.test/launch#t=single-use-ticket' };
+  } });
+  const result = await run({ action: 'launch', product: 'opsp' }, {
+    env: productionEnv,
+    headers,
+    client: withData({ subscriptions: [personal()] }),
+    appAccessFactory,
+  });
+  assert.equal(result.code, 200);
+  assert.deepEqual(result.data, { next: 'https://opsp.example.test/launch#t=single-use-ticket' });
+  assert.deepEqual(issued, { userId: user.id, product: 'opsp', loginSessionId: LOGIN_ID });
+
+  const denied = await run({ action: 'launch', product: 'opsp' }, {
+    env: productionEnv, headers, client: withData(), appAccessFactory,
+  });
+  assert.equal(denied.code, 403, 'no active subscription means no app ticket');
 });
 test('launch fails closed when subscription data cannot be read', async () => {
   for (const failing of ['myops_products', 'myops_subscriptions', 'myops_app_grants']) {
