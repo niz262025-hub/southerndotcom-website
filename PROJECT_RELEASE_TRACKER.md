@@ -155,3 +155,13 @@ Updated: 2026-10-27. A checked box means the specific task has been verified; it
 - COMPLETE: OpsFinance preview branch feat/myops-launch-session-bridge has matching tfwizcztyktdurmiynzs public/server URLs and publishable key. SSO feature flags not enabled.
 - BLOCKED: existing Vercel config contains no MYOPS_SERVICE_ROLE_KEY for the isolated MYOPS branch and no SUPABASE_SERVICE_ROLE_KEY for OpsFinance. Supabase connector exposes publishable keys only. Owner must place the corresponding staging secret API keys in branch-scoped Vercel server envs (never chat). Remaining app signing/session secrets can be generated/configured separately; do not reuse production secrets.
 - Real login/launch/logout E2E and Data API broker gate remain incomplete. Environment edits need redeployment after all server configuration is ready. No production environment changes.
+
+
+## Preview SSO runtime configuration — 2026-10-27
+
+- COMPLETE: owner-supplied Supabase server credential variables exist on the exact Preview branches. Connector retrieval still reports encrypted values, so plaintext format/credential validity is not established from metadata.
+- COMPLETE: independent staging portal session/user-reference secrets and OpsFinance session/Ed25519 secrets generated and stored in Preview branch-scoped encrypted variables; no values emitted in reports. Public key enrolled on MYOPS staging with app client disabled pending real launch validation.
+- COMPLETE: branch-specific origins/app launch URL configured; OpsFinance SSO flags enabled for Preview only.
+- COMPLETE: redeployed MYOPS dpl_HgMe3vcvn9cDQn1k8RmBHGDbxyLh and OpsFinance dpl_HwgH8jsEH746P8GD3zypRekSGBMn; both READY, target=null (Preview), not production.
+- VERIFIED HTTP smoke: MYOPS /login returns 200 SPA document; OpsFinance /dashboard returns 307 instead of local login content. This does not prove browser hydration or authenticated launch.
+- IN PROGRESS: test identity provisioning, credential verification through runtime, enabling the enrolled app client after prerequisites, actual login/launch/logout E2E, and Data API broker gate implementation. No complete SSO/production release claimed.
