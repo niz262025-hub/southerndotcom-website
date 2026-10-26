@@ -203,3 +203,14 @@ Updated: 2026-10-27. A checked box means the specific task has been verified; it
 - IN PROGRESS: Existing advisor warnings remain (2 mutable function search paths, 6 anonymous and 11 authenticated SECURITY DEFINER exposures); no new finding was introduced by the private broker functions. Each still needs contextual review before release.
 - BLOCKED: Full protected-preview login/ticket/logout E2E still needs approved authenticated access. The earlier automatic approval rejection for a bearer share link remains unresolved; no new share link requested or workaround used.
 - IN PROGRESS: All-app production release remains unverified. No production migration, merge or deployment performed.
+
+
+## Protected preview login diagnosis — 27 October 2026 (MYT)
+
+- COMPLETE: Owner explicitly approved temporary protected-staging Vercel share access. Access links obtained for MYOPS and Finance; bearer URLs and session tokens were not logged or committed. The prior share-access approval blocker is resolved.
+- COMPLETE: Executed real MYOPS staging password login for the existing synthetic fixture: HTTP 200, portal access cookie present, durable login cookie absent. A stale-cookie retry returned HTTP 503 at server-side session validation; fresh login still did not establish the durable parent record. No ticket launch success is claimed.
+- COMPLETE: Added redacted preview-only diagnostic codes in MYOPS commit 9404052f2016578c066a6bf0b6f3dfa0bd5bb037 / PR #20. Local tests: 131 passed, 36 skipped; lint/build passed. CI quality #30 and validation #67 succeeded. Preview dpl_BU6jWdEJYSQs2ZKPnxGho3rJon7f READY.
+- COMPLETE: Database checks confirm fixture profile exists and service_role has EXECUTE on myops_login_start(uuid).
+- BLOCKED: Actual Vercel runtime emitted myops_sso_login_unavailable server_credential for the fresh login request. The configured MYOPS_SERVICE_ROLE_KEY is rejected by server credential validation (missing/unsupported format, wrong project, invalid role/algorithm or expired legacy credential). Its plaintext was not retrieved or logged. The connector can obtain public keys but cannot provision the required server secret key.
+- OWNER ACTION: Set a genuine Supabase server secret from isolated MYOPS staging project wengxxiqwtosirealghx as MYOPS_SERVICE_ROLE_KEY, scoped only to Vercel Preview branch feat/myops-isolated-staging. Use a Secret/Sensitive value and do not paste it into chat. Then redeploy that preview and rerun login, ticket redemption and central logout tests. Finance server credential has not yet been validated; no assumption that it works.
+- Production remains unchanged. Full SSO and all-app release remain IN PROGRESS.
