@@ -227,3 +227,14 @@ Updated: 2026-10-27. A checked box means the specific task has been verified; it
 - OWNER ACTION: Supabase parent OpsFinance ozkjsihuovzpujuabupa -> branch myops-sso-validation -> Secret key. Configure Vercel OpsFinance SUPABASE_SERVICE_ROLE_KEY as Sensitive/Secret for Preview branch feat/myops-launch-session-bridge only, then redeploy and resume identity exchange, dashboard, replay, expiry, tenant and logout tests.
 - COMPLETE: Added redacted staging identity-lookup diagnostic in commit 1cce573106f34eef3dba97b1fa7941fdd1655e0d; same 224 passing tests, typecheck/lint/build. CI for that latest commit not yet verified; current preview remains fdafb7d.
 - IN PROGRESS: No OpsFinance application session or dashboard success is claimed. Centralized logout E2E and all-app production release remain unverified. Production unchanged.
+
+
+## Finance credential retry and logout evidence — 27 October 2026 (SGT/MYT)
+
+- COMPLETE: After owner reported saving the Finance credential, preview dpl_G3MyBBHH4zJ2y26cEJgW8giij5ys was redeployed and reached READY at commit 1cce573106f34eef3dba97b1fa7941fdd1655e0d. GitHub CI run #60 passed for that commit.
+- COMPLETE: Verified Vercel credential metadata without retrieving plaintext: SUPABASE_SERVICE_ROLE_KEY exists as the preview override on feat/myops-launch-session-bridge and its updatedAt precedes the new deployment. This is not an un-deployed or wrong-Vercel-branch change.
+- COMPLETE: Re-executed actual MYOPS login (200, durable login cookie), launch (200, valid ticket) and Finance launch (403, no app session cookie).
+- BLOCKED: Latest deployment emitted myops_identity_lookup_unavailable invalid_api_key at 23:32:12 UTC. Supabase Finance gateway independently confirms /rest/v1/myops_identity_links status 401 and UNAUTHORIZED_INVALID_API_KEY. The replacement credential remains invalid for tfwizcztyktdurmiynzs. An earlier progress note inferred the key passed before logs arrived; that inference was incorrect and corrected. No successful identity lookup is claimed.
+- COMPLETE: Actual MYOPS logout returned 200. Subsequent launch returned 401 Sign in to continue. Database confirms the latest fixture app session revoked with ended_reason myops_logout. This verifies central revocation of that parent-login session, not a successful OpsFinance dashboard/logout E2E.
+- OWNER ACTION: Verify the source secret is from OpsFinance parent ozkjsihuovzpujuabupa, branch myops-sso-validation (project_ref tfwizcztyktdurmiynzs), not MYOPS staging or main. Paste the complete server secret without wrapping quotes into the existing Vercel preview branch override. Never send the key in chat. Server tools cannot retrieve/provision that Supabase secret.
+- Production unchanged. Dashboard, refresh, browser E2E and production release remain IN PROGRESS/BLOCKED as previously recorded.
