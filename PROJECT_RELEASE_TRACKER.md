@@ -61,6 +61,6 @@ Updated: 2026-10-26. A checked box means the specific task has been verified; it
 - [x] Server-only MYOPS signed redeem/entitlement client committed in canonical repo branch `feature/myops-sso-signed-client-20261027`.
 - [x] Draft PR #20 opened: https://github.com/niz262025-hub/OpsFinance/pull/20 (3 commits; not merged).
 - [x] Vitest test source added for signatures and fail-closed request validation (execution NOT yet verified).
-- [ ] Run typecheck/lint/unit tests and confirm CI green for PR #20.
+- [x] GitHub Actions Run #48 PASSED on PR #20 head `fff1679`: npm ci, npm test, test:database, typecheck, lint, build (2026-10-27).
 - [ ] Implement local identity binding, HttpOnly session, /launch and guarded middleware; staging verification required.
 - [ ] Enable production only after MYOPS API production gate is separately authorized and verified.
