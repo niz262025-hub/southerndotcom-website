@@ -181,3 +181,12 @@ Updated: 2026-10-27. A checked box means the specific task has been verified; it
 - COMPLETE: Preview deployment dpl_CFzezDKTwpRgnFrj5j8EpHQBbDNd is READY at commit 3d682200f40a8ba64859488cc8acd3c070531ac8. Target is preview (target:null), not production.
 - IN PROGRESS: Real login must be retested for the durable MYOPS parent session and then ticket redemption, tenant membership and central logout. Earlier login success alone did not establish that parent session. Temporary test credentials and HTTP harness from the prior runtime are unavailable; no live SSO success is claimed.
 - BLOCKED for production release: Finance direct Data API broker enforcement and full runtime SSO/security E2E remain unverified. Production settings and database were not changed in this work.
+
+
+### Follow-up verification — 27 October 2026 (MYT)
+
+- COMPLETE: OpsFinance tests rerun: 221 passed, 1 skipped; typecheck, lint and database-isolation suite exited 0. Cross-business read/write denial, anonymous RPC denial and service-only identity mapping assertions passed locally.
+- COMPLETE: Live preview unauthenticated /dashboard returned HTTP 307 to the configured MYOPS staging /login.
+- IN PROGRESS: The Data API broker migration placeholder is empty; a replay runner reporting PASS for that file is NOT evidence of implemented broker enforcement. Production SSO remains gated.
+- COMPLETE: Recovered access credentials for the existing synthetic MYOPS staging test fixture only. No production users or settings changed; no credential values recorded here.
+- BLOCKED: Automatic approval review rejected creating a temporary protected-preview Vercel share link because anyone possessing the bearer URL can access that deployment. Explicit owner approval for that limited sharing capability is needed to continue this HTTP test route; no workaround attempted after rejection.
