@@ -71,3 +71,9 @@ Updated: 2026-10-26. A checked box means the specific task has been verified; it
 - [ ] Implement MYOPS `user_ref` mapping to Supabase authorized user and create RLS-preserving session.
 - [ ] Replace fail-closed 503 only once authenticated session exchange works and is tested.
 - [ ] End-to-end verified SSO dashboard, logout, entitlement revocation in staging.
+
+## Verified SSO identity dependency — 2026-10-27
+- [x] Read-only Supabase project discovery: MYOPS central auth `uhuukcztdifvpjuopdea` and OpsFinance `ozkjsihuovzpujuabupa` are distinct ACTIVE_HEALTHY projects.
+- [x] Read-only public schema inspection: MYOPS has `myops_profiles(user_id)`; OpsFinance has `users(id)` and `business_members(user_id,business_id)`. No canonical cross-project user_ref mapping was shown in the inspected tables.
+- [ ] Choose and test explicit server-verified provisioning/binding between MYOPS app-scoped user_ref and OpsFinance Auth user; DO NOT infer equal auth UUIDs or match accounts by email alone.
+- [ ] Owner authorization required before any staging schema or Auth changes; production must remain untouched.
