@@ -190,3 +190,16 @@ Updated: 2026-10-27. A checked box means the specific task has been verified; it
 - IN PROGRESS: The Data API broker migration placeholder is empty; a replay runner reporting PASS for that file is NOT evidence of implemented broker enforcement. Production SSO remains gated.
 - COMPLETE: Recovered access credentials for the existing synthetic MYOPS staging test fixture only. No production users or settings changed; no credential values recorded here.
 - BLOCKED: Automatic approval review rejected creating a temporary protected-preview Vercel share link because anyone possessing the bearer URL can access that deployment. Explicit owner approval for that limited sharing capability is needed to continue this HTTP test route; no workaround attempted after rejection.
+
+
+## Broker gate delivery — 27 October 2026 (MYT)
+
+- COMPLETE: OpsFinance commit 6da68b3cf7ac9244165ef4afaa1adb06b8b8f4d4 pushed to PR #19. Replaces the empty broker migration with private hashed configuration, PostgREST pre-request enforcement and restrictive policies preserving tenant RLS. Server credentials are never forwarded from the caller or returned to the browser.
+- COMPLETE: Local validation: 222 unit tests passed, 1 skipped; typecheck, lint, production build and database migration/isolation tests passed. Tests cover key rejection, tenant isolation with a valid broker key and configuration rollback.
+- COMPLETE: GitHub Validate OpsFinance run #56 (40412111569) passed. MYOPS quality #29 and validation #66 passed for commit 3d682200f40a8ba64859488cc8acd3c070531ac8.
+- COMPLETE: Finance preview dpl_DVBjdo23qvUfMi629qvoX4ha7Fkc READY at commit 6da68b3. A sensitive server broker variable was provisioned only for preview branch feat/myops-launch-session-bridge.
+- COMPLETE: Migration installed and broker gate activated only in isolated Finance staging tfwizcztyktdurmiynzs. Verified 20 restrictive policies, configured authenticator hook and denied browser access to private configuration.
+- COMPLETE: Real staging PostgREST checks exited 0: missing/wrong broker key received HTTP 401 with MYOPS application access required; valid broker key passed the hook and received existing anonymous table permission denial. This verifies hook enforcement, NOT authenticated business workflow success.
+- IN PROGRESS: Existing advisor warnings remain (2 mutable function search paths, 6 anonymous and 11 authenticated SECURITY DEFINER exposures); no new finding was introduced by the private broker functions. Each still needs contextual review before release.
+- BLOCKED: Full protected-preview login/ticket/logout E2E still needs approved authenticated access. The earlier automatic approval rejection for a bearer share link remains unresolved; no new share link requested or workaround used.
+- IN PROGRESS: All-app production release remains unverified. No production migration, merge or deployment performed.
