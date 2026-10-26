@@ -14,7 +14,7 @@ const PENDING_MAX_MS = 24 * 60 * 60 * 1000;
 const IDENTITY_MAX_MS = 12 * 60 * 60 * 1000;
 export const INACTIVITY_MS = 15 * 60 * 1000;
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
-const PROJECT = 'https://uhuukcztdifvpjuopdea.supabase.co';
+import { projectForEnvironment } from './project.js';
 
 function cookies(req) {
   return Object.fromEntries((req.headers.cookie || '').split(';').map((part) => {
@@ -243,6 +243,7 @@ const SIGNUP_ERROR_CODES = new Set([
 
 export function createAuthHandler({ env = process.env, clientFactory = createClient, appAccessFactory = createAppAccess, transport = fetch, now = Date.now,
   diagnostic = (entry) => console.warn(JSON.stringify(entry)) } = {}) {
+  const PROJECT = projectForEnvironment(env);
   return async function handler(req, res) {
     res.setHeader('Cache-Control', 'private, no-store');
     res.setHeader('Referrer-Policy', 'no-referrer');

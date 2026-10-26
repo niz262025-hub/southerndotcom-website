@@ -2,7 +2,7 @@ import { createHash, createHmac, createPublicKey, randomBytes, verify } from 'no
 import { createClient } from '@supabase/supabase-js';
 import { resolveProductStates } from './entitlements.js';
 
-const PROJECT = 'https://uhuukcztdifvpjuopdea.supabase.co';
+import { projectForEnvironment } from './project.js';
 const APP_ID = /^[a-z][a-z0-9_-]{1,31}$/;
 const PRODUCT = /^[a-z0-9_]{1,32}$/;
 const TICKET = /^[A-Za-z0-9_-]{43}$/;
@@ -59,7 +59,7 @@ async function rpc(client, name, args, signal) {
 function configured(env) {
   return env.VERCEL_ENV === 'preview'
     && env.MYOPS_ENVIRONMENT === 'staging'
-    && env.VITE_SUPABASE_URL === PROJECT
+    && env.VITE_SUPABASE_URL === projectForEnvironment(env)
     && typeof env.MYOPS_APP_USER_REF_SECRET === 'string'
     && env.MYOPS_APP_USER_REF_SECRET.length >= 32;
 }
@@ -146,7 +146,7 @@ function requestContext(req, res, env, now) {
   return { body, appId, timestamp, nonce, signature, reply, ip: ipHash(req) };
 }
 
-export function createAppAccess({ env = process.env, adminFactory = createClient, now = Date.now, project = PROJECT,
+export function createAppAccess({ env = process.env, adminFactory = createClient, now = Date.now, project = projectForEnvironment(env),
   entitlementResolver = loadCurrentEntitlements } = {}) {
   const client = () => serviceClient(env, adminFactory, project);
   async function permitRate(clientAdmin, key, limit, windowSeconds) {
