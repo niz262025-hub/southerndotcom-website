@@ -1,6 +1,6 @@
 # MYOPS release tracker
 
-Updated: 2026-10-26. A checked box means the specific task has been verified; it does not imply an application is production-ready.
+Updated: 2026-10-27. A checked box means the specific task has been verified; it does not imply an application is production-ready.
 
 ## Non-negotiable architecture
 
@@ -30,7 +30,7 @@ Updated: 2026-10-26. A checked box means the specific task has been verified; it
 - [ ] Re-audit current branches and PRs in niz262025-hub/OpsFinance; historical PR #10 and commit 57e1f05 belonged to a different repository and must not be assumed applicable.
 - [x] Canonical OpsFinance repository confirmed by owner: niz262025-hub/OpsFinance.
 - [ ] Audit and integrate central SSO in the canonical repository.
-- [ ] Verify write permissions and CI for niz262025-hub/OpsFinance.
+- [x] Verify write permissions and CI for niz262025-hub/OpsFinance (integrated run 43 passed; new launch PR CI tracked separately).
 - [ ] CI green and live Supabase UAT tenant A/B passed.
 - [ ] Browser E2E passed.
 - [ ] SSO direct-to-dashboard integrated without local login or local billing.
@@ -108,3 +108,15 @@ Updated: 2026-10-26. A checked box means the specific task has been verified; it
 - COMPLETE locally: MYOPS commit 673bfcf706385dcb1ece5c53b1db77cb4716a30c adds PGlite SSO SQL replay/security smoke coverage. 129 tests passed, 36 PostgreSQL-dependent tests still skipped; lint and build passed. Clean npm ci and SQL smoke passed again. No claims of real PostgreSQL concurrency verification.
 - IN PROGRESS: MYOPS production SQL remains unchanged. SSO proposals require staging validation and a reviewed production adaptation; foundation smoke success alone does not authorize enabling production ticket issuance.
 - IN PROGRESS: OpsFinance /launch, preprovisioned identity mapping, RLS-compatible session bridge and centralized revocation across direct browser data access remain incomplete. No production web release or complete cross-app SSO claimed.
+
+
+## Latest source milestone — staged OpsFinance SSO launch (2026-10-27)
+
+- COMPLETE in source, not live: /launch fragment removal, same-origin signed ticket exchange, preprovisioned opaque identity mapping, confirmed-user Supabase proof exchange, AES-GCM HttpOnly host cookie, central entitlement middleware, RLS user clients, and allowlisted server data proxy.
+- COMPLETE in source: browser SSO clients do not persist/refresh auth sessions and cannot call direct Auth/Storage endpoints. Mapping table defaults disabled, has service-only access and a composite FK to business membership. No auto-linking by email.
+- Commit 6572c98bd0f745850168ac762d2cf43dcc6662bb; draft PR https://github.com/niz262025-hub/OpsFinance/pull/19. CI run 44 (40368466303) IN PROGRESS at time of update.
+- COMPLETE locally: 221 tests passed, 1 skipped; typecheck, lint and production build passed. Migration replay/tenant/ACL/identity-mapping tests passed. External identity services are mocked; no real staged launch or browser E2E claimed.
+- NOT DEPLOYED: new mapping migration, links, server secrets and feature flags have not been configured live. Existing live finance migration hardening remains in place.
+- BLOCKED for production: code deliberately refuses VERCEL_ENV=production. A verified Data API broker gate/equivalent is needed to prevent legacy direct Supabase credentials bypassing central entitlement. Isolated staging resources, MYOPS SQL, key registration, provisioning and full E2E remain required. Storage/Realtime require dedicated authorization before use.
+- App logout clears its cookie and returns to MYOPS dashboard; it does not claim navigation itself revokes the portal login. Actual MYOPS logout denies subsequent app requests.
+- Current overall status: IN PROGRESS. Historical findings above are superseded by later verified milestones, not evidence that staging SSO or production is complete.
