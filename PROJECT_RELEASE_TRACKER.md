@@ -128,3 +128,12 @@ Updated: 2026-10-27. A checked box means the specific task has been verified; it
 - Attempt to create an isolated OpsFinance staging branch was aborted; subsequent list_branches returned an empty list. No staging creation or cost authorization is assumed.
 - Execution environment became unavailable. The following shell call to write and test a broker-gate migration failed before process creation (exec-server disconnected / recovery timed out). No broker-gate implementation or test success is claimed, and no such production migration was applied.
 - BLOCKED: restore an execution environment to implement/test the remaining Data API gate. Then complete staging provisioning/secret configuration and real MYOPS launch/logout E2E. Existing production data/RLS hardening remains as last verified.
+
+
+## Isolated staging provisioned — 2026-10-27
+
+- COMPLETE: OpsFinance branch myops-sso-validation, ref tfwizcztyktdurmiynzs, ACTIVE_HEALTHY, no production data copied.
+- COMPLETE: applied myops_identity_links on OpsFinance staging. Verified RLS=true, anon read=false, authenticated insert=false, service_role read=true; zero identity links provisioned.
+- COMPLETE: MYOPS branch myops-sso-validation, ref wengxxiqwtosirealghx, ACTIVE_HEALTHY, no production data copied. Seeded existing product catalog from authoritative foundation SQL.
+- BLOCKED by automatic approval review: proposed staging_entitlements migration rejected because phase3_founders_100.sql installs security-sensitive payment/entitlement functions, constraints and privileged grants beyond generic SSO-staging authorization. No bypass attempted; later SSO migrations not executed. Explicit owner approval for this staging-only financial schema scope is required before retrying.
+- Production unchanged. Real launch/logout E2E remains incomplete.
