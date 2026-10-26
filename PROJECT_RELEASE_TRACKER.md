@@ -25,8 +25,8 @@ Updated: 2026-10-26. A checked box means the specific task has been verified; it
 - [ ] Production smoke test and rollback verified.
 
 ## OpsFinance
-- [ ] Commit 57e1f05 pushed to MYOPS1/OpsFinance PR #10 (previous head e607fd8).\n- [ ] Confirm writable access to MYOPS1/OpsFinance before integrating; do not modify the separate niz262025-hub/OpsFinance copy.
-- [ ] GitHub write 403 resolved.
+- [ ] Re-audit current branches and PRs in niz262025-hub/OpsFinance; historical PR #10 and commit 57e1f05 belonged to a different repository and must not be assumed applicable.\n- [x] Canonical OpsFinance repository confirmed by owner: niz262025-hub/OpsFinance.\n- [ ] Audit and integrate central SSO in the canonical repository.
+- [ ] Verify write permissions and CI for niz262025-hub/OpsFinance.
 - [ ] CI green and live Supabase UAT tenant A/B passed.
 - [ ] Browser E2E passed.
 - [ ] SSO direct-to-dashboard integrated without local login or local billing.
