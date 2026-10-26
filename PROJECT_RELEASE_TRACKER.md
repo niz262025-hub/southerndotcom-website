@@ -18,14 +18,14 @@ Updated: 2026-10-26. A checked box means the specific task has been verified; it
 - [x] CI workflow committed (.github/workflows/myops-quality.yml, 5846077).
 - [ ] CI results verified green.
 - [ ] Production authentication environment configured and tested. scripts/build.mjs gates production-auth behind MYOPS_ENABLE_PRODUCTION_AUTH=true.
-- [ ] SSO issuance, token exchange and server-side validation implemented and audited across all apps.
+- [x] MYOPS server-side SSO ticket issuance/redeem/entitlement primitives confirmed in server/app-access.js (code inspection only).\n- [ ] SSO issuance, token exchange and server-side validation implemented and audited across all apps.
 - [ ] App launcher sends users directly to each dashboard with no second login.
 - [ ] Central logout and expired-session return flow tested.
 - [ ] Subscription/entitlement enforcement tested per app and per business.
 - [ ] Production smoke test and rollback verified.
 
 ## OpsFinance
-- [ ] Commit 57e1f05 pushed to MYOPS1/OpsFinance PR #10 (previous head e607fd8).
+- [ ] Commit 57e1f05 pushed to MYOPS1/OpsFinance PR #10 (previous head e607fd8).\n- [ ] Confirm writable access to MYOPS1/OpsFinance before integrating; do not modify the separate niz262025-hub/OpsFinance copy.
 - [ ] GitHub write 403 resolved.
 - [ ] CI green and live Supabase UAT tenant A/B passed.
 - [ ] Browser E2E passed.
