@@ -77,3 +77,10 @@ Updated: 2026-10-26. A checked box means the specific task has been verified; it
 - [x] Read-only public schema inspection: MYOPS has `myops_profiles(user_id)`; OpsFinance has `users(id)` and `business_members(user_id,business_id)`. No canonical cross-project user_ref mapping was shown in the inspected tables.
 - [ ] Choose and test explicit server-verified provisioning/binding between MYOPS app-scoped user_ref and OpsFinance Auth user; DO NOT infer equal auth UUIDs or match accounts by email alone.
 - [ ] Owner authorization required before any staging schema or Auth changes; production must remain untouched.
+
+## SSO Phase 2 staging-only owner authorization — 2026-10-27
+- [x] Owner authorized staging-only MYOPS–OpsFinance identity mapping and tests; no production, deletion or untested deployment.
+- [x] OpsFinance PR #20 commits through `cabc446` add fail-closed identity-binding authorization, unit tests and staging DB verification gate.
+- [ ] CI Run #54 result pending at last inspection (in progress).
+- [ ] Resolve staging Supabase target: only a project named `OpsFinance` was discovered; it is NOT verified as staging. NO database/Auth changes made.
+- [ ] Complete verified account binding and Supabase-compatible session exchange before removing HTTP 503 gate.
