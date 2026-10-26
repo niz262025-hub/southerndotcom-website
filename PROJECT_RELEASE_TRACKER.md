@@ -89,3 +89,14 @@ Updated: 2026-10-26. A checked box means the specific task has been verified; it
 - BLOCKED: OpsFinance migration ledger stops at 010; 012 financial account COA mapping and 013 tenant hardening are absent. financial_accounts.account_id is also absent in the live schema.
 - Production database changes not applied: backup/recovery verification remains required by the owner's release order. No user records or secrets printed, no RLS disabled, and no production auth bypass enabled.
 - Security reference: https://supabase.com/docs/guides/database/postgres/row-level-security
+
+
+## OpsFinance live migration completion — 2026-10-27
+
+- COMPLETE: owner screenshot shows a PHYSICAL scheduled database backup dated 25 Oct 2026 20:36:52 UTC (26 Oct 04:36:52 Malaysia). Backup listing verified from supplied screenshot; restore not tested, Storage objects excluded.
+- COMPLETE: repository migrations 012 and 013 applied live as financial_accounts_coa_mapping (20261026164822) and idempotency_tenant_isolation (20261026164839). Nullable COA mapping column and cross-business mapping trigger verified.
+- COMPLETE: discovered and removed a legacy direct anon EXECUTE grant surviving REVOKE PUBLIC. New forward migration and hosted-ACL regression test committed as b033450d32eb68a841363ffec15526db09500cde on fix/revoke-legacy-anon-idempotency-rpc.
+- COMPLETE: npm run test:database passed migration replay, own-business access, cross-business read/write denial, anonymous RPC denial and reapplying the ACL repair.
+- COMPLETE live checks: RLS true; anon table read returns zero; existing member sees own-business rows and no unauthorized-business rows; anon RPC EXECUTE false; authenticated EXECUTE true; all 11 idempotency rows retained.
+- COMPLETE: fresh Supabase security advisors no longer report rls_disabled_in_public. Remaining WARN notices: two mutable search paths, 11 other anonymous SECURITY DEFINER executables, 12 authenticated SECURITY DEFINER executables and leaked-password protection disabled. These need case-by-case review; no blanket revoke applied.
+- Rollback strategy: retain additive nullable COA mapping and tightened tenant/RPC access during app rollback; do not re-enable anonymous access or disable RLS. No existing financial records deleted. No MYOPS SQL deployed and no production web release performed. SSO and production acceptance gates remain IN PROGRESS.
