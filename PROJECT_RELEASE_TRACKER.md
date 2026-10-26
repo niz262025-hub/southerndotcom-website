@@ -120,3 +120,11 @@ Updated: 2026-10-27. A checked box means the specific task has been verified; it
 - BLOCKED for production: code deliberately refuses VERCEL_ENV=production. A verified Data API broker gate/equivalent is needed to prevent legacy direct Supabase credentials bypassing central entitlement. Isolated staging resources, MYOPS SQL, key registration, provisioning and full E2E remain required. Storage/Realtime require dedicated authorization before use.
 - App logout clears its cookie and returns to MYOPS dashboard; it does not claim navigation itself revokes the portal login. Actual MYOPS logout denies subsequent app requests.
 - Current overall status: IN PROGRESS. Historical findings above are superseded by later verified milestones, not evidence that staging SSO or production is complete.
+
+
+## Current execution blocker — 2026-10-27
+
+- Last verified implementation remains OpsFinance PR #19, commit 6572c98bd0f745850168ac762d2cf43dcc6662bb, CI run 44 success. No production SSO activation.
+- Attempt to create an isolated OpsFinance staging branch was aborted; subsequent list_branches returned an empty list. No staging creation or cost authorization is assumed.
+- Execution environment became unavailable. The following shell call to write and test a broker-gate migration failed before process creation (exec-server disconnected / recovery timed out). No broker-gate implementation or test success is claimed, and no such production migration was applied.
+- BLOCKED: restore an execution environment to implement/test the remaining Data API gate. Then complete staging provisioning/secret configuration and real MYOPS launch/logout E2E. Existing production data/RLS hardening remains as last verified.
