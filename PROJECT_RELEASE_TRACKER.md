@@ -137,3 +137,12 @@ Updated: 2026-10-27. A checked box means the specific task has been verified; it
 - COMPLETE: MYOPS branch myops-sso-validation, ref wengxxiqwtosirealghx, ACTIVE_HEALTHY, no production data copied. Seeded existing product catalog from authoritative foundation SQL.
 - BLOCKED by automatic approval review: proposed staging_entitlements migration rejected because phase3_founders_100.sql installs security-sensitive payment/entitlement functions, constraints and privileged grants beyond generic SSO-staging authorization. No bypass attempted; later SSO migrations not executed. Explicit owner approval for this staging-only financial schema scope is required before retrying.
 - Production unchanged. Real launch/logout E2E remains incomplete.
+
+
+## MYOPS staging SSO schema installed — 2026-10-27
+
+- Owner explicitly authorized Phase 3 payment/entitlement schema on staging only; earlier auto-review scope blocker superseded for this operation.
+- COMPLETE: applied staging_entitlements, staging_app_access and staging_login_sessions to MYOPS staging wengxxiqwtosirealghx. No production SQL changed.
+- VERIFIED: 26 myops_* public functions installed; RLS enabled on all myops_* tables; anon and authenticated cannot execute ticket redemption; service_role can execute redemption.
+- VERIFIED: zero enrolled app clients and zero app sessions. No identity provisioning, paid checkout or real login/launch test claimed.
+- IN PROGRESS: staging application key enrollment, server-only Supabase credentials, preview source configuration for the isolated MYOPS project, broker-gate implementation and real launch/logout E2E.
