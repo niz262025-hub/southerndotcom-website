@@ -64,3 +64,10 @@ Updated: 2026-10-26. A checked box means the specific task has been verified; it
 - [x] GitHub Actions Run #48 PASSED on PR #20 head `fff1679`: npm ci, npm test, test:database, typecheck, lint, build (2026-10-27).
 - [ ] Implement local identity binding, HttpOnly session, /launch and guarded middleware; staging verification required.
 - [ ] Enable production only after MYOPS API production gate is separately authorized and verified.
+
+## OpsFinance SSO Phase 2 — 2026-10-27
+- [x] PR #20 branch contains `/launch` fragment-clearing UI and fail-closed `/api/myops/launch` endpoint; latest commit `986dda5`.
+- [x] Tests added for exchange gate; CI Run #51 queued at last check, outcome not yet confirmed.
+- [ ] Implement MYOPS `user_ref` mapping to Supabase authorized user and create RLS-preserving session.
+- [ ] Replace fail-closed 503 only once authenticated session exchange works and is tested.
+- [ ] End-to-end verified SSO dashboard, logout, entitlement revocation in staging.
