@@ -25,6 +25,7 @@ Updated: 2026-10-26. A checked box means the specific task has been verified; it
 - [ ] Production smoke test and rollback verified.
 
 ## OpsFinance
+- [x] Canonical repo: niz262025-hub/OpsFinance; MYOPS1/OpsFinance is frozen/excluded from all project work by owner instruction (not technically locked on GitHub).
 - [ ] Re-audit current branches and PRs in niz262025-hub/OpsFinance; historical PR #10 and commit 57e1f05 belonged to a different repository and must not be assumed applicable.\n- [x] Canonical OpsFinance repository confirmed by owner: niz262025-hub/OpsFinance.\n- [ ] Audit and integrate central SSO in the canonical repository.
 - [ ] Verify write permissions and CI for niz262025-hub/OpsFinance.
 - [ ] CI green and live Supabase UAT tenant A/B passed.
