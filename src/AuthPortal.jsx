@@ -1,26 +1,11 @@
 import { useEffect, useRef, useState } from 'react';
 import PropTypes from 'prop-types';
+import { authRequest as request } from './authRequest';
+import { jumpToFounders } from './foundersNav';
 
-async function request(action, fields = {}) {
-  let response;
-  try {
-    response = await fetch('/api/auth', {
-      method: 'POST', credentials: 'same-origin', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ action, ...fields }),
-    });
-  } catch { throw new Error('Unable to connect. Check your connection and try again.'); }
-  let result;
-  try { result = await response.json(); }
-  catch { throw new Error('Authentication service returned an unexpected response. Reload this Preview and try again.'); }
-  if (!response.ok) {
-    const error = new Error(result.error || 'Request failed.');
-    error.status = response.status;
-    throw error;
-  }
-  return result;
-}
+const productLabels = { opsp: 'OpsPS', opsfinance: 'OpsFinance', opsflow: 'OpsFlow', opswms: 'OpsWMS', opshr: 'OpsHR' };
 
-export function AuthPortal({ mode }) {
+export function AuthPortal({ mode, production = false }) {
   const [message, setMessage] = useState('');
   const [busy, setBusy] = useState(false);
   const [account, setAccount] = useState(null);
@@ -74,22 +59,31 @@ export function AuthPortal({ mode }) {
     <section className="account-preview container" aria-labelledby="auth-title">
       <div className="account-preview-heading"><span className="account-eyebrow">MYOPS · Customer Portal</span>
         <h1 id="auth-title">{titles[mode]}</h1>
-        <p>Secure MYOPS account access · Development Preview</p>
+        <p>Secure MYOPS account access{!production && ' · Development Preview'}</p>
       </div>
       <div className="account-preview-panel account-form-panel">
         <p role="status" aria-live="polite">{busy ? 'Please wait…' : message}</p>
         {mode === 'dashboard' && account && <>
           <p>Signed in as {account.email}</p>
           {account.profile && <p>{account.profile.display_name} · {account.profile.account_type === 'business' ? 'Business' : 'Personal'}</p>}
-          <p>Paid application launches are disabled until server-side entitlements are available.</p>
-          <div aria-label="Paid application launches">
-            <button type="button" className="btn btn-primary" disabled>OpsPS — unavailable</button>{' '}
-            <button type="button" className="btn btn-primary" disabled>OpsFinance — unavailable</button>{' '}
-            <button type="button" className="btn btn-primary" disabled>OpsFlow — unavailable</button>
-          </div>
+          <p>Open applications from the <a href="/">MYOPS homepage</a>; access is checked by the server on every launch.</p>
           {account.profile?.account_type === 'business' && <p>Business workspace setup, seats and invitations are not enabled yet.</p>}
-          <p>Subscriptions and cross-app SSO are not enabled.</p>
-          <p>Sessions expire; sign in again when prompted. Cross-app inactivity logout is not implemented.</p>
+          <section id="subscription" aria-labelledby="subscription-title">
+            <h2 id="subscription-title">Billing and subscriptions</h2>
+            {account.products ? (
+              <ul>
+                {Object.entries(productLabels).map(([slug, label]) => (
+                  <li id={`subscription-${slug}`} key={slug}>
+                    {label}: {({ active: 'Active subscription', none: 'No subscription', coming_soon: 'Coming soon' })[account.products[slug]]}
+                    {account.products[slug] === 'none' && <> — <a className="btn btn-secondary" href="/#founders" onClick={jumpToFounders}>View Founders 100 and All Apps offer</a></>}
+                  </li>
+                ))}
+              </ul>
+            ) : <p>Subscription status is currently unavailable.</p>}
+            {account.lifetime && <p>Founders 100 lifetime access: active (all current and future MYOPS apps).</p>}
+            <p>{production ? 'Subscriptions and application access are not available for purchase yet.' : 'Preview payments use the ToyyibPay sandbox only. Application access is granted only after the server confirms a verified payment or active subscription.'}</p>
+          </section>
+          <p>Cross-app SSO is not enabled. This site signs you out after 15 minutes of inactivity.</p>
           <button type="button" className="btn btn-primary" disabled={busy} onClick={logout}>Sign out</button>
           <p><a href="/forgot-password">Change password</a></p>
         </>}
@@ -115,4 +109,4 @@ export function AuthPortal({ mode }) {
     </section>
   );
 }
-AuthPortal.propTypes = { mode: PropTypes.oneOf(['register', 'login', 'forgot', 'reset', 'callback', 'dashboard']).isRequired };
+AuthPortal.propTypes = { production: PropTypes.bool, mode: PropTypes.oneOf(['register', 'login', 'forgot', 'reset', 'callback', 'dashboard']).isRequired };
