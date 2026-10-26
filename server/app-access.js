@@ -3,6 +3,7 @@ import { createClient } from '@supabase/supabase-js';
 import { resolveProductStates } from './entitlements.js';
 
 import { projectForEnvironment } from './project.js';
+import { serverServiceKey } from './service-key.js';
 const APP_ID = /^[a-z][a-z0-9_-]{1,31}$/;
 const PRODUCT = /^[a-z0-9_]{1,32}$/;
 const TICKET = /^[A-Za-z0-9_-]{43}$/;
@@ -43,8 +44,8 @@ export function verifyAppSignature(publicKey, signature, message) {
 }
 
 function serviceClient(env, adminFactory, project) {
-  const key = env.MYOPS_SERVICE_ROLE_KEY;
-  if (typeof key !== 'string' || !key.startsWith('sb_secret_')) return null;
+  const key = serverServiceKey(env.MYOPS_SERVICE_ROLE_KEY, project);
+  if (!key) return null;
   return adminFactory(project, key, { auth: { persistSession: false, autoRefreshToken: false } });
 }
 

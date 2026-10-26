@@ -1,3 +1,4 @@
+import { serverServiceKey } from './service-key.js';
 import { createHash, randomBytes, timingSafeEqual } from 'node:crypto';
 
 // Sandbox only. The host is a constant so live ToyyibPay cannot be reached by configuration.
@@ -26,7 +27,7 @@ const toCents = (value) => {
 
 export function createPayments({ env, transport, adminFactory, project }) {
   const gatewayConfigured = () => Boolean(env.TOYYIBPAY_SANDBOX_SECRET_KEY && /^[A-Za-z0-9]{4,40}$/.test(env.TOYYIBPAY_SANDBOX_CATEGORY_CODE || ''));
-  const adminKey = () => (typeof env.MYOPS_SERVICE_ROLE_KEY === 'string' && env.MYOPS_SERVICE_ROLE_KEY.startsWith('sb_secret_') ? env.MYOPS_SERVICE_ROLE_KEY : null);
+  const adminKey = () => serverServiceKey(env.MYOPS_SERVICE_ROLE_KEY, project);
   const admin = () => {
     const key = adminKey();
     return key ? adminFactory(project, key, { auth: { persistSession: false, autoRefreshToken: false } }) : null;
