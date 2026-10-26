@@ -165,3 +165,10 @@ Updated: 2026-10-27. A checked box means the specific task has been verified; it
 - COMPLETE: redeployed MYOPS dpl_HgMe3vcvn9cDQn1k8RmBHGDbxyLh and OpsFinance dpl_HwgH8jsEH746P8GD3zypRekSGBMn; both READY, target=null (Preview), not production.
 - VERIFIED HTTP smoke: MYOPS /login returns 200 SPA document; OpsFinance /dashboard returns 307 instead of local login content. This does not prove browser hydration or authenticated launch.
 - IN PROGRESS: test identity provisioning, credential verification through runtime, enabling the enrolled app client after prerequisites, actual login/launch/logout E2E, and Data API broker gate implementation. No complete SSO/production release claimed.
+
+
+## Staging identity test blocker — 2026-10-27
+
+- VERIFIED: MYOPS staging Auth signup was reached over HTTP but rejected reserved example-domain test addresses. No successful signup or login claimed.
+- BLOCKED by automatic approval review: direct creation of a confirmed staging auth user/identity was rejected as circumventing normal signup/email verification. No auth rows were inserted by that rejected operation; no alternative bypass attempted.
+- Next requires either a normal owner-controlled staging signup/confirmation, or explicit owner authorization for an administratively confirmed, staging-only test identity before any retry. No passwords, token values or hashes included in this tracker. Production unchanged.
