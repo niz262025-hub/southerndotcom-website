@@ -40,6 +40,13 @@ test('production disabled regardless of configured values', async () => {
   const result = await run(login, { env: { VERCEL_ENV: 'production' }, factory: () => assert.fail('no upstream call') });
   assert.equal(result.code, 404);
 });
+test('production app launch requires the explicit production app-access switch', async () => {
+  const result = await run({ action: 'launch', product: 'opsp' }, {
+    env: { VERCEL_ENV: 'production', MYOPS_ENABLE_PRODUCTION_AUTH: 'true' },
+    headers: { host: 'www.myops.com.my', origin: 'https://www.myops.com.my', cookie: signedIn() },
+  });
+  assert.equal(result.code, 404);
+});
 test('exact trusted host, same-origin JSON and POST required', async () => {
   for (const options of [{ headers: { origin: 'https://evil.example' } }, { headers: { host: 'other.vercel.app' } },
     { headers: { origin: undefined } }, { headers: { 'content-type': 'text/plain' } }]) {
@@ -370,6 +377,39 @@ test('launch: active subscription returns only the configured HTTPS destination'
     assert.equal(result.code, 503);
     assert.equal(result.data.next, undefined);
   }
+});
+test('production launch uses the central package entitlement and issues an app-specific ticket', async () => {
+  const productionEnv = {
+    VERCEL_ENV: 'production',
+    MYOPS_ENABLE_PRODUCTION_AUTH: 'true',
+    MYOPS_ENABLE_PRODUCTION_APP_ACCESS: 'true',
+    MYOPS_ENVIRONMENT: 'production',
+    MYOPS_APP_URL_OPSP: 'https://opsp.example.test/',
+  };
+  const headers = {
+    host: 'www.myops.com.my',
+    origin: 'https://www.myops.com.my',
+    cookie: signedIn(),
+  };
+  let issued;
+  const appAccessFactory = () => ({ issueTicket: async (request) => {
+    issued = request;
+    return { status: 200, next: 'https://opsp.example.test/launch#t=single-use-ticket' };
+  } });
+  const result = await run({ action: 'launch', product: 'opsp' }, {
+    env: productionEnv,
+    headers,
+    client: withData({ subscriptions: [personal()] }),
+    appAccessFactory,
+  });
+  assert.equal(result.code, 200);
+  assert.deepEqual(result.data, { next: 'https://opsp.example.test/launch#t=single-use-ticket' });
+  assert.deepEqual(issued, { userId: user.id, product: 'opsp', loginSessionId: LOGIN_ID });
+
+  const denied = await run({ action: 'launch', product: 'opsp' }, {
+    env: productionEnv, headers, client: withData(), appAccessFactory,
+  });
+  assert.equal(denied.code, 403, 'no active subscription means no app ticket');
 });
 test('launch fails closed when subscription data cannot be read', async () => {
   for (const failing of ['myops_products', 'myops_subscriptions', 'myops_app_grants']) {
@@ -893,4 +933,21 @@ test('official-domain recovery callback is fixed and billing/app operations stay
     assert.equal(blocked.code, 404);
   }
   assert.deepEqual((await run({ action: 'founders' }, options)).data, { available: false });
+});
+
+test('recovery does not report email success for upstream outages or disabled email provider', async () => {
+  for (const [error, expected] of [
+    [{ status: 500, message: 'private SMTP detail' }, 502],
+    [{ status: 503 }, 502],
+    [{ code: 'email_provider_disabled', status: 400 }, 503],
+    [{ status: 429 }, 429],
+  ]) {
+    const result = await run({ action: 'forgot', email: user.email }, {
+      client: mock({ resetPasswordForEmail: async () => ({ error }) }),
+    });
+    assert.equal(result.code, expected);
+    assert.ok(result.data.error);
+    assert.equal(result.data.message, undefined);
+    assert.ok(!JSON.stringify(result.data).includes('private SMTP detail'));
+  }
 });
