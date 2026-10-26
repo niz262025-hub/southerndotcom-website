@@ -53,7 +53,11 @@ async function rpc(client, name, args, signal) {
   if (signal && signal.aborted) throw new Error('app_access_timeout');
   const { data, error } = await client.rpc(name, args);
   if (signal && signal.aborted) throw new Error('app_access_timeout');
-  if (error) throw new Error(`app_access_${name}`);
+  if (error) {
+    const failure = new Error(`app_access_${name}`);
+    failure.code = /^[A-Z0-9]{5,12}$/.test(error.code || '') ? error.code : 'upstream';
+    throw failure;
+  }
   return data;
 }
 
@@ -187,14 +191,20 @@ export function createAppAccess({ env = process.env, adminFactory = createClient
   // Server-side login-session record: validity is derived from stored timestamps, not from the browser.
   // Returns null when app access is not configured or the record cannot be created; launch then fails closed.
   async function startLogin(userId) {
-    if (!configured(env) || !USER_ID.test(String(userId))) return null;
+    const unavailable = (reason, code) => {
+      // Fixed diagnostic codes only: never log keys, tokens, user IDs or RPC payloads.
+      if (env.VERCEL_ENV === 'preview') console.warn('myops_sso_login_unavailable', reason, code || '');
+      return null;
+    };
+    if (!configured(env)) return unavailable('configuration');
+    if (!USER_ID.test(String(userId))) return null;
     const admin = client();
-    if (!admin) return null;
+    if (!admin) return unavailable('server_credential');
     try {
       const id = await rpc(admin, 'myops_login_start', { p_user_id: userId });
-      return typeof id === 'string' && USER_ID.test(id) ? id : null;
-    } catch {
-      return null;
+      return typeof id === 'string' && USER_ID.test(id) ? id : unavailable('rpc_result');
+    } catch (error) {
+      return unavailable('rpc', error.code);
     }
   }
 
