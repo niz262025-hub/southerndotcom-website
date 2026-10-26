@@ -84,3 +84,11 @@ Updated: 2026-10-26. A checked box means the specific task has been verified; it
 - [ ] CI Run #54 result pending at last inspection (in progress).
 - [ ] Resolve staging Supabase target: only a project named `OpsFinance` was discovered; it is NOT verified as staging. NO database/Auth changes made.
 - [ ] Complete verified account binding and Supabase-compatible session exchange before removing HTTP 503 gate.
+
+## OpsFinance production target clarification — 2026-10-27
+- [x] Owner selected existing Supabase project `ozkjsihuovzpujuabupa` (OpsFinance) as production target; supersedes earlier staging-only target choice.
+- [x] Read-only production schema inspection performed; no Auth/user/data or schema mutations.
+- [x] PR #20 CI Run #54 SUCCESS (tests, database tests, types, lint, build) on previous commit `cabc446`.
+- [x] PR #20 documentation updated in commit `6aaa7d8` to production-readiness gates, not a production deploy.
+- [ ] Verify backup/recovery readiness, RLS-safe Supabase Auth integration, migration rollback, and new commit CI before production changes.
+- [ ] SSO `/api/myops/launch` still returns fail-closed 503; do not advertise live single-login until end-to-end validated.
