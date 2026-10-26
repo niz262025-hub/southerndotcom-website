@@ -146,3 +146,12 @@ Updated: 2026-10-27. A checked box means the specific task has been verified; it
 - VERIFIED: 26 myops_* public functions installed; RLS enabled on all myops_* tables; anon and authenticated cannot execute ticket redemption; service_role can execute redemption.
 - VERIFIED: zero enrolled app clients and zero app sessions. No identity provisioning, paid checkout or real login/launch test claimed.
 - IN PROGRESS: staging application key enrollment, server-only Supabase credentials, preview source configuration for the isolated MYOPS project, broker-gate implementation and real launch/logout E2E.
+
+
+## Isolated preview configuration — 2026-10-27
+
+- COMPLETE in source: MYOPS staging selection allowlist, commit 92eeea1475592cf0448d9a8c32ad6c943fa7bdef, draft PR #20. Only preview + staging + explicit opt-in selects wengxxiqwtosirealghx; production selection unchanged. Local 130 tests passed, 36 skipped, lint/build passed.
+- COMPLETE: Vercel preview branch feat/myops-isolated-staging now has matching staging public URL/key and MYOPS_ENVIRONMENT=staging / MYOPS_USE_ISOLATED_STAGING=true.
+- COMPLETE: OpsFinance preview branch feat/myops-launch-session-bridge has matching tfwizcztyktdurmiynzs public/server URLs and publishable key. SSO feature flags not enabled.
+- BLOCKED: existing Vercel config contains no MYOPS_SERVICE_ROLE_KEY for the isolated MYOPS branch and no SUPABASE_SERVICE_ROLE_KEY for OpsFinance. Supabase connector exposes publishable keys only. Owner must place the corresponding staging secret API keys in branch-scoped Vercel server envs (never chat). Remaining app signing/session secrets can be generated/configured separately; do not reuse production secrets.
+- Real login/launch/logout E2E and Data API broker gate remain incomplete. Environment edits need redeployment after all server configuration is ready. No production environment changes.
