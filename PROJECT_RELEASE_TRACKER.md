@@ -172,3 +172,12 @@ Updated: 2026-10-27. A checked box means the specific task has been verified; it
 - VERIFIED: MYOPS staging Auth signup was reached over HTTP but rejected reserved example-domain test addresses. No successful signup or login claimed.
 - BLOCKED by automatic approval review: direct creation of a confirmed staging auth user/identity was rejected as circumventing normal signup/email verification. No auth rows were inserted by that rejected operation; no alternative bypass attempted.
 - Next requires either a normal owner-controlled staging signup/confirmation, or explicit owner authorization for an administratively confirmed, staging-only test identity before any retry. No passwords, token values or hashes included in this tracker. Production unchanged.
+
+
+## SSO credential compatibility verification — 27 October 2026 (MYT)
+
+- COMPLETE: MYOPS server-only credential selector accepts modern secret keys and legacy service-role credentials restricted to the configured project, role, algorithm and expiry. Supabase remains responsible for signature validation. Commit: 3d682200f40a8ba64859488cc8acd3c070531ac8; PR #20.
+- COMPLETE: Local MYOPS verification executed again: 131 tests passed, 36 skipped, 0 failures; lint and production build exited 0. Skipped tests are not counted as passed.
+- COMPLETE: Preview deployment dpl_CFzezDKTwpRgnFrj5j8EpHQBbDNd is READY at commit 3d682200f40a8ba64859488cc8acd3c070531ac8. Target is preview (target:null), not production.
+- IN PROGRESS: Real login must be retested for the durable MYOPS parent session and then ticket redemption, tenant membership and central logout. Earlier login success alone did not establish that parent session. Temporary test credentials and HTTP harness from the prior runtime are unavailable; no live SSO success is claimed.
+- BLOCKED for production release: Finance direct Data API broker enforcement and full runtime SSO/security E2E remain unverified. Production settings and database were not changed in this work.
