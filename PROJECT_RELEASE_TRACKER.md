@@ -67,7 +67,7 @@ Updated: 2026-10-26. A checked box means the specific task has been verified; it
 
 ## OpsFinance SSO Phase 2 — 2026-10-27
 - [x] PR #20 branch contains `/launch` fragment-clearing UI and fail-closed `/api/myops/launch` endpoint; latest commit `986dda5`.
-- [x] Tests added for exchange gate; CI Run #51 queued at last check, outcome not yet confirmed.
+- [x] Tests added for exchange gate; CI Run #51 PASSED (npm ci, npm test, test:database, typecheck, lint, build; verified 2026-10-27).
 - [ ] Implement MYOPS `user_ref` mapping to Supabase authorized user and create RLS-preserving session.
 - [ ] Replace fail-closed 503 only once authenticated session exchange works and is tested.
 - [ ] End-to-end verified SSO dashboard, logout, entitlement revocation in staging.
