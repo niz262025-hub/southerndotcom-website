@@ -100,3 +100,11 @@ Updated: 2026-10-26. A checked box means the specific task has been verified; it
 - COMPLETE live checks: RLS true; anon table read returns zero; existing member sees own-business rows and no unauthorized-business rows; anon RPC EXECUTE false; authenticated EXECUTE true; all 11 idempotency rows retained.
 - COMPLETE: fresh Supabase security advisors no longer report rls_disabled_in_public. Remaining WARN notices: two mutable search paths, 11 other anonymous SECURITY DEFINER executables, 12 authenticated SECURITY DEFINER executables and leaked-password protection disabled. These need case-by-case review; no blanket revoke applied.
 - Rollback strategy: retain additive nullable COA mapping and tightened tenant/RPC access during app rollback; do not re-enable anonymous access or disable RLS. No existing financial records deleted. No MYOPS SQL deployed and no production web release performed. SSO and production acceptance gates remain IN PROGRESS.
+
+
+## Integrated CI and MYOPS SQL smoke coverage — 2026-10-27
+
+- COMPLETE: OpsFinance PR #18 now includes PR #17 transport/preview regressions in commit 873101a1edda8ca3ee37be9da1f81ece09536fbe. Earlier run 42 failed three pre-existing main-branch bypass tests; integrated run 43 (40363740633) passed. Local integrated checks: 199 tests passed, 1 skipped; database migration/tenant/ACL tests, typecheck, lint and build passed.
+- COMPLETE locally: MYOPS commit 673bfcf706385dcb1ece5c53b1db77cb4716a30c adds PGlite SSO SQL replay/security smoke coverage. 129 tests passed, 36 PostgreSQL-dependent tests still skipped; lint and build passed. Clean npm ci and SQL smoke passed again. No claims of real PostgreSQL concurrency verification.
+- IN PROGRESS: MYOPS production SQL remains unchanged. SSO proposals require staging validation and a reviewed production adaptation; foundation smoke success alone does not authorize enabling production ticket issuance.
+- IN PROGRESS: OpsFinance /launch, preprovisioned identity mapping, RLS-compatible session bridge and centralized revocation across direct browser data access remain incomplete. No production web release or complete cross-app SSO claimed.
