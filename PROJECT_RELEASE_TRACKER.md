@@ -79,3 +79,13 @@ Updated: 2026-10-26. A checked box means the specific task has been verified; it
 - BLOCKED for production: registered Ed25519 public key, real staging identity mapping, approved reversible migration/backup verification, authenticated tenant A/B E2E and deployment secret/mapping inspection.
 - No production deployment, merge, production SQL or destructive repository action performed. MYOPS1/OpsFinance was not accessed.
 - No ecosystem completion percentage assigned. All unchecked release gates above remain open.
+
+
+## Live Supabase verification — 2026-10-27
+
+- COMPLETE: reconnected Supabase access verified for MYOPS-Central-Auth (uhuukcztdifvpjuopdea) and OpsFinance (ozkjsihuovzpujuabupa); both ACTIVE_HEALTHY.
+- BLOCKED: MYOPS public schema contains no myops_* RPC functions; SSO ticket/login-session proposals have not been installed in the live database. Existing table RLS is enabled.
+- BLOCKED / SECURITY: OpsFinance public.idempotency_keys has RLS disabled; catalog verification confirms anon SELECT and INSERT grants. Existing get_accounting_idempotency is executable by anon and lacks a business-membership predicate. Repository migration 013 supplies tenant RLS and RPC hardening but is not applied live.
+- BLOCKED: OpsFinance migration ledger stops at 010; 012 financial account COA mapping and 013 tenant hardening are absent. financial_accounts.account_id is also absent in the live schema.
+- Production database changes not applied: backup/recovery verification remains required by the owner's release order. No user records or secrets printed, no RLS disabled, and no production auth bypass enabled.
+- Security reference: https://supabase.com/docs/guides/database/postgres/row-level-security
