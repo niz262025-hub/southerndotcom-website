@@ -1,111 +1,93 @@
-# MYOPS release tracker
+# MYOPS ecosystem release tracker
 
-Updated: 2026-10-26. A checked box means the specific task has been verified; it does not imply an application is production-ready.
+Updated: 2026-10-27 (Asia/Singapore). This tracker reports verified evidence, not estimated completion. The ecosystem is NOT production-ready.
 
-## Non-negotiable architecture
+## Current status
 
-- MYOPS is the sole user-facing login entry point.
-- MYOPS validates authentication and subscription/entitlements.
-- Clicking an entitled application opens its dashboard without another login prompt.
-- Every app verifies the central identity and entitlement server-side; never trust URL parameters or browser state as proof of login.
-- Expired sessions redirect to MYOPS login and return to the requested app after authentication.
-- Central logout invalidates access across apps.
-- OpsFinance, OpsFlow, OpsPS and OpsHub remain separate web applications.
-- Android is postponed. OpsHR and OpsWMS are coming soon.
-- No production deployment until authentication, tenant isolation, end-to-end tests, and rollback checks pass.
+| Application | Verified completion % | Open PRs | Tests | Deployment | Blocking gates |
+|---|---|---:|---|---|---|
+| MYOPS Central | Not yet measurable | 1 (#20) | 136 local passes, 36 PostgreSQL-dependent local skips; quality and build-and-safety CI passed at d40e5a1 | Preview READY at d40e5a1; signed-out browser shows central login | Authenticated cross-app SSO, subscription, logout/expiry, tenant UAT |
+| OpsFinance | Not yet measurable | 7 (#4–9, #19) | 243 local passes, 1 live persistence skip; migration/tenant/broker/ACL tests, types, lint, build passed; CI passed at 4a0a3ba | Preview READY at 4a0a3ba | Real SSO UAT, Storage/direct API enforcement, RPC warnings, persistent upload/reconciliation |
+| OpsFlow | Not yet measurable | 1 (#2) | 4 Node frontend tests and 3 Python SSO contract tests passed; types, lint, web export passed at 90f674e | No connected Vercel project found in inspected scope | Firebase/Mongo backend staging, rule-emulator/service integration and SSO tenant UAT |
+| OpsPS Web | Not yet measurable | 1 (#3) | Install → unit tests → types → lint → Expo web export command completed successfully; count not retained | Current-head deployment runtime not independently verified | Staging Edge Function/migration, trusted links, SSO/RLS/tenant UAT |
+| OpsHub | Not yet measurable | 1 (#5, newly created) | 89 unit tests, types and lint passed for config fix; build blocked by missing public Supabase environment | Connected project exists; configured preview not verified | Inactive Supabase staging; missing Preview publishable key; SSO unimplemented |
 
-## MYOPS
-- [x] CI workflow committed (.github/workflows/myops-quality.yml, 5846077).
-- [ ] CI results verified green.
-- [ ] Production authentication environment configured and tested. scripts/build.mjs gates production-auth behind MYOPS_ENABLE_PRODUCTION_AUTH=true.
-- [x] MYOPS server-side SSO ticket issuance/redeem/entitlement primitives confirmed in server/app-access.js (code inspection only).\n- [ ] SSO issuance, token exchange and server-side validation implemented and audited across all apps.
-- [ ] App launcher sends users directly to each dashboard with no second login.
-- [ ] Central logout and expired-session return flow tested.
-- [ ] Subscription/entitlement enforcement tested per app and per business.
-- [ ] Production smoke test and rollback verified.
+A test pass rate is not an application completion percentage. No percentage is asserted until the agreed functional/security acceptance matrix has been exercised.
 
-## OpsFinance
-- [x] Canonical repo: niz262025-hub/OpsFinance; MYOPS1/OpsFinance is frozen/excluded from all project work by owner instruction (not technically locked on GitHub).
-- [ ] Re-audit current branches and PRs in niz262025-hub/OpsFinance; historical PR #10 and commit 57e1f05 belonged to a different repository and must not be assumed applicable.\n- [x] Canonical OpsFinance repository confirmed by owner: niz262025-hub/OpsFinance.\n- [ ] Audit and integrate central SSO in the canonical repository.
-- [ ] Verify write permissions and CI for niz262025-hub/OpsFinance.
-- [ ] CI green and live Supabase UAT tenant A/B passed.
-- [ ] Browser E2E passed.
-- [ ] SSO direct-to-dashboard integrated without local login or local billing.
-- [ ] Production smoke test and rollback verified.
+## Architecture and release gates
 
-## OpsFlow
-- [ ] Source audit, CI and functional tests.
-- [ ] Central SSO and entitlement gate.
-- [ ] Production smoke test.
+- MYOPS is the only user-facing login entry point; all satellites remain independent web apps.
+- MYOPS must validate active subscription/package entitlement before app launch.
+- Satellite backends must validate session and entitlement, preserve tenant RLS and reject revoked/expired sessions.
+- No anonymous bypass or client-exposed service credentials.
+- Keep applied migration history and production data intact.
+- Production SSO/broker activation and promotion remain gated. No production runtime promotion or hosted database write was performed in this execution.
+- Never merge a change that would auto-release runtime code before the required staging/production gates and authorization are satisfied.
 
-## OpsPS Web
-- [ ] Web scope audited (existing OpsPSMobileR1 is Expo).
-- [ ] Central SSO and entitlement gate.
-- [ ] Web functional tests and production smoke test.
+## Completed PR resolutions
 
-## OpsHub
-- [x] CI workflow committed (.github/workflows/opshub-quality.yml, 661f49c).
-- [ ] CI green and Playwright E2E green.
-- [ ] Central SSO and entitlement gate.
-- [ ] Production smoke test.
+Initial direct GitHub inventory: MYOPS 9, OpsFinance 16, OpsFlow 1, OpsPS 2, OpsHub 0 = 28. This corrects the earlier manual 29 count.
 
-## Release gate
-- [ ] All CI pipelines green.
-- [ ] Real Supabase UAT tenant isolation.
-- [ ] Browser E2E: MYOPS login -> each app dashboard -> MYOPS logout -> access denied.
-- [ ] No independent login screen for app users.
-- [ ] Subscription packages verified.
-- [ ] Production deployment and post-deployment smoke test.
+| Repo | PR | Final action | Reason / retained implementation |
+|---|---:|---|---|
+| MYOPS | #19 | Merged (82f9808) | Reviewed test-only SQL smoke coverage; merged-main tests/lint/build and head CI passed |
+| MYOPS | #12, #13 | Closed | Full Git history proved both heads were already ancestors of main |
+| MYOPS | #2 | Closed, superseded | Historical pricing retained in docs/archive/myops-pricing-v1.md; old satellite billing/Workspace scaffold conflicts with current architecture |
+| MYOPS | #8 | Closed, consolidated | Historical audit and unapplied proposal retained in #20; no SQL applied |
+| MYOPS | #10 | Closed, consolidated | Missing recovery-outage fix reconciled with main, retained in #20 |
+| MYOPS | #17 | Closed, consolidated | Central login and explicit production opt-in access gates retained in #20; image assets preserved |
+| MYOPS | #18 | Closed, consolidated | Historical evidence retained in docs/release-evidence-20261026.md; current tracker supersedes status |
+| OpsFinance | #13 | Closed | Verified zero changed files; no functionality removed |
+| OpsFinance | #10, #15 | Closed, consolidated | Tenant writes, atomic posting, journal references and validated onboarding retained in #19 ancestry |
+| OpsFinance | #17, #18 | Closed, consolidated | Signed transport and direct legacy anon-RPC ACL repair retained in #19 ancestry |
+| OpsFinance | #11 | Closed, superseded | Subscription navigation already absent and legacy route already redirects to business settings |
+| OpsFinance | #14 | Closed, superseded | Current local-development-only bypass and hosted denial are stronger; old proposal would reopen hosted bypass |
+| OpsFinance | #16, #20 | Closed, superseded | Competing legacy/placeholder SSO paths replaced by #19 sealed session, explicit identity/business mapping, central checks and server proxy |
+| OpsPS | #1 | Closed, superseded | Current code retains required roles, Supabase dependency and jsdom; do not restore obsolete schema/history |
 
-## OpsFinance MYOPS SSO Phase 1 — 2026-10-27
-- [x] Server-only MYOPS signed redeem/entitlement client committed in canonical repo branch `feature/myops-sso-signed-client-20261027`.
-- [x] Draft PR #20 opened: https://github.com/niz262025-hub/OpsFinance/pull/20 (3 commits; not merged).
-- [x] Vitest test source added for signatures and fail-closed request validation (execution NOT yet verified).
-- [x] GitHub Actions Run #48 PASSED on PR #20 head `fff1679`: npm ci, npm test, test:database, typecheck, lint, build (2026-10-27).
-- [ ] Implement local identity binding, HttpOnly session, /launch and guarded middleware; staging verification required.
-- [ ] Enable production only after MYOPS API production gate is separately authorized and verified.
+Totals: one existing PR merged, 17 existing PRs closed, ten original PRs still open, plus one new OpsHub security PR = eleven currently open.
 
-## OpsFinance SSO Phase 2 — 2026-10-27
-- [x] PR #20 branch contains `/launch` fragment-clearing UI and fail-closed `/api/myops/launch` endpoint; latest commit `986dda5`.
-- [x] Tests added for exchange gate; CI Run #51 PASSED (npm ci, npm test, test:database, typecheck, lint, build; verified 2026-10-27).
-- [ ] Implement MYOPS `user_ref` mapping to Supabase authorized user and create RLS-preserving session.
-- [ ] Replace fail-closed 503 only once authenticated session exchange works and is tested.
-- [ ] End-to-end verified SSO dashboard, logout, entitlement revocation in staging.
+## Commits delivered
 
-## Verified SSO identity dependency — 2026-10-27
-- [x] Read-only Supabase project discovery: MYOPS central auth `uhuukcztdifvpjuopdea` and OpsFinance `ozkjsihuovzpujuabupa` are distinct ACTIVE_HEALTHY projects.
-- [x] Read-only public schema inspection: MYOPS has `myops_profiles(user_id)`; OpsFinance has `users(id)` and `business_members(user_id,business_id)`. No canonical cross-project user_ref mapping was shown in the inspected tables.
-- [ ] Choose and test explicit server-verified provisioning/binding between MYOPS app-scoped user_ref and OpsFinance Auth user; DO NOT infer equal auth UUIDs or match accounts by email alone.
-- [ ] Owner authorization required before any staging schema or Auth changes; production must remain untouched.
+- MYOPS af354f5: preserve recovery outage handling on current main; consolidated into d40e5a1.
+- MYOPS d40e5a1 (#20): reviewed central login/SSO/staging consolidation; exact local tree 38fd42a.
+- OpsFinance 4a0a3ba (#19): staged SSO + tenant/atomic posting + onboarding; exact local tree 28c427c.
+- OpsFlow 90f674e (#2): clear query AND fragment launch tickets, preserve unrelated query parameters, replace removed local-trial test with executable SSO regression tests.
+- OpsHub ab75e4f (#5): remove server credentials from Next.js compile-time env mappings; public-only regression test.
 
-## SSO Phase 2 staging-only owner authorization — 2026-10-27
-- [x] Owner authorized staging-only MYOPS–OpsFinance identity mapping and tests; no production, deletion or untested deployment.
-- [x] OpsFinance PR #20 commits through `cabc446` add fail-closed identity-binding authorization, unit tests and staging DB verification gate.
-- [ ] CI Run #54 result pending at last inspection (in progress).
-- [ ] Resolve staging Supabase target: only a project named `OpsFinance` was discovered; it is NOT verified as staging. NO database/Auth changes made.
-- [ ] Complete verified account binding and Supabase-compatible session exchange before removing HTTP 503 gate.
+## Remaining Finance PRs
 
-## OpsFinance production target clarification — 2026-10-27
-- [x] Owner selected existing Supabase project `ozkjsihuovzpujuabupa` (OpsFinance) as production target; supersedes earlier staging-only target choice.
-- [x] Read-only production schema inspection performed; no Auth/user/data or schema mutations.
-- [x] PR #20 CI Run #54 SUCCESS (tests, database tests, types, lint, build) on previous commit `cabc446`.
-- [x] PR #20 documentation updated in commit `6aaa7d8` to production-readiness gates, not a production deploy.
-- [ ] Verify backup/recovery readiness, RLS-safe Supabase Auth integration, migration rollback, and new commit CI before production changes.
-- [ ] SSO `/api/myops/launch` still returns fail-closed 503; do not advertise live single-login until end-to-end validated.
+PRs #4–9 have been inspected but are not safe to merge wholesale. They overlap accounting/demo/billing work, contain older schema snapshots and/or local-only demo workflows. Current reconciliation UI remains a placeholder; uploading/marking local rows is not proof of durable accounting persistence.
 
+Keep these open until required workflows are implemented against the authenticated tenant database and central billing replacement is verified. Do not close them merely to reduce the count. Do not reapply or rewrite older applied migrations.
 
-## Execution evidence — 2026-10-27 (Asia/Singapore)
+## Supabase findings (read-only)
 
-- Refreshed open PRs at start: MYOPS 9, OpsFinance 17, OpsFlow 1, OpsPS 2, OpsHub 0 (29 total).
-- MYOPS #19 merged as 82f9808 after local merged-main validation: 129 passed, 36 PostgreSQL-dependent skips, lint/build passed; current-head CI was green.
-- MYOPS #12 and #13 closed after full-history ancestry proved their heads already included in main.
-- MYOPS #10 recovery outage fix preserved and reconciled with main; remote commit af354f5.
-- Consolidated staging code includes #17 central login/access gates, #20 isolated project selection, #10 recovery fix, and #8 historical unapplied proposals. All production opt-ins remain disabled by default.
-- Consolidated code validation: 136 tests passed, 36 PostgreSQL-dependent tests skipped; lint, production build and diff whitespace check passed locally. JavaScript repo: no TypeScript check configured.
-- PostgreSQL concurrency tests are not locally verified; CI must execute them. Browser SSO, subscription, tenant isolation, expiry/logout and dashboard UAT remain release blockers.
-- Supabase MYOPS staging wengxxiqwtosirealghx: all public tables have RLS, one registered/enabled app client and one auth test user. Finance staging tfwizcztyktdurmiynzs exists. No database write performed in this execution.
-- Security advisors: MYOPS staging leaked-password protection warning; Finance staging has anonymous SECURITY DEFINER execution/search_path warnings; OpsPS production has anonymous SECURITY DEFINER execution/search_path warnings. Each RPC requires permission/body review before changes. RLS-without-policies INFO on server-only tables is not permission to add browser policies.
-- Vercel accessible projects: southerndotcom-website, opsfinance, ops-hub-web, opsp-mobile-r1. OpsFlow project not found in this scope; OpsHub Supabase staging inactive.
-- Production readiness percentage is unverified; test pass rates are not application completion percentages.
+- MYOPS production: uhuukcztdifvpjuopdea; isolated staging: wengxxiqwtosirealghx.
+- Finance production: ozkjsihuovzpujuabupa; isolated staging: tfwizcztyktdurmiynzs.
+- OpsPS production: wrsigjhhbkbomtkaqlpw.
+- OpsHub staging: iytiyugzmlsofwtortth, INACTIVE at inspection.
+- MYOPS staging: all public tables have RLS; one enabled app client and one auth test user.
+- Security advisors: Finance staging and OpsPS production have anonymous SECURITY DEFINER/search_path warnings requiring individual RPC review. Leaked-password protection warnings remain. RLS-without-policy INFO on server-only tables is not justification to add browser access.
+- Finance hosted migration ledgers inspected: production does not contain the new SSO/broker migrations; staging contains identity, broker and read-grant migrations. New 014/016/017/018 onboarding/tenant/atomic definitions were not applied in this execution.
+- No production data deletion or hosted schema/Auth write performed.
 
-Historical #18 evidence is retained in docs/release-evidence-20261026.md; historical pricing from #2 is retained in docs/archive/myops-pricing-v1.md. Neither overrides the current central billing/single-login requirements.
+## Vercel and browser findings
+
+- Accessible projects: southerndotcom-website, opsfinance, ops-hub-web, opsp-mobile-r1.
+- MYOPS d40e5a1 Preview READY; trusted branch /api/auth GET returns expected 405 with no-store/security headers. Untrusted deployment host is rejected (403).
+- Browser verified MYOPS root shows the central login. This is signed-out evidence only.
+- Secure staging login request timed out without a result. Authenticated MYOPS→app dashboard flow, entitlement denial/revocation and global logout are NOT verified.
+- Finance 4a0a3ba Preview READY; CI passed. A connector smoke fetch remained blocked by Vercel protection (401), which is not application-auth evidence.
+- Local Chromium download repeatedly returned a truncated/invalid archive; local browser E2E is not claimed passed.
+- OpsHub Preview metadata has NEXT_PUBLIC_SUPABASE_URL but no Preview NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY; server sensitive variables are not retrieved or copied. Production public configuration is separate.
+- OpsHub #5 build fails without public Supabase config; do not hide this with dummy credentials or auth bypass.
+
+## Next executable actions
+
+1. Validate secure staging login and MYOPS→Finance dashboard flow with a staging test account; then denial, expiry, logout and tenant A/B paths.
+2. Complete persistent Finance upload/reconciliation and resolve #4–9 without importing obsolete schema snapshots.
+3. Review and test each flagged RPC permission/search_path fix in staging; preserve production until approved.
+4. Provision/configure Flow backend/Firebase/Mongo staging and OpsPS Edge Function/identity links, then run full integration/RLS UAT.
+5. Restore an authorized OpsHub staging environment, supply its Preview public key through protected provider settings, test #5, implement its SSO.
+6. Promote production only after every release gate passes and production authorization is confirmed.
