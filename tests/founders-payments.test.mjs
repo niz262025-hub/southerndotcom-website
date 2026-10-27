@@ -81,18 +81,18 @@ const gateway = ({ bill = 'abc123XY', paid = [], failBill = false, down = false 
   return { transport, requests };
 };
 
-async function authRun(body, { user = person(), ledgerState = ledger(), rows, transport, extraEnv, headers, appAccessFactory } = {}) {
+async function authRun(body, { user = person(), ledgerState = ledger(), rows, transport, extraEnv, headers, appAccessFactory, projects = [] } = {}) {
   const res = { setHeader() {}, status(code) { this.code = code; return this; }, json(data) { this.data = data; return this; } };
   const req = { method: 'POST', headers: { host: 'trusted-preview.vercel.app', origin, 'content-type': 'application/json', cookie, ...headers }, body };
-  const factory = (url, key) => (key.startsWith('sb_secret_') ? ledgerState.client : userClient(user, rows));
+  const factory = (url, key) => { projects.push(url); return key.startsWith('sb_secret_') ? ledgerState.client : userClient(user, rows); };
   await createAuthHandler({ env: { ...env, ...extraEnv }, clientFactory: factory, appAccessFactory: appAccessFactory && ((args) => ({ touchLogin: async () => true, ...appAccessFactory(args) })), transport, now: () => NOW })(req, res);
   return res;
 }
 
 const hashFor = (status, orderId, refno) => createHash('md5').update(`${SECRET}${status}${orderId}${refno}ok`).digest('hex');
-async function hook(fields, { ledgerState, transport, method = 'POST', extraEnv } = {}) {
+async function hook(fields, { ledgerState, transport, method = 'POST', extraEnv, projects = [] } = {}) {
   const res = { setHeader() {}, status(code) { this.code = code; return this; }, json(data) { this.data = data; return this; } };
-  await createCallbackHandler({ env: { ...env, ...extraEnv }, clientFactory: () => ledgerState.client, transport })({ method, body: fields }, res);
+  await createCallbackHandler({ env: { ...env, ...extraEnv }, clientFactory: (url) => { projects.push(url); return ledgerState.client; }, transport })({ method, body: fields }, res);
   return res;
 }
 async function started(user = 'user-a', state = ledger()) {
@@ -341,4 +341,23 @@ test('session reports lifetime and the launch gate follows it server-side, with 
   assert.equal(unknown.code, 400);
   const injected = await authRun({ action: 'launch', product: 'opsp/../x' }, { rows });
   assert.equal(injected.code, 400);
+});
+
+
+test('isolated staging checkout and callback use the same selected database', async () => {
+  const state = ledger();
+  const projects = [];
+  const selected = 'https://wengxxiqwtosirealghx.supabase.co';
+  const staging = { MYOPS_ENVIRONMENT: 'staging', MYOPS_USE_ISOLATED_STAGING: 'true', VITE_SUPABASE_URL: selected };
+  const checkout = await authRun({ action: 'checkout', plan: 'founders_lifetime' }, {
+    ledgerState: state, extraEnv: staging, transport: gateway().transport, projects,
+  });
+  assert.equal(checkout.code, 200);
+  const order = [...state.payments.keys()][0];
+  const result = await hook(callbackFields(order), {
+    ledgerState: state, extraEnv: staging, transport: gateway({ paid: [paidRow(order)] }).transport, projects,
+  });
+  assert.equal(result.data.status, 'settled');
+  assert.ok(projects.length >= 2);
+  assert.ok(projects.every(project => project === selected));
 });
