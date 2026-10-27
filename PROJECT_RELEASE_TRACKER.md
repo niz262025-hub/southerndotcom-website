@@ -91,3 +91,10 @@ Keep these open until required workflows are implemented against the authenticat
 4. Provision/configure Flow backend/Firebase/Mongo staging and OpsPS Edge Function/identity links, then run full integration/RLS UAT.
 5. Restore an authorized OpsHub staging environment, supply its Preview public key through protected provider settings, test #5, implement its SSO.
 6. Promote production only after every release gate passes and production authorization is confirmed.
+
+
+## OpsHub follow-up — 2026-10-27
+
+- PR #5 current head 7d2b29e fixes the CI no-regex-spaces failure in the new regression test. Direct local ESLint and all 89 unit tests pass; current-head CI is being checked. Previous CI stopped at lint before build; local build separately failed on absent public Supabase configuration.
+- Verified public URL metadata: BOTH Preview and Production point to the same inactive iytiyugzmlsofwtortth Supabase project. This is not isolated staging. Preview publishable key is missing and provider key discovery failed.
+- Do not restore/reconfigure that project assuming staging-only impact. First select and approve an isolated staging target; any billable creation requires provider cost confirmation. No restore or configuration write performed.
