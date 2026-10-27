@@ -14,7 +14,7 @@ const PENDING_MAX_MS = 24 * 60 * 60 * 1000;
 const IDENTITY_MAX_MS = 12 * 60 * 60 * 1000;
 export const INACTIVITY_MS = 15 * 60 * 1000;
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
-const PROJECT = 'https://uhuukcztdifvpjuopdea.supabase.co';
+import { projectForEnvironment } from './project.js';
 
 function cookies(req) {
   return Object.fromEntries((req.headers.cookie || '').split(';').map((part) => {
@@ -243,6 +243,7 @@ const SIGNUP_ERROR_CODES = new Set([
 
 export function createAuthHandler({ env = process.env, clientFactory = createClient, appAccessFactory = createAppAccess, transport = fetch, now = Date.now,
   diagnostic = (entry) => console.warn(JSON.stringify(entry)) } = {}) {
+  const PROJECT = projectForEnvironment(env);
   return async function handler(req, res) {
     res.setHeader('Cache-Control', 'private, no-store');
     res.setHeader('Referrer-Policy', 'no-referrer');
@@ -315,8 +316,12 @@ export function createAuthHandler({ env = process.env, clientFactory = createCli
       const body = typeof req.body === 'string' ? JSON.parse(req.body) : req.body;
       if (!body || JSON.stringify(body).length > 12000) return reply(400, { error: 'Invalid request.' });
       const { action } = body;
-      // Official-domain rollout is account-only; billing, app launches and workers stay disabled.
-      if (production && !['register', 'login', 'forgot', 'callback', 'logout', 'session', 'account', 'reset', 'profile', 'founders'].includes(action)) {
+      const productionAppAccessEnabled = production
+        && env.MYOPS_ENVIRONMENT === 'production'
+        && env.MYOPS_ENABLE_PRODUCTION_APP_ACCESS === 'true';
+      const productionAccountActions = ['register', 'login', 'forgot', 'callback', 'logout', 'session', 'account', 'reset', 'profile', 'founders'];
+      if (production && !productionAccountActions.includes(action)
+          && !(action === 'launch' && productionAppAccessEnabled)) {
         return reply(404, { error: 'This feature is not enabled.' });
       }
       if (production && action === 'founders') return reply(200, { available: false });
@@ -324,7 +329,8 @@ export function createAuthHandler({ env = process.env, clientFactory = createCli
       const validPassword = typeof body.password === 'string' && body.password.length >= 12 && body.password.length <= 128;
       const callback = `${origin}/auth/callback`;
       const payments = createPayments({ env: production ? {} : env, transport, adminFactory: clientFactory, project: PROJECT });
-      const appAccess = appAccessFactory({ env: production ? { ...env, MYOPS_ENVIRONMENT: undefined } : env, adminFactory: clientFactory, now, project: PROJECT });
+      const appAccessEnv = production && !productionAppAccessEnabled ? { ...env, MYOPS_ENVIRONMENT: undefined } : env;
+      const appAccess = appAccessFactory({ env: appAccessEnv, adminFactory: clientFactory, now, project: PROJECT });
       // Revocation targets only identities proven by the server (signed cookie or verified token).
       // Revokes app access for every verified id plus any unresolved pending id. A failure is never
       // reported as success: it leaves a signed pending marker and a durable server-side queue so later
@@ -436,6 +442,13 @@ export function createAuthHandler({ env = process.env, clientFactory = createCli
         if (!validEmail) return reply(400, { error: 'Enter a valid email address.' });
         const { error } = await client.auth.resetPasswordForEmail(body.email, { redirectTo: callback });
         if (error?.status === 429) return reply(429, { error: 'Please wait before trying again.' });
+        if (error?.code === 'email_provider_disabled') {
+          return reply(503, { error: 'Email recovery is currently unavailable. Contact the Preview owner.' });
+        }
+        if (error?.status >= 500) {
+          return reply(502, { error: 'Recovery could not be completed. Please try again later or contact the Preview owner.' });
+        }
+        // Keep account-specific failures indistinguishable to avoid email enumeration.
         return reply(200, { message: 'If the address is registered, a recovery email will arrive. Open it in this browser.' });
       }
       if (action === 'callback') {

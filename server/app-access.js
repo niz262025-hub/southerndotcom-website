@@ -2,7 +2,8 @@ import { createHash, createHmac, createPublicKey, randomBytes, verify } from 'no
 import { createClient } from '@supabase/supabase-js';
 import { resolveProductStates } from './entitlements.js';
 
-const PROJECT = 'https://uhuukcztdifvpjuopdea.supabase.co';
+import { projectForEnvironment } from './project.js';
+import { serverServiceKey } from './service-key.js';
 const APP_ID = /^[a-z][a-z0-9_-]{1,31}$/;
 const PRODUCT = /^[a-z0-9_]{1,32}$/;
 const TICKET = /^[A-Za-z0-9_-]{43}$/;
@@ -43,8 +44,8 @@ export function verifyAppSignature(publicKey, signature, message) {
 }
 
 function serviceClient(env, adminFactory, project) {
-  const key = env.MYOPS_SERVICE_ROLE_KEY;
-  if (typeof key !== 'string' || !key.startsWith('sb_secret_')) return null;
+  const key = serverServiceKey(env.MYOPS_SERVICE_ROLE_KEY, project);
+  if (!key) return null;
   return adminFactory(project, key, { auth: { persistSession: false, autoRefreshToken: false } });
 }
 
@@ -52,14 +53,21 @@ async function rpc(client, name, args, signal) {
   if (signal && signal.aborted) throw new Error('app_access_timeout');
   const { data, error } = await client.rpc(name, args);
   if (signal && signal.aborted) throw new Error('app_access_timeout');
-  if (error) throw new Error(`app_access_${name}`);
+  if (error) {
+    const failure = new Error(`app_access_${name}`);
+    failure.code = /^[A-Z0-9]{5,12}$/.test(error.code || '') ? error.code : 'upstream';
+    throw failure;
+  }
   return data;
 }
 
 function configured(env) {
-  return env.VERCEL_ENV === 'preview'
-    && env.MYOPS_ENVIRONMENT === 'staging'
-    && env.VITE_SUPABASE_URL === PROJECT
+  const staging = env.VERCEL_ENV === 'preview' && env.MYOPS_ENVIRONMENT === 'staging';
+  const production = env.VERCEL_ENV === 'production'
+    && env.MYOPS_ENVIRONMENT === 'production'
+    && env.MYOPS_ENABLE_PRODUCTION_APP_ACCESS === 'true';
+  return (staging || production)
+    && env.VITE_SUPABASE_URL === projectForEnvironment(env)
     && typeof env.MYOPS_APP_USER_REF_SECRET === 'string'
     && env.MYOPS_APP_USER_REF_SECRET.length >= 32;
 }
@@ -120,8 +128,12 @@ function requestContext(req, res, env, now) {
   res.setHeader('Referrer-Policy', 'no-referrer');
   res.setHeader('X-Content-Type-Options', 'nosniff');
   res.setHeader('Vary', 'Origin');
-  if (env.VERCEL_ENV !== 'preview') return { done: reply(404, { error: 'Preview-only.' }) };
-  const expectedHost = env.VERCEL_BRANCH_URL;
+  const staging = env.VERCEL_ENV === 'preview' && env.MYOPS_ENVIRONMENT === 'staging';
+  const production = env.VERCEL_ENV === 'production'
+    && env.MYOPS_ENVIRONMENT === 'production'
+    && env.MYOPS_ENABLE_PRODUCTION_APP_ACCESS === 'true';
+  if (!staging && !production) return { done: reply(404, { error: 'Application access is not enabled.' }) };
+  const expectedHost = production ? 'www.myops.com.my' : env.VERCEL_BRANCH_URL;
   if (!expectedHost || req.headers.host !== expectedHost) return { done: reply(403, { error: 'Request rejected.' }) };
   if (req.method !== 'POST') return { done: reply(405, { error: 'Method not allowed.' }) };
   if (req.headers.origin || !/^application\/json(?:;|$)/i.test(req.headers['content-type'] || '')) {
@@ -146,7 +158,7 @@ function requestContext(req, res, env, now) {
   return { body, appId, timestamp, nonce, signature, reply, ip: ipHash(req) };
 }
 
-export function createAppAccess({ env = process.env, adminFactory = createClient, now = Date.now, project = PROJECT,
+export function createAppAccess({ env = process.env, adminFactory = createClient, now = Date.now, project = projectForEnvironment(env),
   entitlementResolver = loadCurrentEntitlements } = {}) {
   const client = () => serviceClient(env, adminFactory, project);
   async function permitRate(clientAdmin, key, limit, windowSeconds) {
@@ -186,14 +198,20 @@ export function createAppAccess({ env = process.env, adminFactory = createClient
   // Server-side login-session record: validity is derived from stored timestamps, not from the browser.
   // Returns null when app access is not configured or the record cannot be created; launch then fails closed.
   async function startLogin(userId) {
-    if (!configured(env) || !USER_ID.test(String(userId))) return null;
+    const unavailable = (reason, code) => {
+      // Fixed diagnostic codes only: never log keys, tokens, user IDs or RPC payloads.
+      if (env.VERCEL_ENV === 'preview') console.warn('myops_sso_login_unavailable', reason, code || '');
+      return null;
+    };
+    if (!configured(env)) return unavailable('configuration');
+    if (!USER_ID.test(String(userId))) return null;
     const admin = client();
-    if (!admin) return null;
+    if (!admin) return unavailable('server_credential');
     try {
       const id = await rpc(admin, 'myops_login_start', { p_user_id: userId });
-      return typeof id === 'string' && USER_ID.test(id) ? id : null;
-    } catch {
-      return null;
+      return typeof id === 'string' && USER_ID.test(id) ? id : unavailable('rpc_result');
+    } catch (error) {
+      return unavailable('rpc', error.code);
     }
   }
 

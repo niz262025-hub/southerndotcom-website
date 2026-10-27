@@ -1,7 +1,7 @@
 import { createClient } from '@supabase/supabase-js';
 import { createPayments } from './payments.js';
+import { projectForEnvironment } from './project.js';
 
-const PROJECT = 'https://uhuukcztdifvpjuopdea.supabase.co';
 
 // Server-to-server webhook. No browser cookies or Origin: authenticity comes from the
 // hash check plus independent gateway confirmation inside createPayments().callback.
@@ -18,7 +18,7 @@ export function createCallbackHandler({ env = process.env, clientFactory = creat
         fields = Object.fromEntries(new URLSearchParams(fields));
       }
       if (!fields || typeof fields !== 'object' || Array.isArray(fields)) return reply(400, { error: 'invalid' });
-      const payments = createPayments({ env, transport, adminFactory: clientFactory, project: PROJECT });
+      const payments = createPayments({ env, transport, adminFactory: clientFactory, project: projectForEnvironment(env) });
       const result = await payments.callback(fields);
       return reply(result.status, result.body);
     } catch {

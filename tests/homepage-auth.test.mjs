@@ -6,6 +6,7 @@ import { act, createElement } from 'react';
 import { createRoot } from 'react-dom/client';
 
 const { SessionProvider, AuthNav, ProductAction, useSession } = await importSrc('session.jsx');
+const { MyOpsHomePage } = await importSrc('App.jsx');
 
 const products = [{ slug: 'opsp' }, { slug: 'opsfinance' }, { slug: 'opsflow' }, { slug: 'opswms', comingSoon: true }];
 const signedOut = { signedIn: false };
@@ -48,8 +49,45 @@ async function mount(respond, enabled = true) {
   };
   return { calls, cleanup, dom };
 }
+async function mountHome(respond) {
+  const dom = new JSDOM('<div id="root"></div>', { url: 'https://www.myops.com.my/' });
+  const originals = Object.fromEntries(['window', 'document', 'Element', 'HTMLElement', 'fetch', 'IS_REACT_ACT_ENVIRONMENT'].map((key) => [key, globalThis[key]]));
+  globalThis.fetch = async () => respond();
+  Object.assign(globalThis, {
+    window: dom.window,
+    document: dom.window.document,
+    Element: dom.window.Element,
+    HTMLElement: dom.window.HTMLElement,
+    IS_REACT_ACT_ENVIRONMENT: true,
+  });
+  const root = createRoot(document.getElementById('root'));
+  await act(async () => root.render(createElement(SessionProvider, { enabled: true },
+    createElement(MyOpsHomePage, { authEnabled: true, production: true }))));
+  const cleanup = async () => {
+    await act(async () => root.unmount());
+    Object.assign(globalThis, originals);
+    dom.window.close();
+  };
+  return { cleanup, dom };
+}
 const text = (selector) => document.querySelector(selector)?.textContent ?? '';
 const nav = () => [...document.querySelectorAll('.nav-auth a, .nav-auth button')].map((node) => node.textContent);
+
+test('official MYOPS root shows login first and the app launcher after authentication', async () => {
+  const signedOutPage = await mountHome(() => Response.json(signedOut));
+  try {
+    assert.equal(document.querySelector('#auth-title').textContent, 'Welcome back to MYOPS');
+    assert.equal(document.querySelector('input[name="email"]') !== null, true);
+    assert.equal(document.querySelector('.landing-shell .hero'), null);
+  } finally { await signedOutPage.cleanup(); }
+
+  const signedInPage = await mountHome(() => Response.json(signedInState()));
+  try {
+    assert.equal(document.querySelector('#auth-title'), null);
+    assert.equal(document.querySelector('.landing-shell .hero') !== null, true);
+    assert.deepEqual(nav(), ['My Account', 'Logout']);
+  } finally { await signedInPage.cleanup(); }
+});
 
 test('signed-out visitors see Register and Login, and Subscribe on live cards', async () => {
   const { cleanup } = await mount(() => Response.json(signedOut));
