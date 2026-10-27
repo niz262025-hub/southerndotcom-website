@@ -1,30 +1,20 @@
 # MYOPS ecosystem release tracker
 
-Updated: 2026-10-27 (Asia/Singapore). This tracker reports verified evidence, not estimated completion. The ecosystem is NOT production-ready.
+Updated: 2026-10-27. This tracker records verified evidence. PR resolution is separate from production acceptance; the ecosystem is NOT production-ready.
 
-## Current status
+## Verified source integration
 
 | Application | Verified completion % | Open PRs | Tests | Deployment | Blocking gates |
 |---|---|---:|---|---|---|
-| MYOPS Central | Not yet measurable | 1 (#20) | 136 local passes, 36 PostgreSQL-dependent local skips; quality and build-and-safety CI passed at d40e5a1 | Preview READY at d40e5a1; signed-out browser shows central login | Authenticated cross-app SSO, subscription, logout/expiry, tenant UAT |
-| OpsFinance | Not yet measurable | 7 (#4–9, #19) | 243 local passes, 1 live persistence skip; migration/tenant/broker/ACL tests, types, lint, build passed; CI passed at 4a0a3ba | Preview READY at 4a0a3ba | Real SSO UAT, Storage/direct API enforcement, RPC warnings, persistent upload/reconciliation |
-| OpsFlow | Not yet measurable | 1 (#2) | 4 Node frontend tests and 3 Python SSO contract tests passed; types, lint, web export passed at 90f674e | No connected Vercel project found in inspected scope | Firebase/Mongo backend staging, rule-emulator/service integration and SSO tenant UAT |
-| OpsPS Web | Not yet measurable | 1 (#3) | Install → unit tests → types → lint → Expo web export command completed successfully; count not retained | Current-head deployment runtime not independently verified | Staging Edge Function/migration, trusted links, SSO/RLS/tenant UAT |
-| OpsHub | Not yet measurable | 1 (#5, newly created) | 89 unit tests, types and lint passed for config fix; build blocked by missing public Supabase environment | Connected project exists; configured preview not verified | Inactive Supabase staging; missing Preview publishable key; SSO unimplemented |
+| MYOPS Central | Functional acceptance not yet measurable | 0 | 137 local passes, 36 PostgreSQL-dependent local skips; current-head quality and build-and-safety CI passed at 009fce4 | Preview passed; production held at 82f9808 | Authenticated SSO/subscription/logout/expiry/tenant UAT; RPC security review |
+| OpsFinance | Functional acceptance not yet measurable | 0 | 255 passes, 1 live persistence skip; authoritative migration replay, tenant/broker/ACL, persisted upload→atomic post→idempotent retry→match→reconcile tests; types/lint/build and CI passed at 8094857 | Preview passed; production held at 32b9ff3 | Real SSO, Storage/direct API UAT; live migration and RPC security review |
+| OpsFlow | Functional acceptance not yet measurable | 0 | 4 frontend + 3 Python SSO contract tests; frozen Yarn install/types/lint/web export CI passed at b4c5249 | No connected Vercel project in inspected scope; root/frontend main deployment holds | Firebase/Mongo staging, rule-emulator/service integration, deployed SSO/tenant UAT |
+| OpsPS Web | Functional acceptance not yet measurable | 0 | 133 unit passes; migration 017 fixture replay twice, session/owner/Storage denial tests; types/lint/web export passed locally; current-head web CI passed at 21fe67c | Preview passed at 21fe67c; production held at ec89a87 | Historical migration 003 fresh replay syntax failure; staging Edge Function/identity links, full SSO/RLS UAT |
+| OpsHub | Functional acceptance not yet measurable | 0 | 89 tests, types/lint/build and all three current-head quality checks passed at 7bb9d0b | Preview passed; production held at 661f49c | Shared inactive Supabase target; missing Preview key; MYOPS SSO unimplemented |
 
-A test pass rate is not an application completion percentage. No percentage is asserted until the agreed functional/security acceptance matrix has been exercised.
+A test pass rate is not an application completion percentage. No functional completion percentage is asserted before the acceptance matrix is exercised.
 
-## Architecture and release gates
-
-- MYOPS is the only user-facing login entry point; all satellites remain independent web apps.
-- MYOPS must validate active subscription/package entitlement before app launch.
-- Satellite backends must validate session and entitlement, preserve tenant RLS and reject revoked/expired sessions.
-- No anonymous bypass or client-exposed service credentials.
-- Keep applied migration history and production data intact.
-- Production SSO/broker activation and promotion remain gated. No production runtime promotion or hosted database write was performed in this execution.
-- Never merge a change that would auto-release runtime code before the required staging/production gates and authorization are satisfied.
-
-## Completed PR resolutions
+## PR resolutions
 
 Initial direct GitHub inventory: MYOPS 9, OpsFinance 16, OpsFlow 1, OpsPS 2, OpsHub 0 = 28. This corrects the earlier manual 29 count.
 
@@ -45,56 +35,64 @@ Initial direct GitHub inventory: MYOPS 9, OpsFinance 16, OpsFlow 1, OpsPS 2, Ops
 | OpsFinance | #16, #20 | Closed, superseded | Competing legacy/placeholder SSO paths replaced by #19 sealed session, explicit identity/business mapping, central checks and server proxy |
 | OpsPS | #1 | Closed, superseded | Current code retains required roles, Supabase dependency and jsdom; do not restore obsolete schema/history |
 
-Totals: one existing PR merged, 17 existing PRs closed, ten original PRs still open, plus one new OpsHub security PR = eleven currently open.
 
-## Commits delivered
+### The eleven remaining PRs resolved in this execution
 
-- MYOPS af354f5: preserve recovery outage handling on current main; consolidated into d40e5a1.
-- MYOPS d40e5a1 (#20): reviewed central login/SSO/staging consolidation; exact local tree 38fd42a.
-- OpsFinance 4a0a3ba (#19): staged SSO + tenant/atomic posting + onboarding; exact local tree 28c427c.
-- OpsFlow 90f674e (#2): clear query AND fragment launch tickets, preserve unrelated query parameters, replace removed local-trial test with executable SSO regression tests.
-- OpsHub ab75e4f (#5): remove server credentials from Next.js compile-time env mappings; public-only regression test.
+| Repository | PR | Action / evidence |
+|---|---:|---|
+| MYOPS | #20 | Merged c0a1b00 after current-head checks. Fixed staging checkout/callback project mismatch and resolved review; added checkout-to-callback regression. |
+| OpsFinance | #19 | Merged deefa94 after checks. Selectively integrated older workflows, preserving current migrations/SSO. Added actual persisted financial workflow regression. |
+| OpsFinance | #4 | GitHub marked merged through #19 ancestry (c726694). No separate blind merge performed. |
+| OpsFinance | #8 | GitHub marked merged through #19 ancestry (b9448d7). No separate blind merge performed. |
+| OpsFinance | #5 | Closed, superseded by corrected DB-backed upload/post/reconciliation in #19. |
+| OpsFinance | #6 | Closed, superseded by disabled local billing routes/navigation in #19. Inert compatibility models retained pending central runtime validation. |
+| OpsFinance | #7 | Closed, superseded by stricter local-development-only bypass and hosted denial tests. Historical audit retained. |
+| OpsFinance | #9 | Closed after selective security integration: direct idempotency get/reserve disabled; atomic posting/ACL tests pass; conflicting obsolete migration snapshots excluded. |
+| OpsFlow | #2 | Merged 3a850a1 after web + sso-contract CI; query/fragment ticket scrub, Expo/lockfile alignment, main release hold. |
+| OpsPS | #3 | Merged 0d82a0a after current-head web CI and Vercel passed, including SQL fixture tests; production/Edge/migration hold remains. |
+| OpsHub | #5 | Merged 6bdfa6f after checks. Removed server credentials from compile-time env; build safely returns unavailable screen without public configuration; 89-test regression coverage. |
 
-## Remaining Finance PRs
+PR source branches were not deleted. Closure explanations are recorded in each superseded Finance PR body. No failing security check or branch protection was bypassed.
 
-PRs #4–9 have been inspected but are not safe to merge wholesale. They overlap accounting/demo/billing work, contain older schema snapshots and/or local-only demo workflows. Current reconciliation UI remains a placeholder; uploading/marking local rows is not proof of durable accounting persistence.
+Live final inventory: zero open PRs across all five authorized repositories. Of these eleven PRs, GitHub records seven merged (including Finance #4/#8 through ancestry), and four closed as superseded.
 
-Keep these open until required workflows are implemented against the authenticated tenant database and central billing replacement is verified. Do not close them merely to reduce the count. Do not reapply or rewrite older applied migrations.
+## Delivered commits
 
-## Supabase findings (read-only)
+- MYOPS 009fce4182115e09820534d79dc2dfbf197cdab6: checkout/callback staging selection regression; e94a094 main Git deployment hold.
+- Finance 80948572f4c108a1094f77a523c374bbd3e5ba94: verified tenant-bound persisted accounting workflows and selective PR consolidation. Full details: docs/PR_CONSOLIDATION.md.
+- Flow b4c5249e24911685454c5af373581a6854918822: align Expo manifest to locked 54.0.36; c0312b9 adds CI and release holds; 90f674e ticket scrub tests.
+- OpsPS 21fe67c4d87599c712c1f5f88b040f60da445f9e: disposable PostgreSQL session/RLS/Storage migration regression; 07a8144 adds web CI/release hold.
+- Hub 7bb9d0b9ae1eb10a5b904265d01e28162ffd8ee3: root/apps/web release holds; 7a64aae safe missing-config render; ab75e4f server-env exposure fix.
 
-- MYOPS production: uhuukcztdifvpjuopdea; isolated staging: wengxxiqwtosirealghx.
-- Finance production: ozkjsihuovzpujuabupa; isolated staging: tfwizcztyktdurmiynzs.
-- OpsPS production: wrsigjhhbkbomtkaqlpw.
-- OpsHub staging: iytiyugzmlsofwtortth, INACTIVE at inspection.
-- MYOPS staging: all public tables have RLS; one enabled app client and one auth test user.
-- Security advisors: Finance staging and OpsPS production have anonymous SECURITY DEFINER/search_path warnings requiring individual RPC review. Leaked-password protection warnings remain. RLS-without-policy INFO on server-only tables is not justification to add browser access.
-- Finance hosted migration ledgers inspected: production does not contain the new SSO/broker migrations; staging contains identity, broker and read-grant migrations. New 014/016/017/018 onboarding/tenant/atomic definitions were not applied in this execution.
-- No production data deletion or hosted schema/Auth write performed.
+## Production hold verified
 
-## Vercel and browser findings
+Root Vercel config disables Git deployments for main on all five source repositories. Additional configs cover Flow frontend and Hub apps/web. Preview branches remain enabled. This permits source integration without authorizing release.
 
-- Accessible projects: southerndotcom-website, opsfinance, ops-hub-web, opsp-mobile-r1.
-- MYOPS d40e5a1 Preview READY; trusted branch /api/auth GET returns expected 405 with no-store/security headers. Untrusted deployment host is rejected (403).
-- Browser verified MYOPS root shows the central login. This is signed-out evidence only.
-- Secure staging login request timed out without a result. Authenticated MYOPS→app dashboard flow, entitlement denial/revocation and global logout are NOT verified.
-- Finance 4a0a3ba Preview READY; CI passed. A connector smoke fetch remained blocked by Vercel protection (401), which is not application-auth evidence.
-- Local Chromium download repeatedly returned a truncated/invalid archive; local browser E2E is not claimed passed.
-- OpsHub Preview metadata has NEXT_PUBLIC_SUPABASE_URL but no Preview NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY; server sensitive variables are not retrieved or copied. Production public configuration is separate.
-- OpsHub #5 build fails without public Supabase config; do not hide this with dummy credentials or auth bypass.
+After source merges, latest production SHAs remained unchanged:
+- MYOPS 82f980848fc6081718f263989c27ed4e14317da7
+- Finance 32b9ff3c7f70e5a2198a36ee728033666a61fa7b
+- OpsPS ec89a872c53856c3039a1b31d497b9f1cb02ece0
+- Hub 661f49cddf743cee0b57e22e64cde1c5df2c174d
 
-## Next executable actions
+No production promotion, Edge Function deployment, hosted schema/Auth write or data deletion was performed. Do not remove the release hold until staging gates pass and explicit production authorization is confirmed.
 
-1. Validate secure staging login and MYOPS→Finance dashboard flow with a staging test account; then denial, expiry, logout and tenant A/B paths.
-2. Complete persistent Finance upload/reconciliation and resolve #4–9 without importing obsolete schema snapshots.
-3. Review and test each flagged RPC permission/search_path fix in staging; preserve production until approved.
-4. Provision/configure Flow backend/Firebase/Mongo staging and OpsPS Edge Function/identity links, then run full integration/RLS UAT.
-5. Restore an authorized OpsHub staging environment, supply its Preview public key through protected provider settings, test #5, implement its SSO.
-6. Promote production only after every release gate passes and production authorization is confirmed.
+## Supabase readiness: blocked
 
+- MYOPS production uhuukcztdifvpjuopdea; isolated staging wengxxiqwtosirealghx.
+- Finance production ozkjsihuovzpujuabupa; isolated staging tfwizcztyktdurmiynzs.
+- OpsPS production wrsigjhhbkbomtkaqlpw.
+- Hub iytiyugzmlsofwtortth is INACTIVE; BOTH Preview and Production public URLs point to it, so it is not isolated staging. Preview public key is missing. Do not restore under a staging-only assumption.
+- MYOPS staging public tables had RLS. Finance staging and OpsPS production advisors flagged anonymous SECURITY DEFINER/search_path concerns and leaked-password protection warnings. These remain individual review gates.
+- Finance live production does not contain the new SSO/broker migrations. New onboarding/tenant/atomic migrations were not applied in this execution.
+- OpsPS migration 017 passes a disposable Supabase-shaped fixture; this does not certify historical migrations. Historical 003 fails fresh replay at syntax near NOT; preserve applied history and develop a reviewed forward-compatible provisioning repair.
 
-## OpsHub follow-up — 2026-10-27
+## Runtime acceptance still outstanding
 
-- PR #5 current head 7d2b29e fixes the CI no-regex-spaces failure in the new regression test. Direct local ESLint and all 89 unit tests pass; current-head CI is being checked. Previous CI stopped at lint before build; local build separately failed on absent public Supabase configuration.
-- Verified public URL metadata: BOTH Preview and Production point to the same inactive iytiyugzmlsofwtortth Supabase project. This is not isolated staging. Preview publishable key is missing and provider key discovery failed.
-- Do not restore/reconfigure that project assuming staging-only impact. First select and approve an isolated staging target; any billable creation requires provider cost confirmation. No restore or configuration write performed.
+Signed-out central login and source-level contracts do not prove authenticated SSO. A secure staging-login request timed out without an authenticated result. Real MYOPS→authorized dashboard, subscription denial/revocation, global logout/expiration, tenant A/B and direct database/Storage access tests remain unverified. Previous protected Finance fetch 401 is deployment protection, not app authentication evidence.
+
+Next executable work:
+1. Run isolated MYOPS→Finance authenticated staging UAT with approved test identity and package; verify denial, expiry, logout, direct API/Storage and tenant A/B.
+2. Review flagged RPC privileges/search_path and validate fixes in staging.
+3. Provision Flow Firebase/Mongo staging and validate rules/services; provision OpsPS isolated staging and trusted identity links with Edge Function.
+4. Select an isolated Hub staging database, configure Preview securely, implement MYOPS SSO and test.
+5. Complete dashboard/workflow acceptance matrix across five apps; production promotion only after all gates and explicit authorization.
