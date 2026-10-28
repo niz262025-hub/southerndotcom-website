@@ -2,6 +2,19 @@
   "version": 2,
   "routes": [
     {
+      "src": "/(.*)",
+      "has": [
+        {
+          "type": "host",
+          "value": "southerndotcom-website.vercel.app"
+        }
+      ],
+      "headers": {
+        "Location": "https://www.myops.com.my/"
+      },
+      "status": 307
+    },
+    {
       "src": "/api/app/redeem",
       "dest": "/api/app/redeem"
     },
