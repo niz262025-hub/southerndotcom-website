@@ -95,7 +95,7 @@ export function AuthNav() {
   );
 }
 
-export function ProductAction({ product }) {
+export function ProductAction({ product, arrow = false }) {
   const session = useSession();
   const [message, setMessage] = useState('');
   const [busy, setBusy] = useState(false);
@@ -116,6 +116,12 @@ export function ProductAction({ product }) {
   }
   if (state === 'coming_soon') return <span className="coming-soon-label">Coming Soon</span>;
   if (state === 'active') {
+    if (arrow) return (
+      <div className="product-action">
+        <button type="button" className="card-link" aria-label={`Open ${product.slug}`} disabled={busy} onClick={open}><span aria-hidden="true">→</span></button>
+        <p role="status" aria-live="polite">{message}</p>
+      </div>
+    );
     return (
       <div className="product-action">
         <button type="button" className="btn btn-primary" disabled={busy} onClick={open}>Open App</button>
@@ -123,6 +129,9 @@ export function ProductAction({ product }) {
       </div>
     );
   }
+  if (arrow) return (
+    <a className="card-link" href={session.signedIn ? '/#founders' : '/login'} onClick={session.signedIn ? jumpToFounders : undefined} aria-label={`Subscribe to ${product.slug}`}><span aria-hidden="true">→</span></a>
+  );
   return (
     <div className="product-action">
       <a
@@ -137,4 +146,5 @@ export function ProductAction({ product }) {
 }
 ProductAction.propTypes = {
   product: PropTypes.shape({ slug: PropTypes.string.isRequired, comingSoon: PropTypes.bool }).isRequired,
+  arrow: PropTypes.bool,
 };
