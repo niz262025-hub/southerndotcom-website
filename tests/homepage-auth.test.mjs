@@ -73,18 +73,20 @@ async function mountHome(respond) {
 const text = (selector) => document.querySelector(selector)?.textContent ?? '';
 const nav = () => [...document.querySelectorAll('.nav-auth a, .nav-auth button')].map((node) => node.textContent);
 
-test('official MYOPS root shows login first and the app launcher after authentication', async () => {
+test('MYOPS root shows the original landing page before and after login', async () => {
   const signedOutPage = await mountHome(() => Response.json(signedOut));
   try {
-    assert.equal(document.querySelector('#auth-title').textContent, 'Welcome back to MYOPS');
-    assert.equal(document.querySelector('input[name="email"]') !== null, true);
-    assert.equal(document.querySelector('.landing-shell .hero'), null);
+    assert.ok(document.querySelector('.landing-shell .hero'));
+    assert.equal(document.querySelector('#auth-title'), null);
+    assert.ok(document.querySelector('img[src="/images/myops-hero-bg.webp"]'));
+    assert.ok(document.querySelector('.nav-auth a[href="/login"]'));
+    assert.match(document.querySelector('#applications').textContent, /OpsFinance/);
   } finally { await signedOutPage.cleanup(); }
 
   const signedInPage = await mountHome(() => Response.json(signedInState()));
   try {
+    assert.ok(document.querySelector('.landing-shell .hero'));
     assert.equal(document.querySelector('#auth-title'), null);
-    assert.equal(document.querySelector('.landing-shell .hero') !== null, true);
     assert.deepEqual(nav(), ['My Account', 'Logout']);
   } finally { await signedInPage.cleanup(); }
 });

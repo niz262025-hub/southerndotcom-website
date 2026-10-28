@@ -1,7 +1,7 @@
 import PropTypes from 'prop-types';
 import { AccountPreview } from './AccountPreview';
 import { AuthPortal } from './AuthPortal';
-import { AuthNav, ProductAction, SessionProvider, useSession } from './session';
+import { AuthNav, ProductAction, SessionProvider } from './session';
 import { FoundersPromo } from './FoundersPromo';
 import { AdminAudit } from './AdminAudit';
 import { useEffect, useState } from 'react';
@@ -430,21 +430,9 @@ function PageShell({ children, pageClass = '' }) {
   );
 }
 
-export function MyOpsHomePage({ authEnabled = customerAuthEnabled, production = buildMode === 'production-auth' } = {}) {
-  const session = useSession();
-  if (!authEnabled) return <LandingPage />;
-  if (session.status === 'loading') {
-    return <PageShell><p role="status" className="container">Checking your MYOPS session…</p></PageShell>;
-  }
-  if (!session.signedIn) {
-    return <PageShell>{production
-      ? <AuthPortal mode="login" production />
-      : <AuthPortal mode="login" />}</PageShell>;
-  }
+export function MyOpsHomePage() {
   return <LandingPage />;
 }
-
-MyOpsHomePage.propTypes = { authEnabled: PropTypes.bool, production: PropTypes.bool };
 
 PageShell.propTypes = {
   children: PropTypes.node.isRequired,
