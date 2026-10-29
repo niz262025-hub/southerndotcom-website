@@ -42,3 +42,14 @@ Status: PREPARED; awaiting owner production authorization. No production mutatio
 ## Approval boundary
 Owner approval requested for these production database changes, controlled staged builds, coordinated promotion and normal authentication/read-only acceptance. This pack itself authorizes none of them. Staging UI/native-file chooser and broader format/edge-case limitations remain documented in the existing UAT evidence.
 
+
+
+## Authorized execution attempt — 29 October 2026
+Owner explicitly approved production deployment/live website. Approval persists; no repeat production approval is requested for the reviewed scope.
+- Set autoAssignCustomDomains=false on both existing Vercel projects to hold custom domains while production builds are tested. Main automatic-deploy hold remains in vercel.json. No protection/RLS/auth switch disabled.
+- Published exact reviewed Finance tree37b553d6aa41418cc84c66734643341ec5dd446f (identical to local candidate) as remote commit5d4c177cce9053b4196eb58a8a83cd462df2b98c on main, expected-head lease32a5e06. No divergent branch merge or new branch.
+- Created Finance production-target deployment dpl_9eoSt1VXfYzN6Wqoq57ieCuF5WbV; READY. Official app domain remains on previous deployment, no promotion performed.
+- Retried approved MYOPS824a996 production-target build dpl_HvBgXRi1uAeKcD8pK7MufVXD4fB5; ERROR. Current log explicitly reports Production SSO configuration is incomplete: MYOPS_SERVICE_ROLE_KEY. The key's earlier update has not resolved this preflight failure.
+- Sensitive variable retrieval confirms decrypted=false/no returned value; no secret was printed, reconstructed or replaced. Supabase connector exposes publishable keys only, not existing server secret/service-role values. Do not substitute a publishable key, random password, staging key, or relax validation.
+- Finance/central production database migration scripts NOT executed because required credential gate failed first. No subscriptions, memberships, identity links or business records changed. Official-domain mappings verified unchanged: Finance dpl_4M1AqukgaBCWRWBtp2HkuT9fapf3 and MYOPS dpl_8p4DSjybCUDzyMFbo1UGrPYs7oV1.
+- Required input: owner securely sets MYOPS_SERVICE_ROLE_KEY in portal Production to the existing valid Supabase server secret (sb_secret_...) or valid service_role JWT for central production projectuhuukcztdifvpjuopdea. Never paste it into chat. Then retry the same reviewed MYOPS build, proceed with approved database steps and promote only after gates pass. Signing/broker pairing and authenticated production UAT still pending, not claimed PASS.
