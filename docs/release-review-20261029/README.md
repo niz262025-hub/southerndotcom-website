@@ -111,3 +111,13 @@ Owner explicitly approved the exact two deployment/domain mappings after automat
 | OpsWMS / OpsHR | PENDING | Separate web readiness remains unverified. |
 
 OpsHub stays separate. Central login, subscription authorization and15-minute inactivity policy retained. Next implementation gate is identify existing OpsFlow hosting/configuration and run full web build and hosted launch tests; do not create replacement infrastructure based only on an empty name search.
+
+
+## OpsFlow execution results — 29 October 2026
+- Source checked: OpsFlow main3a850a10b7c5f1c831ecf3039c5520297d91e827, clean working tree. Installed frontend with npm ci --ignore-scripts; no lockfile/source mutation.
+- Fresh frontend4/4 PASS and Python Ed25519 contract3/3 PASS. Full npx tsc --noEmit PASS, npm run lint exit0, npx expo export --platform web --output-dir dist PASS (1286 modules). Build without hosted Firebase/API configuration proves bundling only, not usable hosted access.
+- Full connected Vercel team inventory has5 projects (Finance, portal,2 OpsHub,OpsPS), no OpsFlow project under another name. No replacement Vercel/Firebase infrastructure created.
+- Existing frontend/.firebaserc identifies Firebase projectbizflow-91aef. Read-only HTTP probes to its web.app and firebaseapp.com hosting addresses both200, titleBizFlow Basic.
+- Inspected currently public hosting script entry-59d04b63bc57a8e57f865d68fd73728d.js (3756129characters). None of MYOPS, api/app-access/redeem, api/app-access/refresh or Sign in through MYOPS present; signInWithEmailAndPassword present. Hosted bundle differs from current central-login integration source. This proves hosted/source mismatch, not a successful or failed MYOPS launch attempt.
+- Current source requires EXPO_PUBLIC_OPSFLOW_API_URL and Firebase public client config, backend MongoDB, Firebase Admin, stable JWT secret and centrally registered Ed25519 signing configuration. Existing hosted backend URL/deployment and secure administrative access have not been located through connected tools/repo. No secrets requested in chat; no Production auth/billing/identity changed.
+- No code repair or redeployment performed because local gates passed and existing backend/deployment access is unresolved. Need identify existing backend host and Firebase deployment access, then deploy approved integration to staging and verify real central launch, tenant scope, workflow operations and15-minute inactivity. Production OpsFlow remains NOT RELEASED; MYOPS/Finance stay on accepted live deployments.
