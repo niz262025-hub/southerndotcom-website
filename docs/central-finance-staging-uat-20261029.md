@@ -63,3 +63,15 @@ This entry supersedes the earlier temporary-access limits and readiness observat
 | OpsHR | Repository lookup returned GitHub 404 | Unverified | Untested | Blocked on repository existence/access |
 
 No percentages are assigned: there is no verified acceptance denominator for any complete application. OpsHub remains separate. Mobile development remains Phase 2.
+
+
+## Navigation latency follow-up — 29 October 2026
+
+User confirmed dashboard access, then reported slow function clicks. A live browser session was observed in the authenticated SSO Staging Fixture. This supersedes the prior sign-in blocker for that session.
+
+Two confirmed serial costs were reduced on Finance preview branch feat/myops-launch-session-bridge only:
+
+- Commit 1ac522167ec02c5ab55c53ed66b42a1ff0632359: reuse Vercel protection transport cookie for at most 30 seconds on a warm server, keyed by portal origin and a hash of the existing share token. Concurrent bootstrap requests share a promise. Failed exchanges are discarded. Production forwarding remains disabled. Every application entitlement request still makes its signed upstream POST; no user/session entitlement is cached. Regression suite 22/22 passed and TypeScript passed. Deployment dpl_HhKEXJr1SEQc5WVbbjmPyWcdHiRL READY.
+- Commit 4d14de19f8fa6ce16e478cdf0896c34ba5d2a791: run entitlement and explicit identity-map lookup concurrently, then run Supabase identity validation and business membership lookup concurrently. All results must succeed before returning the RLS user client. Identity/proxy/middleware tests 10/10 passed; TypeScript passed. Deployment dpl_CRnd78z4JXvHBzpJPW2sFFN7dBQU building at the time of this entry.
+
+Browser dashboard, Chart of Accounts and Transactions navigation succeeded on the first optimization. No financial write or posting was submitted. Navigation still shows latency; no before/after percentage or full performance pass is claimed. Cold starts, duplicate per-page verification and database query timing remain to be measured. No production deployment was performed; no branches or infrastructure were duplicated.
