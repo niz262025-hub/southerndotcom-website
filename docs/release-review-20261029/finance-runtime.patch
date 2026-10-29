@@ -1,0 +1,1765 @@
+diff --git a/app/api/financial-accounts/route.ts b/app/api/financial-accounts/route.ts
+index 3bc7a0b..95f1ce3 100644
+--- a/app/api/financial-accounts/route.ts
++++ b/app/api/financial-accounts/route.ts
+@@ -1,3 +1,4 @@
++import { normalizeAccountNumber } from '@/lib/accounting/statement-account';
+ import { NextResponse } from 'next/server';
+ 
+ import { resolveAuthorizedBusinessId } from '@/lib/auth/business';
+@@ -80,7 +81,14 @@ function validateFinancialAccountPayload(payload: Record<string, unknown>, exist
+     throw new Error('Financial account code is required.');
+   }
+ 
++  const bankName = String(payload.bankName ?? existing?.bank_name ?? '').trim();
++  const companyName = String(payload.companyName ?? existing?.company_name ?? '').trim();
++  const rawNumber = String(payload.accountNumber ?? existing?.account_number ?? '').trim();
++  const accountNumber = rawNumber ? normalizeAccountNumber(rawNumber) : null;
++  if (type === 'BANK' && (!bankName || !companyName || !accountNumber)) throw new Error('Bank name, company/account holder name and full account number are required.');
++  if (bankName.length > 150 || companyName.length > 200) throw new Error('Bank or company name is too long.');
+   return {
++    bankName, companyName, accountNumber,
+     name,
+     type,
+     accountCode,
+@@ -238,6 +246,9 @@ export async function POST(request: Request) {
+       .from('financial_accounts')
+       .insert({
+         business_id: businessId,
++        bank_name: validation.bankName || null,
++        company_name: validation.companyName || null,
++        account_number: validation.accountNumber,
+         name: validation.name,
+         type: validation.type,
+         account_code: validation.accountCode,
+@@ -326,6 +337,9 @@ export async function PUT(request: Request) {
+     const { data, error } = await supabase
+       .from('financial_accounts')
+       .update({
++        bank_name: validation.bankName || null,
++        company_name: validation.companyName || null,
++        account_number: validation.accountNumber,
+         name: validation.name,
+         type: validation.type,
+         account_code: validation.accountCode,
+diff --git a/app/api/myops/activity/route.ts b/app/api/myops/activity/route.ts
+new file mode 100644
+index 0000000..5390245
+--- /dev/null
++++ b/app/api/myops/activity/route.ts
+@@ -0,0 +1,19 @@
++import { NextRequest, NextResponse } from 'next/server';
++import { verifiedMyopsClient } from '@/lib/auth/myops-server';
++import { ssoConfig } from '@/lib/auth/myops-session';
++
++export const runtime = 'nodejs';
++export async function POST(request: NextRequest) {
++  const headers = {'Cache-Control':'no-store'};
++  try {
++    const {appOrigin} = ssoConfig();
++    if (request.nextUrl.origin !== appOrigin || request.headers.get('origin') !== appOrigin
++        || request.headers.get('sec-fetch-site') === 'cross-site') {
++      return NextResponse.json({error:'Request rejected.'}, {status:403,headers});
++    }
++    await verifiedMyopsClient(true);
++    return NextResponse.json({active:true}, {headers});
++  } catch {
++    return NextResponse.json({error:'MYOPS authentication required.'}, {status:401,headers});
++  }
++}
+diff --git a/app/api/myops/logout/route.ts b/app/api/myops/logout/route.ts
+index 7660e91..a9dc4c8 100644
+--- a/app/api/myops/logout/route.ts
++++ b/app/api/myops/logout/route.ts
+@@ -5,7 +5,9 @@ export async function POST(request:NextRequest) {
+   try {
+     const {appOrigin,transport}=ssoConfig();
+     if(request.headers.get('origin')!==appOrigin||request.nextUrl.origin!==appOrigin)return NextResponse.json({error:'Request rejected.'},{status:403});
+-    const response=NextResponse.json({next:`${transport.origin}/dashboard`},{headers:{'Cache-Control':'no-store'}});
++    const body = await request.json().catch(() => null);
++    const destination = body?.reason === 'inactivity' ? '/login' : '/dashboard';
++    const response=NextResponse.json({next:`${transport.origin}${destination}`},{headers:{'Cache-Control':'no-store'}});
+     response.cookies.set(MYOPS_COOKIE,'',{httpOnly:true,secure:true,sameSite:'lax',path:'/',maxAge:0});
+     // MYOPS owns the central logout POST. The portal dashboard supplies that action;
+     // navigating by GET must not silently log the user out or claim global revocation.
+diff --git a/app/api/upload/route.ts b/app/api/upload/route.ts
+index f58927f..80c5f5d 100644
+--- a/app/api/upload/route.ts
++++ b/app/api/upload/route.ts
+@@ -79,6 +79,11 @@ export async function POST(request: Request) {
+         return NextResponse.json({ error: 'Upload content is required for preview.' }, { status: 400 });
+       }
+ 
++      const financialAccountId = String(payload.financialAccountId ?? '').trim();
++      if (!financialAccountId) {
++        return NextResponse.json({ error: 'Select the bank or financial account for this statement.' }, { status: 400 });
++      }
++
+       const statementResult = await persistBankStatementImport(
+         supabase,
+         user.id,
+@@ -86,7 +91,7 @@ export async function POST(request: Request) {
+         fileName,
+         content,
+         fileType,
+-        payload.financialAccountId ?? null,
++        financialAccountId,
+       );
+ 
+       return NextResponse.json({
+diff --git a/components/authenticated-shell.tsx b/components/authenticated-shell.tsx
+index f0b6621..89464ae 100644
+--- a/components/authenticated-shell.tsx
++++ b/components/authenticated-shell.tsx
+@@ -5,6 +5,8 @@ import Link from 'next/link';
+ import { usePathname, useRouter } from 'next/navigation';
+ import React, { useEffect, useState } from 'react';
+ 
++import { trackUserActivity } from '../lib/auth/user-activity';
++
+ import { isPreviewAuthBypassEnabled } from '../lib/auth/navigation';
+ import { getSupabaseBrowserClient } from '../lib/supabase/client';
+ 
+@@ -65,6 +67,7 @@ const navGroups: NavGroup[] = [
+     title: 'Settings',
+     items: [
+       { href: '/settings/business', label: 'Business Profile' },
++      { href: '/accounts/financial', label: 'Bank Account Settings' },
+       { href: '/settings/accounting', label: 'Accounting Settings' },
+       { href: '/settings/accounting-rules', label: 'Accounting Rules' },
+     ],
+@@ -102,6 +105,7 @@ export function AuthenticatedAppShell({ children, businessName, userEmail }: Aut
+   const router = useRouter();
+   const pathname = usePathname();
+   const [mobileOpen, setMobileOpen] = useState(false);
++  const [idleExpired, setIdleExpired] = useState(false);
+ 
+   useEffect(() => {
+     if (typeof window !== 'undefined' && window.innerWidth > 900) {
+@@ -109,6 +113,26 @@ export function AuthenticatedAppShell({ children, businessName, userEmail }: Aut
+     }
+   }, [pathname]);
+ 
++  useEffect(() => {
++    if (process.env.NEXT_PUBLIC_MYOPS_SSO_ENABLED !== 'true') return;
++    return trackUserActivity(document,
++      () => fetch('/api/myops/activity', {method:'POST',credentials:'same-origin',cache:'no-store'}),
++      Date.now,
++      () => {
++        setIdleExpired(true);
++        void (async () => {
++          try {
++            const response = await fetch('/api/myops/logout', {method:'POST',credentials:'same-origin',
++              headers:{'Content-Type':'application/json'},body:JSON.stringify({reason:'inactivity'}),
++              signal:AbortSignal.timeout(10000)});
++            if (!response.ok) throw new Error('Session cleanup unavailable.');
++            const result = await response.json();
++            window.location.replace(typeof result.next === 'string' ? result.next : '/login');
++          } catch { window.location.replace('/login'); }
++        })();
++      });
++  }, []);
++
+   const signOut = async () => {
+     if (process.env.NEXT_PUBLIC_MYOPS_SSO_ENABLED === 'true') {
+       const response=await fetch('/api/myops/logout',{method:'POST',credentials:'same-origin'});
+@@ -123,6 +147,8 @@ export function AuthenticatedAppShell({ children, businessName, userEmail }: Aut
+     router.push(isPreviewAuthBypassEnabled() ? '/dashboard' : '/login');
+   };
+ 
++  if (idleExpired) return <main role="status">Session expired. Returning to MYOPS login…</main>;
++
+   return (
+     <div className="opsfinance-app-shell">
+       <aside className="opsfinance-sidebar">
+diff --git a/components/chart-of-accounts-workflow.tsx b/components/chart-of-accounts-workflow.tsx
+index 7fa6222..bab4517 100644
+--- a/components/chart-of-accounts-workflow.tsx
++++ b/components/chart-of-accounts-workflow.tsx
+@@ -8,6 +8,7 @@ export function ChartOfAccountsWorkflow({ businessId }: ChartOfAccountsWorkflowP
+   const [accounts, setAccounts] = useState<Array<any>>([]);
+   const [error, setError] = useState<string | null>(null);
+   const [loading, setLoading] = useState(false);
++  const [saving, setSaving] = useState(false);
+   const [form, setForm] = useState({
+     code: '',
+     name: '',
+@@ -21,6 +22,7 @@ export function ChartOfAccountsWorkflow({ businessId }: ChartOfAccountsWorkflowP
+     if (!businessId) return;
+ 
+     setLoading(true);
++    setError(null);
+     try {
+       const response = await fetch(`/api/accounts?businessId=${encodeURIComponent(businessId)}`);
+       const payload = await response.json();
+@@ -42,7 +44,9 @@ export function ChartOfAccountsWorkflow({ businessId }: ChartOfAccountsWorkflowP
+   }, [loadAccounts]);
+ 
+   const handleCreate = async () => {
+-    if (!businessId) return;
++    if (!businessId || saving) return;
++    setSaving(true);
++    setError(null);
+ 
+     try {
+       const response = await fetch('/api/accounts', {
+@@ -68,6 +72,8 @@ export function ChartOfAccountsWorkflow({ businessId }: ChartOfAccountsWorkflowP
+       await loadAccounts();
+     } catch (caughtError) {
+       setError(caughtError instanceof Error ? caughtError.message : 'Could not create account.');
++    } finally {
++      setSaving(false);
+     }
+   };
+ 
+@@ -88,7 +94,7 @@ export function ChartOfAccountsWorkflow({ businessId }: ChartOfAccountsWorkflowP
+             <label>Normal Balance<select value={form.normal_balance} onChange={(event) => setForm((current) => ({ ...current, normal_balance: event.target.value }))}><option value="DEBIT">DEBIT</option><option value="CREDIT">CREDIT</option></select></label>
+           </div>
+           <div className="opsfinance-action-row">
+-            <button type="button" className="opsfinance-primary-button" onClick={handleCreate}>Create account</button>
++            <button type="button" className="opsfinance-primary-button" disabled={saving || loading} onClick={handleCreate}>{saving ? 'Saving…' : 'Create account'}</button>
+             <label className="opsfinance-inline-label"><input type="checkbox" checked={form.is_active} onChange={(event) => setForm((current) => ({ ...current, is_active: event.target.checked }))} /> Active</label>
+           </div>
+         </section>
+diff --git a/components/financial-accounts-workflow.tsx b/components/financial-accounts-workflow.tsx
+index 7fea385..1a28faf 100644
+--- a/components/financial-accounts-workflow.tsx
++++ b/components/financial-accounts-workflow.tsx
+@@ -17,9 +17,13 @@ type FinancialAccountRecord = {
+   currency?: string;
+   status?: string;
+   opening_balance?: string;
++  opening_balance_date?: string | null;
+   openingBalance?: string;
+   account_id?: string | null;
+   accountId?: string | null;
++  bank_name?: string | null;
++  company_name?: string | null;
++  account_number?: string | null;
+ };
+ 
+ const formatMoney = (value: string | number | undefined) => {
+@@ -32,6 +36,7 @@ const formatMoney = (value: string | number | undefined) => {
+ 
+ export function FinancialAccountsWorkflow({ businessId, businessContextError }: FinancialAccountsWorkflowProps) {
+   const [accounts, setAccounts] = useState<FinancialAccountRecord[]>([]);
++  const [ledgerAccounts, setLedgerAccounts] = useState<Array<{id: string; code: string; name: string; is_active: boolean}>>([]);
+   const [selectedId, setSelectedId] = useState<string | null>(null);
+   const [error, setError] = useState<string | null>(null);
+   const [loading, setLoading] = useState(false);
+@@ -42,6 +47,7 @@ export function FinancialAccountsWorkflow({ businessId, businessContextError }:
+     }
+   }, []);
+   const [form, setForm] = useState({
++    bankName: '', companyName: '', accountNumber: '',
+     name: '',
+     type: 'BANK',
+     accountCode: '',
+@@ -62,8 +68,13 @@ export function FinancialAccountsWorkflow({ businessId, businessContextError }:
+     setError(null);
+ 
+     try {
+-      const response = await fetch(`/api/financial-accounts?businessId=${encodeURIComponent(businessId)}`);
+-      const payload = await response.json();
++      const [response, ledgerResponse] = await Promise.all([
++        fetch(`/api/financial-accounts?businessId=${encodeURIComponent(businessId)}`),
++        fetch(`/api/accounts?businessId=${encodeURIComponent(businessId)}`),
++      ]);
++      const [payload, ledgerPayload] = await Promise.all([response.json(), ledgerResponse.json()]);
++      if (!ledgerResponse.ok) throw new Error(ledgerPayload.error ?? 'Could not load ledger accounts.');
++      setLedgerAccounts((ledgerPayload.accounts ?? []).filter((account: {is_active: boolean}) => account.is_active));
+ 
+       if (!response.ok) {
+         throw new Error(payload.error ?? 'Could not load financial accounts.');
+@@ -83,7 +94,8 @@ export function FinancialAccountsWorkflow({ businessId, businessContextError }:
+ 
+   const resetForm = () => {
+     setForm({
+-      name: '',
++      bankName: '', companyName: '', accountNumber: '',
++    name: '',
+       type: 'BANK',
+       accountCode: '',
+       currency: 'MYR',
+@@ -107,6 +119,8 @@ export function FinancialAccountsWorkflow({ businessId, businessContextError }:
+       setLoading(true);
+       setError(null);
+ 
++      if (form.type === 'BANK' && (!form.bankName.trim() || !form.companyName.trim() || !form.accountNumber.trim())) throw new Error('Bank name, company/account holder name and account number are required.');
++      if (!form.accountId) throw new Error('Select a ledger account before creating a financial account.');
+       if (!form.name.trim()) {
+         throw new Error('Account name is required.');
+       }
+@@ -115,10 +129,12 @@ export function FinancialAccountsWorkflow({ businessId, businessContextError }:
+       }
+ 
+       const response = await fetch('/api/financial-accounts', {
+-        method: 'POST',
++        method: isEditing ? 'PUT' : 'POST',
+         headers: { 'Content-Type': 'application/json' },
+         body: JSON.stringify({
+           businessId,
++          id: isEditing ? selectedId : undefined,
++          bankName: form.bankName, companyName: form.companyName, accountNumber: form.accountNumber,
+           name: form.name,
+           type: form.type,
+           accountCode: form.accountCode,
+@@ -174,7 +190,7 @@ export function FinancialAccountsWorkflow({ businessId, businessContextError }:
+ 
+         <section ref={formRef} style={{ background: '#fff', border: '1px solid #e2e8f0', borderRadius: 18, padding: '1rem', display: 'grid', gap: '0.8rem' }}>
+           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
+-            <h2 style={{ margin: 0 }}>Create new account</h2>
++            <h2 style={{ margin: 0 }}>{isEditing ? 'Edit account' : 'Create new account'}</h2>
+             <button type="button" onClick={() => resetForm()} style={{ background: '#e2e8f0', color: '#0f172a', border: 'none', borderRadius: 10, padding: '0.6rem 0.9rem', fontWeight: 700, cursor: 'pointer' }}>Clear</button>
+           </div>
+           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: '0.75rem' }}>
+@@ -184,12 +200,18 @@ export function FinancialAccountsWorkflow({ businessId, businessContextError }:
+             <label style={{ display: 'grid', gap: '0.25rem' }}>Currency<input value={form.currency} onChange={(event) => setForm((current) => ({ ...current, currency: event.target.value.toUpperCase() }))} /></label>
+           </div>
+           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '0.75rem' }}>
+-            <label style={{ display: 'grid', gap: '0.25rem' }}>COA mapping<input value={form.accountId} onChange={(event) => setForm((current) => ({ ...current, accountId: event.target.value }))} /></label>
+-            <label style={{ display: 'grid', gap: '0.25rem' }}>Opening balance<input value={form.openingBalance} onChange={(event) => setForm((current) => ({ ...current, openingBalance: event.target.value }))} /></label>
+-            <label style={{ display: 'grid', gap: '0.25rem' }}>Opening date<input type="date" value={form.openingBalanceDate} onChange={(event) => setForm((current) => ({ ...current, openingBalanceDate: event.target.value }))} /></label>
++            <label>Bank name<input value={form.bankName} onChange={(event) => setForm(current => ({...current,bankName:event.target.value}))} /></label>
++            <label>Company / account holder name<input value={form.companyName} onChange={(event) => setForm(current => ({...current,companyName:event.target.value}))} /></label>
++            <label>Account number<input type="text" inputMode="numeric" autoComplete="off" value={form.accountNumber} onChange={(event) => setForm(current => ({...current,accountNumber:event.target.value}))} /></label>
++          </div>
++          <p>Use the full account number, including leading zeros. Statement imports require an exact account-number match.</p>
++          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '0.75rem' }}>
++            <label style={{ display: 'grid', gap: '0.25rem' }}>COA mapping<select value={form.accountId} onChange={(event) => setForm((current) => ({ ...current, accountId: event.target.value }))}><option value="">Select a ledger account</option>{ledgerAccounts.map((account) => <option key={account.id} value={account.id}>{account.code} — {account.name}</option>)}</select></label>
++            <label style={{ display: 'grid', gap: '0.25rem' }}>Opening balance<input disabled={isEditing} value={form.openingBalance} onChange={(event) => setForm((current) => ({ ...current, openingBalance: event.target.value }))} /></label>
++            <label style={{ display: 'grid', gap: '0.25rem' }}>Opening date<input disabled={isEditing} type="date" value={form.openingBalanceDate} onChange={(event) => setForm((current) => ({ ...current, openingBalanceDate: event.target.value }))} /></label>
+             <label style={{ display: 'grid', gap: '0.25rem' }}>Status<select value={form.status} onChange={(event) => setForm((current) => ({ ...current, status: event.target.value }))}><option value="ACTIVE">ACTIVE</option><option value="INACTIVE">INACTIVE</option></select></label>
+           </div>
+-          <button type="button" onClick={() => void handleCreate()} style={{ width: 'fit-content', background: '#0f172a', color: '#fff', border: 'none', borderRadius: 10, padding: '0.7rem 1rem', fontWeight: 700, cursor: 'pointer' }}>+ Create Account</button>
++          <button type="button" disabled={loading} onClick={() => void handleCreate()} style={{ width: 'fit-content', background: '#0f172a', color: '#fff', border: 'none', borderRadius: 10, padding: '0.7rem 1rem', fontWeight: 700, cursor: 'pointer' }}>{isEditing ? 'Save account' : '+ Create Account'}</button>
+         </section>
+ 
+         {error ? <div role="alert" style={{ background: '#fff1f2', border: '1px solid #fecdd3', borderRadius: 18, padding: '1rem' }}>{error}</div> : null}
+@@ -198,7 +220,7 @@ export function FinancialAccountsWorkflow({ businessId, businessContextError }:
+           {loading ? <div>Loading financial accounts…</div> : (
+             <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+               <thead>
+-                <tr><th style={{ textAlign: 'left', padding: '0.5rem', borderBottom: '1px solid #e2e8f0' }}>Name</th><th style={{ textAlign: 'left', padding: '0.5rem', borderBottom: '1px solid #e2e8f0' }}>Type</th><th style={{ textAlign: 'left', padding: '0.5rem', borderBottom: '1px solid #e2e8f0' }}>Code</th><th style={{ textAlign: 'right', padding: '0.5rem', borderBottom: '1px solid #e2e8f0' }}>Opening balance</th><th style={{ textAlign: 'left', padding: '0.5rem', borderBottom: '1px solid #e2e8f0' }}>Status</th></tr>
++                <tr><th style={{ textAlign: 'left', padding: '0.5rem', borderBottom: '1px solid #e2e8f0' }}>Name</th><th style={{ textAlign: 'left', padding: '0.5rem', borderBottom: '1px solid #e2e8f0' }}>Type</th><th style={{ textAlign: 'left', padding: '0.5rem', borderBottom: '1px solid #e2e8f0' }}>Code</th><th style={{ textAlign: 'right', padding: '0.5rem', borderBottom: '1px solid #e2e8f0' }}>Opening balance</th><th style={{ textAlign: 'left', padding: '0.5rem', borderBottom: '1px solid #e2e8f0' }}>Status</th><th>Bank details</th><th>Action</th></tr>
+               </thead>
+               <tbody>
+                 {accounts.map((account) => (
+@@ -208,6 +230,11 @@ export function FinancialAccountsWorkflow({ businessId, businessContextError }:
+                     <td style={{ padding: '0.5rem', borderBottom: '1px solid #f1f5f9' }}>{account.account_code ?? account.accountCode ?? '-'}</td>
+                     <td style={{ textAlign: 'right', padding: '0.5rem', borderBottom: '1px solid #f1f5f9' }}>{formatMoney(account.opening_balance ?? account.openingBalance ?? '0.00')}</td>
+                     <td style={{ padding: '0.5rem', borderBottom: '1px solid #f1f5f9' }}>{account.status ?? 'ACTIVE'}</td>
++                    <td>{account.bank_name ?? '-'} · {account.company_name ?? '-'} · {account.account_number ? `••••${account.account_number.slice(-4)}` : 'Account number not set'}</td>
++                    <td><button type="button" disabled={loading} onClick={() => {
++                      setSelectedId(account.id); setIsEditing(true); setError(null);
++                      setForm({name:account.name,type:account.type,accountCode:account.account_code ?? account.accountCode ?? '',currency:account.currency ?? 'MYR',accountId:account.account_id ?? account.accountId ?? '',openingBalance:String(account.opening_balance ?? account.openingBalance ?? '0'),openingBalanceDate:account.opening_balance_date ?? '',status:account.status ?? 'ACTIVE',bankName:account.bank_name ?? '',companyName:account.company_name ?? '',accountNumber:account.account_number ?? ''});
++                    }}>Edit {account.name}</button></td>
+                   </tr>
+                 ))}
+               </tbody>
+diff --git a/components/reconciliation-workflow.tsx b/components/reconciliation-workflow.tsx
+index d83f77f..79f18b7 100644
+--- a/components/reconciliation-workflow.tsx
++++ b/components/reconciliation-workflow.tsx
+@@ -30,6 +30,8 @@ type BookTransaction = {
+ };
+ 
+ export function ReconciliationWorkflow({ businessId, businessContextError }: ReconciliationWorkflowProps) {
++  const [openingBalance, setOpeningBalance] = useState<string | null>(null);
++  const [matches, setMatches] = useState<Array<{bank_transaction_id:string;matched_amount:string}>>([]);
+   const [statementId, setStatementId] = useState<string | null>(null);
+   const [bankTransactions, setBankTransactions] = useState<BankTransaction[]>([]);
+   const [bookTransactions, setBookTransactions] = useState<BookTransaction[]>([]);
+@@ -52,7 +54,9 @@ export function ReconciliationWorkflow({ businessId, businessContextError }: Rec
+       }
+ 
+       const statements = Array.isArray(payload.statements) ? payload.statements : [];
+-      const bankRows = Array.isArray(payload.bankTransactions) ? payload.bankTransactions : [];
++      const bankRows = (Array.isArray(payload.bankTransactions) ? payload.bankTransactions : []).filter((row: BankTransaction) => row.bank_statement_id === statements[0]?.id);
++      setMatches(Array.isArray(payload.matches) ? payload.matches : []);
++      setOpeningBalance(statements[0]?.opening_balance ?? null);
+       const bookRows = Array.isArray(payload.bookTransactions) ? payload.bookTransactions : [];
+ 
+       setStatementId(statements[0]?.id ?? null);
+@@ -84,21 +88,23 @@ export function ReconciliationWorkflow({ businessId, businessContextError }: Rec
+     return () => window.clearTimeout(timeoutId);
+   }, [businessId, loadSnapshot]);
+ 
+-  const unmatchedRows = useMemo(() => bankTransactions.filter((row) => row.status !== 'MATCHED' && row.status !== 'PARTIAL'), [bankTransactions]);
++  const unmatchedRows = useMemo(() => bankTransactions.filter((row) => row.status !== 'MATCHED'), [bankTransactions]);
+   const statementSummary = useMemo(() => {
+     const bankTotal = bankTransactions.reduce((sum, row) => sum + Number(row.amount || '0.00'), 0);
+     const bookTotal = bookTransactions.reduce((sum, row) => sum + Number(row.amount || '0.00'), 0);
+-    const openingBalance = bankTotal > 0 ? 12500 : 0;
+-    const matchedTotal = Math.min(bankTotal, bookTotal);
+-    const outstanding = Math.max(bankTotal - matchedTotal, 0);
++    const outstanding = bankTransactions.reduce((sum, row) => {
++      const allocated = matches.filter(match => match.bank_transaction_id === row.id)
++        .reduce((total, match) => total + Number(match.matched_amount || '0'), 0);
++      return sum + Math.max(Number(row.amount || '0') - allocated, 0);
++    }, 0);
+ 
+     return {
+-      openingBalance: `RM${openingBalance.toFixed(2)}`,
++      openingBalance: openingBalance === null ? 'Not provided' : `RM${Number(openingBalance).toFixed(2)}`,
+       statementTotal: `RM${bankTotal.toFixed(2)}`,
+       postedTotal: `RM${bookTotal.toFixed(2)}`,
+       outstanding: `RM${outstanding.toFixed(2)}`,
+     };
+-  }, [bankTransactions, bookTransactions]);
++  }, [bankTransactions, bookTransactions, matches, openingBalance]);
+ 
+   if (!businessId) {
+     return (
+@@ -193,7 +199,7 @@ export function ReconciliationWorkflow({ businessId, businessContextError }: Rec
+             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '0.75rem' }}>
+               <div>Opening balance<br /><span>{statementSummary.openingBalance}</span></div>
+               <div>Statement total<br /><span>{statementSummary.statementTotal}</span></div>
+-              <div>Posted total<br /><span>{statementSummary.postedTotal}</span></div>
++              <div>Business posted total<br /><span>{statementSummary.postedTotal}</span></div>
+               <div>Outstanding<br /><span>{statementSummary.outstanding}</span></div>
+             </div>
+           </div>
+@@ -234,7 +240,7 @@ export function ReconciliationWorkflow({ businessId, businessContextError }: Rec
+             <button type="button" onClick={handleMatch} disabled={isLoading || !selectedBankTransactionId || !selectedBookTransactionId} style={{ background: '#0f172a', color: '#fff', border: 'none', borderRadius: 10, padding: '0.7rem 1rem', fontWeight: 700, cursor: 'pointer' }}>
+               {isLoading ? 'Processing…' : 'Create match'}
+             </button>
+-            <button type="button" onClick={handleComplete} disabled={isLoading || !statementId || unmatchedRows.length > 0} style={{ background: '#e2e8f0', color: '#0f172a', border: 'none', borderRadius: 10, padding: '0.7rem 1rem', fontWeight: 700, cursor: 'pointer' }}>
++            <button type="button" onClick={handleComplete} disabled={isLoading || !statementId || bankTransactions.length === 0 || unmatchedRows.length > 0} style={{ background: '#e2e8f0', color: '#0f172a', border: 'none', borderRadius: 10, padding: '0.7rem 1rem', fontWeight: 700, cursor: 'pointer' }}>
+               Complete reconciliation
+             </button>
+             <button type="button" onClick={loadSnapshot} style={{ background: '#f8fafc', color: '#0f172a', border: '1px solid #cbd5e1', borderRadius: 10, padding: '0.7rem 1rem', fontWeight: 700, cursor: 'pointer' }}>
+diff --git a/components/reports-workflow.tsx b/components/reports-workflow.tsx
+index fb5d725..5e4816d 100644
+--- a/components/reports-workflow.tsx
++++ b/components/reports-workflow.tsx
+@@ -1,6 +1,7 @@
+ 'use client';
+ 
+ import React, { useEffect, useState } from 'react';
++import { reportCsv } from '../lib/report-csv';
+ 
+ import { isPreviewAuthBypassEnabled } from '../lib/auth/navigation';
+ import { PREVIEW_BUSINESS_ID, getPreviewFinancialSnapshot, getPreviewReportRepository } from '../lib/preview-data';
+@@ -230,6 +231,14 @@ export function ReportsWorkflow({ businessId, businessContextError, defaultRepor
+           <div>
+             <p style={{ margin: 0, color: '#475569', letterSpacing: '0.08em', fontSize: 12, fontWeight: 700, textTransform: 'uppercase' }}>OpsFinance</p>
+             <h1 style={{ margin: '0.35rem 0 0' }}>Financial Reports</h1>
++            <button type="button" className="opsfinance-secondary-button" disabled={loading || !rowData} onClick={() => {
++              if (loading || !rowData) return;
++              const csv = reportCsv(rowData, {report: buttonLabels[report], business: businessId, from: dateFrom, to: dateTo});
++              const url = URL.createObjectURL(new Blob([csv], {type:'text/csv;charset=utf-8'}));
++              const link = document.createElement('a');
++              link.href = url; link.download = `opsfinance-${report}-${dateFrom}-${dateTo}.csv`;
++              link.click(); setTimeout(() => URL.revokeObjectURL(url), 1000);
++            }}>Export CSV</button>
+           </div>
+         </header>
+ 
+diff --git a/components/upload-workflow.tsx b/components/upload-workflow.tsx
+index 4db407e..101386c 100644
+--- a/components/upload-workflow.tsx
++++ b/components/upload-workflow.tsx
+@@ -15,6 +15,14 @@ type AccountOption = {
+   normal_balance?: string;
+ };
+ 
++type FinancialAccountOption = {
++  id: string;
++  account_code: string;
++  name: string;
++  status: string;
++  account_id?: string | null;
++};
++
+ type UploadRow = {
+   id: string;
+   date: string;
+@@ -29,10 +37,13 @@ type UploadRow = {
+ 
+ export function UploadWorkflow({ businessId, businessContextError }: UploadWorkflowProps) {
+   const [accounts, setAccounts] = useState<AccountOption[]>([]);
++  const [financialAccounts, setFinancialAccounts] = useState<FinancialAccountOption[]>([]);
++  const [selectedFinancialAccountId, setSelectedFinancialAccountId] = useState('');
+   const [statementId, setStatementId] = useState<string | null>(null);
+   const [rows, setRows] = useState<UploadRow[]>([]);
+   const [sourceText, setSourceText] = useState('');
+   const [selectedAccountId, setSelectedAccountId] = useState('');
++  const [showImportError, setShowImportError] = useState(false);
+   const [error, setError] = useState<string | null>(null);
+   const [success, setSuccess] = useState<string | null>(null);
+   const [isLoading, setIsLoading] = useState(false);
+@@ -41,17 +52,29 @@ export function UploadWorkflow({ businessId, businessContextError }: UploadWorkf
+     const activeBusinessId = businessId ?? '';
+     if (!activeBusinessId) return;
+ 
++    let cancelled = false;
++    setSelectedFinancialAccountId('');
++    setStatementId(null);
++    setRows([]);
++    setAccounts([]);
++    setFinancialAccounts([]);
+     async function loadAccounts() {
+-      const response = await fetch(`/api/accounts?businessId=${encodeURIComponent(activeBusinessId)}`);
+-      if (!response.ok) {
+-        setAccounts([]);
+-        return;
+-      }
+-      const payload = await response.json();
+-      setAccounts(Array.isArray(payload.accounts) ? payload.accounts : []);
++      const [ledgerResponse, financialResponse] = await Promise.all([
++        fetch(`/api/accounts?businessId=${encodeURIComponent(activeBusinessId)}`),
++        fetch(`/api/financial-accounts?businessId=${encodeURIComponent(activeBusinessId)}`),
++      ]);
++      if (!ledgerResponse.ok || !financialResponse.ok) throw new Error('Unable to load accounts. Reload and try again.');
++      const [ledgerPayload, financialPayload] = await Promise.all([ledgerResponse.json(), financialResponse.json()]);
++      if (cancelled) return;
++      setAccounts(Array.isArray(ledgerPayload.accounts) ? ledgerPayload.accounts : []);
++      setFinancialAccounts((Array.isArray(financialPayload.financialAccounts) ? financialPayload.financialAccounts : [])
++        .filter((account: FinancialAccountOption) => account.status === 'ACTIVE' && account.account_id));
+     }
+ 
+-    loadAccounts().catch(() => setAccounts([]));
++    loadAccounts().catch((caughtError) => {
++      if (!cancelled) setError(caughtError instanceof Error ? caughtError.message : 'Unable to load accounts.');
++    });
++    return () => { cancelled = true; };
+   }, [businessId]);
+ 
+   const previewSummary = useMemo(() => ({
+@@ -73,17 +96,20 @@ export function UploadWorkflow({ businessId, businessContextError }: UploadWorkf
+   const handleFileSelection = async (file: File) => {
+     if (!file) return;
+ 
+-    const content = await file.text();
+-    setSourceText(content);
+     setError(null);
+     setSuccess(null);
+     setIsLoading(true);
+ 
+     try {
++      if (!/\.(csv|txt)$/i.test(file.name)) throw new Error('CSV and TXT statements only. PDF, image and Excel extraction is not available yet.');
++      if (file.size > 10 * 1024 * 1024) throw new Error('Statement exceeds the 10 MB limit.');
++      if (!selectedFinancialAccountId) throw new Error('Select the bank or financial account for this statement first.');
++      const content = await file.text();
++      setSourceText(content);
+       const response = await fetch('/api/upload', {
+         method: 'POST',
+         headers: { 'Content-Type': 'application/json' },
+-        body: JSON.stringify({ action: 'preview', businessId, fileName: file.name, fileType: file.type || 'text/csv', content }),
++        body: JSON.stringify({ action: 'preview', businessId, financialAccountId: selectedFinancialAccountId, fileName: file.name, fileType: file.type || 'text/csv', content }),
+       });
+ 
+       const payload = await response.json();
+@@ -96,6 +122,7 @@ export function UploadWorkflow({ businessId, businessContextError }: UploadWorkf
+       setSuccess(`Preview loaded ${payload.rows?.length ?? 0} statement rows.`);
+     } catch (caughtError) {
+       setError(caughtError instanceof Error ? caughtError.message : 'Preview failed.');
++      setShowImportError(true);
+       setStatementId(null);
+       setRows([]);
+     } finally {
+@@ -104,6 +131,10 @@ export function UploadWorkflow({ businessId, businessContextError }: UploadWorkf
+   };
+ 
+   const handleParseReview = async () => {
++    if (!selectedFinancialAccountId) {
++      setError('Select the bank or financial account for this statement first.');
++      return;
++    }
+     const payloadBody = sourceText.trim();
+     if (!payloadBody) {
+       setError('Upload a statement or paste a statement export before parsing.');
+@@ -119,7 +150,7 @@ export function UploadWorkflow({ businessId, businessContextError }: UploadWorkf
+       const response = await fetch('/api/upload', {
+         method: 'POST',
+         headers: { 'Content-Type': 'application/json' },
+-        body: JSON.stringify({ action: 'preview', businessId, fileName: 'statement.csv', fileType: 'text/csv', content: payloadBody }),
++        body: JSON.stringify({ action: 'preview', businessId, financialAccountId: selectedFinancialAccountId, fileName: 'statement.csv', fileType: 'text/csv', content: payloadBody }),
+       });
+ 
+       const payload = await response.json();
+@@ -132,6 +163,7 @@ export function UploadWorkflow({ businessId, businessContextError }: UploadWorkf
+       setSuccess(`Preview loaded ${payload.rows?.length ?? 0} statement rows.`);
+     } catch (caughtError) {
+       setError(caughtError instanceof Error ? caughtError.message : 'Preview failed.');
++      setShowImportError(true);
+       setStatementId(null);
+       setRows([]);
+     } finally {
+@@ -180,15 +212,33 @@ export function UploadWorkflow({ businessId, businessContextError }: UploadWorkf
+       <div style={{ maxWidth: 1100, margin: '0 auto', display: 'grid', gap: '1rem' }}>
+         <div style={{ background: '#fff', border: '1px solid #e2e8f0', borderRadius: 18, padding: '1.5rem' }}>
+           <h1 style={{ marginTop: 0 }}>Upload &amp; Convert</h1>
+-          <p style={{ marginBottom: 0 }}>Import statement data and approve it server-side before posting to the ledger.</p>
++          <p style={{ marginBottom: 0 }}>Import a CSV or TXT bank statement, review it, then approve posting. PDF, image and Excel extraction is not available yet.</p>
+         </div>
+ 
+         <section style={{ background: '#fff', border: '1px solid #e2e8f0', borderRadius: 18, padding: '1rem', display: 'grid', gap: '0.8rem' }}>
++          <label style={{ display: 'grid', gap: '0.25rem' }}>
++            Bank or financial account
++            <select disabled={isLoading} value={selectedFinancialAccountId} onChange={(event) => {
++              setSelectedFinancialAccountId(event.target.value);
++              setStatementId(null);
++              setRows([]);
++              setSuccess(null);
++              setError(null);
++            }}>
++              <option value="">Select the account this statement belongs to</option>
++              {financialAccounts.map((account) => (
++                <option key={account.id} value={account.id}>{account.account_code} - {account.name}</option>
++              ))}
++            </select>
++          </label>
++          <p style={{ margin: 0 }}>The statement must include its full account number in an Account Number column or an Account Number metadata line. Wrong, missing or masked account numbers cancel the import.</p>
++          <p style={{ margin: 0 }}>Only active financial accounts with a ledger mapping are available. Create or update them in Financial Accounts.</p>
+           <label style={{ display: 'grid', gap: '0.25rem' }}>
+             Upload a bank statement
+             <input
+               type="file"
+-              accept=".csv,.xls,.xlsx,.pdf,.png,.jpg,.jpeg,.webp"
++              disabled={isLoading || !selectedFinancialAccountId}
++              accept=".csv,.txt,text/csv,text/plain"
+               onChange={async (event) => {
+                 const file = event.target.files?.[0];
+                 if (file) {
+@@ -201,8 +251,9 @@ export function UploadWorkflow({ businessId, businessContextError }: UploadWorkf
+           <label style={{ display: 'grid', gap: '0.25rem' }}>
+             Preview content
+             <textarea
++              disabled={isLoading}
+               value={sourceText}
+-              onChange={(event) => setSourceText(event.target.value)}
++              onChange={(event) => { setSourceText(event.target.value); setStatementId(null); setRows([]); setSuccess(null); }}
+               rows={12}
+               style={{ resize: 'vertical', fontFamily: 'monospace' }}
+               placeholder="Upload a CSV bank statement or paste a statement export to preview it here."
+@@ -211,7 +262,7 @@ export function UploadWorkflow({ businessId, businessContextError }: UploadWorkf
+ 
+           <label style={{ display: 'grid', gap: '0.25rem' }}>
+             Posting account
+-            <select value={selectedAccountId} onChange={(event) => setSelectedAccountId(event.target.value)}>
++            <select disabled={isLoading} value={selectedAccountId} onChange={(event) => setSelectedAccountId(event.target.value)}>
+               <option value="">Select the accounting category</option>
+               {accounts.map((account) => (
+                 <option key={account.id} value={account.id}>
+@@ -222,7 +273,7 @@ export function UploadWorkflow({ businessId, businessContextError }: UploadWorkf
+           </label>
+ 
+           <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.75rem' }}>
+-            <button type="button" onClick={handleParseReview} disabled={isLoading || !sourceText.trim()} style={{ background: '#0f172a', color: '#fff', border: 'none', borderRadius: 10, padding: '0.7rem 1rem', fontWeight: 700, cursor: 'pointer' }}>
++            <button type="button" onClick={handleParseReview} disabled={isLoading || !selectedFinancialAccountId || !sourceText.trim()} style={{ background: '#0f172a', color: '#fff', border: 'none', borderRadius: 10, padding: '0.7rem 1rem', fontWeight: 700, cursor: 'pointer' }}>
+               {isLoading ? 'Processing…' : 'Parse & review'}
+             </button>
+             <button type="button" onClick={handleApprove} disabled={isLoading || !statementId || !selectedAccountId} style={{ background: '#0f172a', color: '#fff', border: 'none', borderRadius: 10, padding: '0.7rem 1rem', fontWeight: 700, cursor: 'pointer' }}>
+@@ -230,7 +281,8 @@ export function UploadWorkflow({ businessId, businessContextError }: UploadWorkf
+             </button>
+           </div>
+ 
+-          {error ? <div style={{ color: '#b91c1c', fontWeight: 600 }}>{error}</div> : null}
++          {showImportError && error ? <div role="alertdialog" aria-modal="true" aria-labelledby="import-error-title" style={{position:'fixed',inset:0,zIndex:1000,background:'rgba(15,23,42,0.5)',display:'grid',placeItems:'center'}}><div style={{background:'white',padding:'1.5rem',borderRadius:12,maxWidth:480}}><h2 id="import-error-title">Import cancelled</h2><p>{error}</p><button autoFocus onClick={() => setShowImportError(false)}>Close</button></div></div> : null}
++          {error && !showImportError ? <div role="alert" style={{ color: '#b91c1c', fontWeight: 600 }}>{error}</div> : null}
+           {success ? <div style={{ color: '#166534', fontWeight: 600 }}>{success}</div> : null}
+ 
+           {rows.length ? (
+diff --git a/docs/release-review/finance-db-apply.sql b/docs/release-review/finance-db-apply.sql
+new file mode 100644
+index 0000000..43b8113
+--- /dev/null
++++ b/docs/release-review/finance-db-apply.sql
+@@ -0,0 +1,21 @@
++-- REVIEW ONLY: target OpsFinance Production ozkjsihuovzpujuabupa. NOT EXECUTED.
++-- Existing DML grants remain; no entitlement, membership, credential or business data changes.
++begin;
++do $$ begin
++ if not exists(select 1 from private.myops_broker_config where id=true and enabled and length(key_hash)=64) then raise exception 'Broker prerequisite failed'; end if;
++ if exists(select 1 from information_schema.columns where table_schema='public' and table_name='financial_accounts' and column_name='account_number') then raise exception 'Schema changed: re-run read-only preflight'; end if;
++end $$;
++alter table public.financial_accounts add column bank_name text, add column company_name text, add column account_number text;
++alter table public.financial_accounts add constraint financial_account_number_format check (account_number is null or account_number ~ '^[0-9]{4,34}$');
++alter table public.bank_statements add column verified_account_number text;
++create policy import_statement_owner_required on public.bank_statements as restrictive for insert to authenticated
++ with check (uploaded_by=(select auth.uid()) and exists(select 1 from public.financial_accounts f where f.id=financial_account_id and f.business_id=bank_statements.business_id));
++create policy reconciliation_reference_scope_required on public.reconciliation_matches as restrictive for insert to authenticated
++ with check (matched_by=(select auth.uid())
++ and exists(select 1 from public.bank_transactions bt join public.bank_statements bs on bs.id=bt.bank_statement_id where bt.id=bank_transaction_id and bs.business_id=reconciliation_matches.business_id)
++ and exists(select 1 from public.transactions t where t.id=transaction_id and t.business_id=reconciliation_matches.business_id));
++create policy import_audit_actor_required on public.audit_logs as restrictive for insert to authenticated
++ with check (user_id=(select auth.uid()));
++-- TRUNCATE is not row-filtered by RLS. No TRUNCATE command is executed.
++revoke truncate on all tables in schema public from anon, authenticated;
++commit;
+diff --git a/docs/release-review/finance-db-rollback.sql b/docs/release-review/finance-db-rollback.sql
+new file mode 100644
+index 0000000..b4547ed
+--- /dev/null
++++ b/docs/release-review/finance-db-rollback.sql
+@@ -0,0 +1,7 @@
++-- REVIEW ONLY: OpsFinance Production; restore runtime first. NOT EXECUTED.
++-- Preserve additive columns and any entered bank data. Do not regrant TRUNCATE.
++begin;
++drop policy if exists import_statement_owner_required on public.bank_statements;
++drop policy if exists reconciliation_reference_scope_required on public.reconciliation_matches;
++drop policy if exists import_audit_actor_required on public.audit_logs;
++commit;
+diff --git a/docs/release-review/myops-timer-apply.sql b/docs/release-review/myops-timer-apply.sql
+new file mode 100644
+index 0000000..8b3a19f
+--- /dev/null
++++ b/docs/release-review/myops-timer-apply.sql
+@@ -0,0 +1,47 @@
++-- REVIEW ONLY: target MYOPS Production uhuukcztdifvpjuopdea. NOT EXECUTED.
++begin;
++do $$ begin
++ if (select md5(pg_get_functiondef(p.oid)) from pg_proc p join pg_namespace n on n.oid=p.pronamespace where n.nspname='public' and p.proname='myops_validate_app_session') <> '9dad25fbef6d6adf5c294201527052bd' then raise exception 'Production timer definition changed: re-run preflight'; end if;
++end $$;
++CREATE OR REPLACE FUNCTION public.myops_validate_app_session(p_session_id uuid, p_app_id text, p_product_slug text, p_touch boolean DEFAULT false)
++ RETURNS jsonb
++ LANGUAGE plpgsql
++ SECURITY DEFINER
++ SET search_path TO ''
++AS $function$
++declare v_session public.myops_app_sessions; v_reason text;
++begin
++  -- Match central logout's lock order: login first, app second.
++  perform 1 from public.myops_login_sessions l
++    where l.id = (select s.login_session_id from public.myops_app_sessions s
++      where s.id=p_session_id and s.app_id=p_app_id and s.product_slug=p_product_slug)
++    for update;
++  select * into v_session from public.myops_app_sessions
++    where id = p_session_id and app_id = p_app_id and product_slug = p_product_slug for update;
++  if not found or v_session.revoked_at is not null then
++    return jsonb_build_object('active', false);
++  end if;
++  if v_session.login_session_id is null
++     or not public.myops_login_live(v_session.login_session_id, v_session.user_id) then
++    v_reason := 'myops_logout';
++  elsif v_session.created_at <= now() - interval '12 hours' then v_reason := 'absolute_expired';
++  elsif v_session.last_activity_at <= now() - interval '15 minutes' then v_reason := 'idle_expired';
++  end if;
++  if v_reason is not null then
++    update public.myops_app_sessions set revoked_at = now(), ended_reason = v_reason where id = p_session_id;
++    insert into public.myops_app_audit (app_id, event, reason_code)
++      values (p_app_id, 'session_revoked',
++        case v_reason when 'myops_logout' then 'logout' else v_reason end);
++    return jsonb_build_object('active', false);
++  end if;
++  if coalesce(p_touch, false) then
++    -- Only an already-live app/login may extend inactivity. Absolute expiry remains.
++    if not public.myops_login_touch(v_session.login_session_id, v_session.user_id) then
++      return jsonb_build_object('active', false);
++    end if;
++    update public.myops_app_sessions set last_activity_at = now() where id = p_session_id;
++  end if;
++  return jsonb_build_object('active', true, 'user_id', v_session.user_id);
++end $function$
++;
++commit;
+diff --git a/docs/release-review/myops-timer-rollback.sql b/docs/release-review/myops-timer-rollback.sql
+new file mode 100644
+index 0000000..db95797
+--- /dev/null
++++ b/docs/release-review/myops-timer-rollback.sql
+@@ -0,0 +1,35 @@
++-- REVIEW ONLY: target MYOPS Production uhuukcztdifvpjuopdea. NOT EXECUTED.
++begin;
++CREATE OR REPLACE FUNCTION public.myops_validate_app_session(p_session_id uuid, p_app_id text, p_product_slug text, p_touch boolean DEFAULT false)
++ RETURNS jsonb
++ LANGUAGE plpgsql
++ SECURITY DEFINER
++ SET search_path TO ''
++AS $function$
++declare v_session public.myops_app_sessions; v_reason text;
++begin
++  select * into v_session from public.myops_app_sessions
++    where id = p_session_id and app_id = p_app_id and product_slug = p_product_slug for update;
++  if not found or v_session.revoked_at is not null then
++    return jsonb_build_object('active', false);
++  end if;
++  if v_session.login_session_id is null
++     or not public.myops_login_live(v_session.login_session_id, v_session.user_id) then
++    v_reason := 'myops_logout';
++  elsif v_session.created_at <= now() - interval '12 hours' then v_reason := 'absolute_expired';
++  elsif v_session.last_activity_at <= now() - interval '15 minutes' then v_reason := 'idle_expired';
++  end if;
++  if v_reason is not null then
++    update public.myops_app_sessions set revoked_at = now(), ended_reason = v_reason where id = p_session_id;
++    insert into public.myops_app_audit (app_id, event, reason_code)
++      values (p_app_id, 'session_revoked',
++        case v_reason when 'myops_logout' then 'logout' else v_reason end);
++    return jsonb_build_object('active', false);
++  end if;
++  if coalesce(p_touch, false) then
++    update public.myops_app_sessions set last_activity_at = now() where id = p_session_id;
++  end if;
++  return jsonb_build_object('active', true, 'user_id', v_session.user_id);
++end $function$
++;
++commit;
+diff --git a/docs/staging/myops-session-timer-acceptance.sql b/docs/staging/myops-session-timer-acceptance.sql
+new file mode 100644
+index 0000000..cbad37a
+--- /dev/null
++++ b/docs/staging/myops-session-timer-acceptance.sql
+@@ -0,0 +1,26 @@
++-- Target: MYOPS isolated staging database wengxxiqwtosirealghx only. NOT Finance database or production.
++begin;
++do $uat$
++declare u uuid; l uuid:=gen_random_uuid(); s uuid:=gen_random_uuid(); r jsonb;
++begin
++ select user_id into strict u from public.myops_app_sessions where app_id='opsfinance' limit 1;
++ insert into public.myops_login_sessions(id,user_id,last_activity_at) values(l,u,now()-interval '14 minutes');
++ insert into public.myops_app_sessions(id,user_id,app_id,product_slug,login_session_id,last_activity_at) values(s,u,'opsfinance','opsfinance',l,now()-interval '14 minutes');
++ r:=public.myops_validate_app_session(s,'opsfinance','opsfinance',false);
++ if r->>'active'<>'true' or exists(select 1 from public.myops_login_sessions where id=l and last_activity_at<>now()-interval '14 minutes') then raise exception 'Passive validation changed login activity'; end if;
++ r:=public.myops_validate_app_session(s,'opsfinance','opsfinance',true);
++ if r->>'active'<>'true' or not exists(select 1 from public.myops_login_sessions where id=l and last_activity_at=now()) or not exists(select 1 from public.myops_app_sessions where id=s and last_activity_at=now()) then raise exception 'Activity did not synchronize both timers'; end if;
++ update public.myops_app_sessions set last_activity_at=now()-interval '15 minutes' where id=s;
++ r:=public.myops_validate_app_session(s,'opsfinance','opsfinance',true);
++ if r->>'active'<>'false' then raise exception 'Activity revived expired app'; end if;
++ update public.myops_app_sessions set revoked_at=null,ended_reason=null,last_activity_at=now() where id=s;
++ update public.myops_login_sessions set last_activity_at=now()-interval '15 minutes' where id=l;
++ r:=public.myops_validate_app_session(s,'opsfinance','opsfinance',true);
++ if r->>'active'<>'false' then raise exception 'Activity revived expired login'; end if;
++ update public.myops_login_sessions set last_activity_at=now(),revoked_at=now(),ended_reason='logout' where id=l;
++ update public.myops_app_sessions set revoked_at=null,ended_reason=null,last_activity_at=now() where id=s;
++ r:=public.myops_validate_app_session(s,'opsfinance','opsfinance',true);
++ if r->>'active'<>'false' then raise exception 'Activity revived logged-out session'; end if;
++end $uat$;
++rollback;
++select 'PASS: passive check preserves both timers; activity synchronizes live timers; expired app/login and central logout remain denied; fixtures rolled back' as result;
+\ No newline at end of file
+diff --git a/docs/staging/myops-session-timer-repair.sql b/docs/staging/myops-session-timer-repair.sql
+new file mode 100644
+index 0000000..c87e186
+--- /dev/null
++++ b/docs/staging/myops-session-timer-repair.sql
+@@ -0,0 +1,41 @@
++-- Target: MYOPS isolated staging database wengxxiqwtosirealghx only. NOT Finance database or production.
++CREATE OR REPLACE FUNCTION public.myops_validate_app_session(p_session_id uuid, p_app_id text, p_product_slug text, p_touch boolean DEFAULT false)
++ RETURNS jsonb
++ LANGUAGE plpgsql
++ SECURITY DEFINER
++ SET search_path TO ''
++AS $function$
++declare v_session public.myops_app_sessions; v_reason text;
++begin
++  -- Match central logout's lock order: login first, app second.
++  perform 1 from public.myops_login_sessions l
++    where l.id = (select s.login_session_id from public.myops_app_sessions s
++      where s.id=p_session_id and s.app_id=p_app_id and s.product_slug=p_product_slug)
++    for update;
++  select * into v_session from public.myops_app_sessions
++    where id = p_session_id and app_id = p_app_id and product_slug = p_product_slug for update;
++  if not found or v_session.revoked_at is not null then
++    return jsonb_build_object('active', false);
++  end if;
++  if v_session.login_session_id is null
++     or not public.myops_login_live(v_session.login_session_id, v_session.user_id) then
++    v_reason := 'myops_logout';
++  elsif v_session.created_at <= now() - interval '12 hours' then v_reason := 'absolute_expired';
++  elsif v_session.last_activity_at <= now() - interval '15 minutes' then v_reason := 'idle_expired';
++  end if;
++  if v_reason is not null then
++    update public.myops_app_sessions set revoked_at = now(), ended_reason = v_reason where id = p_session_id;
++    insert into public.myops_app_audit (app_id, event, reason_code)
++      values (p_app_id, 'session_revoked',
++        case v_reason when 'myops_logout' then 'logout' else v_reason end);
++    return jsonb_build_object('active', false);
++  end if;
++  if coalesce(p_touch, false) then
++    -- Only an already-live app/login may extend inactivity. Absolute expiry remains.
++    if not public.myops_login_touch(v_session.login_session_id, v_session.user_id) then
++      return jsonb_build_object('active', false);
++    end if;
++    update public.myops_app_sessions set last_activity_at = now() where id = p_session_id;
++  end if;
++  return jsonb_build_object('active', true, 'user_id', v_session.user_id);
++end $function$
+diff --git a/docs/staging/myops-session-timer-rollback.sql b/docs/staging/myops-session-timer-rollback.sql
+new file mode 100644
+index 0000000..a67c335
+--- /dev/null
++++ b/docs/staging/myops-session-timer-rollback.sql
+@@ -0,0 +1,32 @@
++-- Target: MYOPS isolated staging database wengxxiqwtosirealghx only. NOT Finance database or production.
++CREATE OR REPLACE FUNCTION public.myops_validate_app_session(p_session_id uuid, p_app_id text, p_product_slug text, p_touch boolean DEFAULT false)
++ RETURNS jsonb
++ LANGUAGE plpgsql
++ SECURITY DEFINER
++ SET search_path TO ''
++AS $function$
++declare v_session public.myops_app_sessions; v_reason text;
++begin
++  select * into v_session from public.myops_app_sessions
++    where id = p_session_id and app_id = p_app_id and product_slug = p_product_slug for update;
++  if not found or v_session.revoked_at is not null then
++    return jsonb_build_object('active', false);
++  end if;
++  if v_session.login_session_id is null
++     or not public.myops_login_live(v_session.login_session_id, v_session.user_id) then
++    v_reason := 'myops_logout';
++  elsif v_session.created_at <= now() - interval '12 hours' then v_reason := 'absolute_expired';
++  elsif v_session.last_activity_at <= now() - interval '15 minutes' then v_reason := 'idle_expired';
++  end if;
++  if v_reason is not null then
++    update public.myops_app_sessions set revoked_at = now(), ended_reason = v_reason where id = p_session_id;
++    insert into public.myops_app_audit (app_id, event, reason_code)
++      values (p_app_id, 'session_revoked',
++        case v_reason when 'myops_logout' then 'logout' else v_reason end);
++    return jsonb_build_object('active', false);
++  end if;
++  if coalesce(p_touch, false) then
++    update public.myops_app_sessions set last_activity_at = now() where id = p_session_id;
++  end if;
++  return jsonb_build_object('active', true, 'user_id', v_session.user_id);
++end $function$
+diff --git a/lib/accounting/server-operations.ts b/lib/accounting/server-operations.ts
+index f698437..9c98552 100644
+--- a/lib/accounting/server-operations.ts
++++ b/lib/accounting/server-operations.ts
+@@ -1,3 +1,4 @@
++import { verifyStatementAccount, normalizeAccountNumber } from './statement-account';
+ import { parseCsvRow, validateCsvBankStatement } from '@/packages/csv-import';
+ 
+ export type UnifiedBankRow = {
+@@ -260,8 +261,12 @@ export async function persistBankStatementImport(
+     throw new Error('Unsupported upload format. CSV and TXT bank statements are supported.');
+   }
+ 
+-  const rows = normalizeBankCsvRows(content);
+   const resolvedFinancialAccountId = await resolveFinancialAccountId(supabase, businessId, financialAccountId);
++  const { data: selectedAccount, error: selectedAccountError } = await supabase.from('financial_accounts')
++    .select('account_number').eq('business_id', businessId).eq('id', resolvedFinancialAccountId).maybeSingle();
++  if (selectedAccountError) throw new Error('Unable to verify the selected account.');
++  const verifiedStatement = verifyStatementAccount(content, selectedAccount?.account_number);
++  const rows = normalizeBankCsvRows(verifiedStatement.csv);
+   const statementId = crypto.randomUUID();
+   const now = new Date().toISOString();
+ 
+@@ -269,6 +274,7 @@ export async function persistBankStatementImport(
+     id: statementId,
+     business_id: businessId,
+     financial_account_id: resolvedFinancialAccountId,
++    verified_account_number: verifiedStatement.accountNumber,
+     file_name: fileName,
+     file_type: fileType,
+     statement_start_date: rows[0]?.date ? rows[0].date : null,
+@@ -343,7 +349,7 @@ export async function postApprovedBankImport(
+ 
+   const statementQuery = await supabase
+     .from('bank_statements')
+-    .select('id, business_id, status, financial_account_id')
++    .select('id, business_id, status, financial_account_id, verified_account_number')
+     .eq('id', statementId)
+     .eq('business_id', businessId)
+     .maybeSingle();
+@@ -376,8 +382,12 @@ export async function postApprovedBankImport(
+   }
+ 
+   const { data: bankAccount, error: bankAccountError } = await supabase.from('financial_accounts')
+-    .select('account_id').eq('business_id', businessId).eq('id', statementQuery.data.financial_account_id).maybeSingle();
++    .select('account_id, account_number').eq('business_id', businessId).eq('id', statementQuery.data.financial_account_id).maybeSingle();
+   if (bankAccountError || !bankAccount?.account_id) throw new Error('The selected bank account needs a chart-of-accounts mapping.');
++  if (!statementQuery.data.verified_account_number || !bankAccount.account_number
++      || normalizeAccountNumber(bankAccount.account_number) !== statementQuery.data.verified_account_number) {
++    throw new Error('Account verification changed or is missing. Import and verify the statement again before posting.');
++  }
+   const cashAccountId = bankAccount.account_id;
+   if (cashAccountId === accountId) throw new Error('Choose a posting account different from the bank account.');
+   const { data: bankRows = [], error: bankRowError } = await supabase
+@@ -489,13 +499,17 @@ export async function getReconciliationSnapshot(
+   if (statementError) throw new Error(statementError.message ?? 'Unable to load bank statements.');
+ 
+   const statementIds = statements.map((statement: any) => statement.id);
+-  const [{ data: bankTransactions = [] }, { data: bookTransactions = [] }, { data: matches = [] }] = await Promise.all([
++  const snapshotResults = await Promise.all([
+     supabase.from('bank_transactions').select('*').in('bank_statement_id', statementIds),
+     supabase.from('transactions').select('*').eq('business_id', businessId).eq('status', 'POSTED').order('transaction_date', { ascending: false }),
+     supabase.from('reconciliation_matches').select('*').eq('business_id', businessId),
+   ]);
++  for (const result of snapshotResults) {
++    if (result.error) throw new Error(result.error.message ?? 'Unable to load reconciliation data.');
++  }
++  const [{data: bankTransactions = []}, {data: bookTransactions = []}, {data: matches = []}] = snapshotResults;
+ 
+-  const unmatchedBank = (bankTransactions as any[]).filter((transaction: any) => transaction.status !== 'MATCHED' && transaction.status !== 'PARTIAL').length;
++  const unmatchedBank = (bankTransactions as any[]).filter((transaction: any) => transaction.status !== 'MATCHED').length;
+   const matched = (matches as any[]).length;
+   const summary = {
+     matched,
+diff --git a/lib/accounting/statement-account.ts b/lib/accounting/statement-account.ts
+new file mode 100644
+index 0000000..287dd77
+--- /dev/null
++++ b/lib/accounting/statement-account.ts
+@@ -0,0 +1,44 @@
++import { parseCsvRow } from '../../packages/csv-import';
++
++export function normalizeAccountNumber(value: string): string {
++  const number = value.trim().replace(/[\s-]/g, '');
++  if (!/^\d{4,34}$/.test(number)) throw new Error('A full numeric account number is required; masked or partial numbers cannot be verified.');
++  return number;
++}
++
++const accountLabel = (value: string) => /^(accountnumber|accountno|accno|nomborakaun|noakaun)$/.test(value.toLowerCase().replace(/[\s_.:#-]/g, ''));
++
++// Recognize explicit account metadata only. Never infer an account from amounts,
++// references, narration, or a manually entered upload confirmation.
++export function verifyStatementAccount(content: string, expected: string | null | undefined): { csv: string; accountNumber: string } {
++  if (!expected) throw new Error('Account verification unavailable. Add the account number in Financial Accounts before importing.');
++  const expectedNumber = normalizeAccountNumber(expected);
++  const lines = content.replace(/^\uFEFF/, '').split(/\r?\n/).filter(line => line.trim());
++  const headerIndex = lines.findIndex(line => {
++    const fields = parseCsvRow(line).map(field => field.toLowerCase().trim());
++    return fields.some(field => ['date', 'transactiondate'].includes(field)) && fields.some(field => ['description', 'narration'].includes(field));
++  });
++  if (headerIndex < 0) throw new Error('Statement format not recognized. Use CSV/TXT with date, description, debit/credit and Account Number metadata.');
++  const detected: string[] = [];
++  for (const line of lines.slice(0, headerIndex)) {
++    const fields = parseCsvRow(line);
++    if (accountLabel(fields[0] ?? '') && fields[1]) detected.push(fields[1]);
++    else {
++      const pair = line.match(/^\s*(Account\s*(?:Number|No\.?|#)|Acc\.?\s*No\.?|Nombor\s*Akaun|No\.?\s*Akaun)\s*:\s*(.+?)\s*$/i);
++      if (pair) detected.push(pair[2]);
++    }
++  }
++  const header = parseCsvRow(lines[headerIndex]);
++  const accountColumns = header.map((field, index) => accountLabel(field) ? index : -1).filter(index => index >= 0);
++  for (const line of lines.slice(headerIndex + 1)) {
++    const fields = parseCsvRow(line);
++    for (const column of accountColumns) {
++      if (!fields[column]?.trim()) throw new Error('Account verification unavailable. Every statement row must contain its full account number.');
++      detected.push(fields[column]);
++    }
++  }
++  if (!detected.length) throw new Error('Account verification unavailable. The statement does not contain a recognized full account number. Import cancelled.');
++  const numbers = detected.map(normalizeAccountNumber);
++  if (numbers.some(number => number !== expectedNumber)) throw new Error('Wrong account uploaded. The statement account number does not match the selected account. Import cancelled.');
++  return { csv: lines.slice(headerIndex).join('\n'), accountNumber: expectedNumber };
++}
+diff --git a/lib/auth/myops-server.ts b/lib/auth/myops-server.ts
+index 1709807..b3ae025 100644
+--- a/lib/auth/myops-server.ts
++++ b/lib/auth/myops-server.ts
+@@ -43,18 +43,22 @@ export async function establishMyopsSession(ticket: string): Promise<AppSession>
+   return {version:1, sessionId:grant.session_id,userRef:grant.user_ref,userId:user.id,businessId:mapping.business_id,
+     accessToken:data.session.access_token,expiresAt:Math.min(data.session.expires_at*1000,Date.now()+grant.max_session_seconds*1000)};
+ }
+-export async function verifiedMyopsClient() {
++export async function verifiedMyopsClient(activity = false) {
+   const config = ssoConfig();
+   const session = openSession((await cookies()).get(MYOPS_COOKIE)?.value,config.secret);
+   if (!session) throw new Error('MYOPS authentication required.');
+-  await checkMyopsEntitlement(config.transport,session.sessionId,true);
+-  const { url,key,mapping } = await mappedIdentity(session.userRef);
++  const [, { url,key,mapping }] = await Promise.all([
++    checkMyopsEntitlement(config.transport,session.sessionId,activity),
++    mappedIdentity(session.userRef),
++  ]);
+   if (mapping.supabase_user_id !== session.userId || mapping.business_id !== session.businessId) throw new Error('Identity mapping revoked.');
+   const client = createClient(url,key,{auth:{persistSession:false,autoRefreshToken:false},global:{headers:{...myopsBrokerHeaders(),Authorization:`Bearer ${session.accessToken}`}}});
+-  const { data, error } = await client.auth.getUser(session.accessToken);
+-  if (error || data.user.id !== session.userId) throw new Error('Local identity is no longer valid.');
+-  const { data: member,error: memberError } = await client.from('business_members').select('business_id')
+-    .eq('user_id',session.userId).eq('business_id',session.businessId).maybeSingle();
++  const [{ data, error }, { data: member,error: memberError }] = await Promise.all([
++    client.auth.getUser(session.accessToken),
++    client.from('business_members').select('business_id')
++      .eq('user_id',session.userId).eq('business_id',session.businessId).maybeSingle(),
++  ]);
++  if (error || data.user?.id !== session.userId) throw new Error('Local identity is no longer valid.');
+   if (memberError || !member) throw new Error('Business membership revoked.');
+   // Existing server pages call auth.getUser() without passing a token.
+   client.auth.getUser = async () => ({ data:{user:data.user},error:null });
+diff --git a/lib/auth/myops-transport.ts b/lib/auth/myops-transport.ts
+index 9d15696..9d2172a 100644
+--- a/lib/auth/myops-transport.ts
++++ b/lib/auth/myops-transport.ts
+@@ -42,6 +42,10 @@ export function signMyopsRequest(config: MyopsTransportConfig, endpoint: 'redeem
+   } };
+ }
+ 
++// Cache only Vercel transport authentication, never user/session entitlement.
++// A warm instance shares one bootstrap for concurrent requests to the same portal.
++const previewCookies = new WeakMap<typeof fetch, Map<string, { expires: number; cookie: Promise<string> }>>();
++
+ export async function requestMyops(config: MyopsTransportConfig, endpoint: 'redeem' | 'entitlement', body: unknown,
+   transport: typeof fetch = fetch): Promise<unknown> {
+   const request = signMyopsRequest(config, endpoint, body);
+@@ -52,17 +56,31 @@ export async function requestMyops(config: MyopsTransportConfig, endpoint: 'rede
+   const previewShare = process.env.MYOPS_STAGING_SHARE_TOKEN;
+   if (process.env.VERCEL_ENV === 'preview' && previewShare && config.origin === process.env.MYOPS_ORIGIN) {
+     if (!/^[A-Za-z0-9_-]{16,256}$/.test(previewShare)) throw new Error('Invalid staging access configuration.');
+-    const bootstrapUrl = new URL(url);
+-    bootstrapUrl.searchParams.set('_vercel_share', previewShare);
+-    // Vercel exchanges the approved share link for an HttpOnly protection cookie.
+-    // Do not follow its redirect or send the signed ticket during that exchange.
+-    const bootstrap = await transport(bootstrapUrl.href, {method:'GET',redirect:'manual',cache:'no-store',signal:AbortSignal.timeout(20000)});
+-    const location = bootstrap.headers.get('location');
+-    const destination = location ? new URL(location,bootstrapUrl) : null;
+-    const cookie = bootstrap.headers.getSetCookie().find(value=>value.startsWith('_vercel_jwt='))?.split(';')[0];
+-    if (![302,303,307,308].includes(bootstrap.status) || !destination || destination.href!==url.href
+-      || !cookie || !/^_vercel_jwt=[A-Za-z0-9._-]+$/.test(cookie)) throw new Error('MYOPS access could not be verified.');
+-    headers.set('Cookie',cookie);
++    let entries = previewCookies.get(transport);
++    if (!entries) { entries = new Map(); previewCookies.set(transport, entries); }
++    const cacheKey = `${url.origin}:${createHash('sha256').update(previewShare).digest('hex')}`;
++    let entry = entries.get(cacheKey);
++    if (!entry || entry.expires <= Date.now()) {
++      // Keep the cache bounded when configuration changes on a warm instance.
++      entries.clear();
++      const cookiePromise = (async () => {
++        const bootstrapUrl = new URL(url);
++        bootstrapUrl.searchParams.set('_vercel_share', previewShare);
++        // Vercel exchanges the approved share link for an HttpOnly protection cookie.
++        // Do not follow its redirect or send the signed ticket during that exchange.
++        const bootstrap = await transport(bootstrapUrl.href, {method:'GET',redirect:'manual',cache:'no-store',signal:AbortSignal.timeout(20000)});
++        const location = bootstrap.headers.get('location');
++        const destination = location ? new URL(location,bootstrapUrl) : null;
++        const cookie = bootstrap.headers.getSetCookie().find(value=>value.startsWith('_vercel_jwt='))?.split(';')[0];
++        if (![302,303,307,308].includes(bootstrap.status) || !destination || destination.href!==url.href
++          || !cookie || !/^_vercel_jwt=[A-Za-z0-9._-]+$/.test(cookie)) throw new Error('MYOPS access could not be verified.');
++        return cookie;
++      })();
++      entry = { expires: Date.now() + 30000, cookie: cookiePromise };
++      entries.set(cacheKey, entry);
++      cookiePromise.catch(() => { if (entries!.get(cacheKey) === entry) entries!.delete(cacheKey); });
++    }
++    headers.set('Cookie', await entry.cookie);
+   }
+   let response: Response;
+   try {
+@@ -75,6 +93,7 @@ export async function requestMyops(config: MyopsTransportConfig, endpoint: 'rede
+   }
+   // Do not propagate upstream errors, credentials, tickets or response bodies into logs/UI.
+   if (!response.ok) {
++    previewCookies.get(transport)?.clear();
+     if (process.env.VERCEL_ENV === 'preview') console.warn('myops_preview_transport_failed','http',response.status);
+     throw new Error('MYOPS access could not be verified.');
+   }
+diff --git a/lib/auth/user-activity.ts b/lib/auth/user-activity.ts
+new file mode 100644
+index 0000000..d8ac014
+--- /dev/null
++++ b/lib/auth/user-activity.ts
+@@ -0,0 +1,44 @@
++// Only trusted visible interactions extend inactivity; timers never send activity.
++export function trackUserActivity(target: Document, send: () => Promise<unknown>, now = Date.now, onIdle?: () => void) {
++  const idleMs = 15 * 60 * 1000;
++  let lastInteraction = now();
++  let lastSent = -Infinity;
++  let pending = false;
++  let ended = false;
++  let timer: ReturnType<typeof setTimeout> | undefined;
++  const events = ['pointerdown', 'keydown', 'wheel', 'input'];
++  const checkIdle = () => {
++    if (!onIdle || ended) return;
++    clearTimeout(timer);
++    const remaining = idleMs - (now() - lastInteraction);
++    if (remaining <= 0) {
++      ended = true;
++      onIdle();
++    } else timer = setTimeout(checkIdle, remaining);
++  };
++  const onVisibility = () => {
++    if (target.visibilityState === 'visible') checkIdle();
++  };
++  const onActivity = (event: Event) => {
++    if (ended || !event.isTrusted || target.visibilityState !== 'visible') return;
++    // A suspended tab must not revive its expired timer with the first new click.
++    if (onIdle && now() - lastInteraction >= idleMs) { checkIdle(); return; }
++    lastInteraction = now();
++    checkIdle();
++    if (pending || now() - lastSent < 30000) return;
++    lastSent = now();
++    pending = true;
++    void send().catch(() => undefined).finally(() => { pending = false; });
++  };
++  events.forEach(name => target.addEventListener(name, onActivity, {passive:true}));
++  if (onIdle) {
++    target.addEventListener('visibilitychange', onVisibility);
++    checkIdle();
++  }
++  return () => {
++    ended = true;
++    clearTimeout(timer);
++    events.forEach(name => target.removeEventListener(name, onActivity));
++    if (onIdle) target.removeEventListener('visibilitychange', onVisibility);
++  };
++}
+diff --git a/lib/report-csv.ts b/lib/report-csv.ts
+new file mode 100644
+index 0000000..a3326a3
+--- /dev/null
++++ b/lib/report-csv.ts
+@@ -0,0 +1,18 @@
++function cell(value: unknown): string {
++  const raw = String(value ?? '');
++  const safe = /^[=+@\-\t\r]/.test(raw) ? `'${raw}` : raw;
++  return `"${safe.replace(/"/g, '""')}"`;
++}
++
++export function reportCsv(report: unknown, context: Record<string, string>): string {
++  const rows: unknown[][] = [['Field', 'Value'], ...Object.entries(context)];
++  function visit(value: unknown, path: string) {
++    if (Array.isArray(value)) {
++      value.forEach((item, index) => visit(item, `${path}[${index + 1}]`));
++    } else if (value !== null && typeof value === 'object') {
++      Object.entries(value).forEach(([key, item]) => visit(item, path ? `${path}.${key}` : key));
++    } else rows.push([path, value]);
++  }
++  visit(report, 'report');
++  return '\uFEFF' + rows.map(row => row.map(cell).join(',')).join('\r\n');
++}
+diff --git a/supabase/migrations/20261029020000_staging_account_management_privileges.sql b/supabase/migrations/20261029020000_staging_account_management_privileges.sql
+new file mode 100644
+index 0000000..e9e12d9
+--- /dev/null
++++ b/supabase/migrations/20261029020000_staging_account_management_privileges.sql
+@@ -0,0 +1,10 @@
++-- Staging-only repair: table privileges are required in addition to RLS.
++-- Snapshot verified INSERT/UPDATE absent on both tables before applying.
++-- Rollback: revoke insert, update on public.accounts, public.financial_accounts from authenticated;
++do $$
++begin
++ if exists(select 1 from pg_class c join pg_namespace n on n.oid=c.relnamespace where n.nspname='public' and c.relname in ('accounts','financial_accounts') and not c.relrowsecurity)
++ or (select count(*) from pg_policies where schemaname='public' and tablename in ('accounts','financial_accounts') and policyname='myops_broker_required' and permissive='RESTRICTIVE')<>2
++ then raise exception 'Account write grants require existing tenant RLS and broker policies'; end if;
++end $$;
++grant insert, update on public.accounts, public.financial_accounts to authenticated;
+\ No newline at end of file
+diff --git a/supabase/migrations/20261029053508_staging_import_reconciliation_privileges.sql b/supabase/migrations/20261029053508_staging_import_reconciliation_privileges.sql
+new file mode 100644
+index 0000000..60f1c51
+--- /dev/null
++++ b/supabase/migrations/20261029053508_staging_import_reconciliation_privileges.sql
+@@ -0,0 +1,20 @@
++-- Finance staging only. Baseline: no authenticated privileges on these four tables.
++-- Rollback: revoke select,insert on public.bank_statements,public.bank_transactions,public.reconciliation_matches from authenticated;
++-- revoke update(status) on public.bank_statements,public.bank_transactions from authenticated;
++-- revoke insert on public.audit_logs from authenticated; drop the three policies added below.
++do $$ begin
++ if (select count(*) from pg_class c join pg_namespace n on n.oid=c.relnamespace where n.nspname='public' and c.relname in ('bank_statements','bank_transactions','reconciliation_matches','audit_logs') and c.relrowsecurity)<>4
++ or (select count(*) from pg_policies where schemaname='public' and tablename in ('bank_statements','bank_transactions','reconciliation_matches','audit_logs') and policyname='myops_broker_required' and permissive='RESTRICTIVE')<>4
++ then raise exception 'Import grants require existing RLS and broker policies'; end if;
++end $$;
++create policy import_statement_owner_required on public.bank_statements as restrictive for insert to authenticated
++ with check (uploaded_by=(select auth.uid()) and exists(select 1 from public.financial_accounts f where f.id=financial_account_id and f.business_id=bank_statements.business_id));
++create policy reconciliation_reference_scope_required on public.reconciliation_matches as restrictive for insert to authenticated
++ with check (matched_by=(select auth.uid())
++ and exists(select 1 from public.bank_transactions bt join public.bank_statements bs on bs.id=bt.bank_statement_id where bt.id=bank_transaction_id and bs.business_id=reconciliation_matches.business_id)
++ and exists(select 1 from public.transactions t where t.id=transaction_id and t.business_id=reconciliation_matches.business_id));
++create policy import_audit_actor_required on public.audit_logs as restrictive for insert to authenticated
++ with check (user_id=(select auth.uid()));
++grant select,insert on public.bank_statements,public.bank_transactions,public.reconciliation_matches to authenticated;
++grant update(status) on public.bank_statements,public.bank_transactions to authenticated;
++grant insert on public.audit_logs to authenticated;
+diff --git a/supabase/migrations/20261029070759_statement_account_identity_verification.sql b/supabase/migrations/20261029070759_statement_account_identity_verification.sql
+new file mode 100644
+index 0000000..b693ca2
+--- /dev/null
++++ b/supabase/migrations/20261029070759_statement_account_identity_verification.sql
+@@ -0,0 +1,5 @@
++-- Additive staging change. Existing account numbers remain NULL until the owner supplies them.
++alter table public.financial_accounts add column bank_name text, add column company_name text, add column account_number text;
++alter table public.financial_accounts add constraint financial_account_number_format check (account_number is null or account_number ~ '^[0-9]{4,34}$');
++alter table public.bank_statements add column verified_account_number text;
++comment on column public.bank_statements.verified_account_number is 'Full account number matched server-side against explicit statement metadata before import; required again before posting.';
+diff --git a/tests/database-tenant-isolation.test.ts b/tests/database-tenant-isolation.test.ts
+index 633b10c..7efe145 100644
+--- a/tests/database-tenant-isolation.test.ts
++++ b/tests/database-tenant-isolation.test.ts
+@@ -123,9 +123,13 @@ describe.sequential('PostgreSQL migration replay and tenant A/B boundaries', ()
+ describe.sequential('upload and reconciliation against the authoritative schema', () => {
+   it('persists a CSV statement and UUID bank rows and reads the reconciliation snapshot', async () => {
+     await db.exec('reset role');
++    await db.query("update financial_accounts set account_number='001235' where id=$1", [cashA]);
+     const client = workflowClient(db, businessA);
++    const before = await scalar('select count(*)::int as value from bank_statements');
++    await expect(persistBankStatementImport(client,userA,businessA,'wrong.csv','Account Number,3450\nDate,Description,Debit,Credit\n2026-10-29,UAT,,25.00','text/csv',cashA)).rejects.toThrow('Wrong account uploaded');
++    expect(await scalar('select count(*)::int as value from bank_statements')).toBe(before);
+     const saved = await persistBankStatementImport(client, userA, businessA, 'statement.csv',
+-      'Date,Description,Reference,Debit,Credit,Balance\n2026-10-19,Customer payment,INV-1,,25.00,25.00', 'text/csv', cashA);
++      'Account Number,001235\nDate,Description,Reference,Debit,Credit,Balance\n2026-10-19,Customer payment,INV-1,,25.00,25.00', 'text/csv', cashA);
+     expect(saved.rows[0].id).toMatch(/^[0-9a-f-]{36}$/);
+     expect(await scalar('select count(*)::int as value from bank_transactions where bank_statement_id=$1', [saved.statementId])).toBe(1);
+     const snapshot = await getReconciliationSnapshot(client, businessA);
+diff --git a/tests/financial-account-ui.test.tsx b/tests/financial-account-ui.test.tsx
+index 9da42b6..f679f5c 100644
+--- a/tests/financial-account-ui.test.tsx
++++ b/tests/financial-account-ui.test.tsx
+@@ -33,21 +33,14 @@ describe('financial account ui', () => {
+   });
+ 
+   it('renders the create account action and submits an account creation request', async () => {
+-    const fetchMock = vi.fn()
+-      .mockResolvedValueOnce({ ok: true, json: async () => ({ financialAccounts: [] }) })
+-      .mockResolvedValueOnce({
+-        ok: true,
+-        json: async () => ({
+-          financialAccount: {
+-            id: 'fa-123',
+-            name: 'Main Bank',
+-            account_code: 'MAIN-BANK',
+-            type: 'BANK',
+-            currency: 'MYR',
+-            status: 'ACTIVE',
+-          },
+-        }),
+-      });
++    const fetchMock = vi.fn(async (url, init) => {
++      if (String(url).startsWith('/api/accounts?')) return {ok:true,json:async()=>({accounts:[
++        {id:'ledger-1',code:'1000',name:'Main Cash Ledger',is_active:true},
++        {id:'inactive-ledger',code:'9999',name:'Inactive Ledger',is_active:false},
++      ]})};
++      if (init?.method === 'POST') return {ok:true,json:async()=>({financialAccount:{id:'fa-123',name:'Main Bank',account_code:'MAIN-BANK',type:'BANK',currency:'MYR',status:'ACTIVE'}})};
++      return {ok:true,json:async()=>({financialAccounts:[]})};
++    });
+ 
+     vi.stubGlobal('fetch', fetchMock);
+ 
+@@ -55,14 +48,22 @@ describe('financial account ui', () => {
+ 
+     expect(await screen.findByRole('button', { name: /\+ Create Account/i })).toBeTruthy();
+ 
++    await screen.findByRole('option', {name:'1000 — Main Cash Ledger'});
++    expect(screen.queryByRole('option',{name:/Inactive Ledger/})).toBeNull();
++    fireEvent.change(screen.getByLabelText('COA mapping'), {target:{value:'ledger-1'}});
+     fireEvent.change(screen.getByLabelText('Name'), { target: { value: 'Main Bank' } });
++    fireEvent.change(screen.getByLabelText('Bank name'), {target:{value:'Dummy Bank'}});
++    fireEvent.change(screen.getByLabelText('Company / account holder name'), {target:{value:'UAT Company'}});
++    fireEvent.change(screen.getByLabelText('Account number'), {target:{value:'001235'}});
+     fireEvent.change(screen.getByLabelText('Code'), { target: { value: 'MAIN-BANK' } });
+     fireEvent.click(screen.getByRole('button', { name: /\+ Create Account/i }));
+ 
+-    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2));
+-    expect(fetchMock.mock.calls[1][0]).toBe('/api/financial-accounts');
+-    expect(fetchMock.mock.calls[1][1]).toMatchObject({ method: 'POST' });
+-    expect(JSON.parse(String(fetchMock.mock.calls[1][1]?.body))).toMatchObject({
++    await waitFor(() => expect(fetchMock.mock.calls.some(call=>call[1]?.method==='POST')).toBe(true));
++    const post = fetchMock.mock.calls.find(call=>call[1]?.method==='POST')!;
++    expect(post[0]).toBe('/api/financial-accounts');
++    expect(JSON.parse(String(post[1]?.body))).toMatchObject({
++      bankName:'Dummy Bank',companyName:'UAT Company',accountNumber:'001235',
++      accountId: 'ledger-1',
+       businessId: 'business-1',
+       name: 'Main Bank',
+       accountCode: 'MAIN-BANK',
+diff --git a/tests/myops-activity.test.ts b/tests/myops-activity.test.ts
+new file mode 100644
+index 0000000..4fafdc7
+--- /dev/null
++++ b/tests/myops-activity.test.ts
+@@ -0,0 +1,23 @@
++// @vitest-environment node
++import {afterEach, describe, expect, it, vi} from 'vitest';
++import {NextRequest} from 'next/server';
++const mocks=vi.hoisted(()=>({verify:vi.fn()}));
++vi.mock('../lib/auth/myops-server',()=>({verifiedMyopsClient:mocks.verify}));
++vi.mock('../lib/auth/myops-session',()=>({ssoConfig:()=>({appOrigin:'https://finance.example'})}));
++import {POST} from '../app/api/myops/activity/route';
++afterEach(()=>vi.resetAllMocks());
++describe('activity endpoint',()=>{
++  it('rejects cross-origin and missing-origin requests before touching a session',async()=>{
++    for(const origin of [undefined,'https://other.example']) {
++      const response=await POST(new NextRequest('https://finance.example/api/myops/activity',{method:'POST',headers:origin?{origin}:{}}));
++      expect(response.status).toBe(403);
++    }
++    expect(mocks.verify).not.toHaveBeenCalled();
++  });
++  it('asserts activity only after server session validation and fails closed',async()=>{
++    const req=()=>new NextRequest('https://finance.example/api/myops/activity',{method:'POST',headers:{origin:'https://finance.example'}});
++    mocks.verify.mockResolvedValue({});expect((await POST(req())).status).toBe(200);
++    expect(mocks.verify).toHaveBeenCalledWith(true);
++    mocks.verify.mockRejectedValue(new Error('expired'));expect((await POST(req())).status).toBe(401);
++  });
++});
+diff --git a/tests/myops-data-proxy.test.ts b/tests/myops-data-proxy.test.ts
+index b62f985..ecf91d0 100644
+--- a/tests/myops-data-proxy.test.ts
++++ b/tests/myops-data-proxy.test.ts
+@@ -1,7 +1,7 @@
+-import {generateKeyPairSync} from 'node:crypto';
+ // @vitest-environment node
+ import {afterEach,beforeEach,describe,expect,it,vi} from 'vitest';
+ import {NextRequest} from 'next/server';
++import {generateKeyPairSync} from 'node:crypto';
+ const {verified}=vi.hoisted(()=>({verified:vi.fn()}));
+ vi.mock('../lib/auth/myops-server',()=>({verifiedMyopsClient:verified}));
+ import {GET,POST} from '../app/api/myops/data/[...path]/route';
+diff --git a/tests/myops-identity-bridge.test.ts b/tests/myops-identity-bridge.test.ts
+index cd72bbc..74f35c4 100644
+--- a/tests/myops-identity-bridge.test.ts
++++ b/tests/myops-identity-bridge.test.ts
+@@ -48,6 +48,9 @@ describe('MYOPS identity to RLS-user bridge',()=>{
+   const session:AppSession={version:1,sessionId,userRef:'u'.repeat(43),userId,businessId,accessToken:'user-jwt',expiresAt:Date.now()+60000};
+   mocks.cookies.mockResolvedValue({get:()=>({value:sealSession(session,'k'.repeat(48))})});
+   expect((await verifiedMyopsClient()).user.id).toBe(userId);
++  expect(mocks.check).toHaveBeenCalledWith(expect.anything(),sessionId,false);
++  await verifiedMyopsClient(true);
++  expect(mocks.check).toHaveBeenLastCalledWith(expect.anything(),sessionId,true);
+   expect(mocks.create).toHaveBeenCalledWith('https://database.example','public-key',expect.objectContaining({global:{headers:{Authorization:'Bearer user-jwt'}}}));
+   mapping.maybeSingle.mockResolvedValue({data:{supabase_user_id:businessId,business_id:businessId},error:null});
+   await expect(verifiedMyopsClient()).rejects.toThrow('Identity mapping revoked.');
+diff --git a/tests/myops-idle-logout.test.ts b/tests/myops-idle-logout.test.ts
+new file mode 100644
+index 0000000..97947c3
+--- /dev/null
++++ b/tests/myops-idle-logout.test.ts
+@@ -0,0 +1,23 @@
++// @vitest-environment node
++import {describe,expect,it,vi} from 'vitest';
++import {NextRequest} from 'next/server';
++vi.mock('../lib/auth/myops-session',()=>({MYOPS_COOKIE:'__Host-opsfinance-sso',ssoConfig:()=>({appOrigin:'https://finance.example',transport:{origin:'https://portal.example'}})}));
++import {POST} from '../app/api/myops/logout/route';
++
++describe('idle logout redirect',()=>{
++  it('clears the local HttpOnly session and returns the configured central login',async()=>{
++    const result=await POST(new NextRequest('https://finance.example/api/myops/logout',{method:'POST',headers:{origin:'https://finance.example','Content-Type':'application/json'},body:JSON.stringify({reason:'inactivity',next:'https://other.example'})}));
++    expect(result.status).toBe(200);expect(await result.json()).toEqual({next:'https://portal.example/login'});
++    expect(result.headers.get('set-cookie')).toContain('__Host-opsfinance-sso=;');
++    expect(result.headers.get('set-cookie')).toContain('Max-Age=0');
++    expect(result.headers.get('set-cookie')).toContain('HttpOnly');
++  });
++  it('rejects cross-origin logout without clearing cookies',async()=>{
++    const result=await POST(new NextRequest('https://finance.example/api/myops/logout',{method:'POST',headers:{origin:'https://other.example'}}));
++    expect(result.status).toBe(403);expect(result.headers.get('set-cookie')).toBeNull();
++  });
++  it('preserves the existing explicit signout destination',async()=>{
++    const result=await POST(new NextRequest('https://finance.example/api/myops/logout',{method:'POST',headers:{origin:'https://finance.example'}}));
++    expect(await result.json()).toEqual({next:'https://portal.example/dashboard'});
++  });
++});
+diff --git a/tests/myops-idle-shell.test.tsx b/tests/myops-idle-shell.test.tsx
+new file mode 100644
+index 0000000..dd657ec
+--- /dev/null
++++ b/tests/myops-idle-shell.test.tsx
+@@ -0,0 +1,22 @@
++import React from 'react';
++import {act,cleanup,render,screen} from '@testing-library/react';
++import {afterEach,expect,it,vi} from 'vitest';
++vi.mock('next/navigation',()=>({usePathname:()=>'/dashboard',useRouter:()=>({push:vi.fn()})}));
++vi.mock('next/link',()=>({default:({children,href,...props}:any)=><a href={href} {...props}>{children}</a>}));
++vi.mock('next/image',()=>({default:({src,alt}:any)=><img src={src} alt={alt}/> }));
++vi.mock('../lib/supabase/client',()=>({getSupabaseBrowserClient:()=>null}));
++import {AuthenticatedAppShell} from '../components/authenticated-shell';
++afterEach(()=>{cleanup();vi.useRealTimers();vi.unstubAllEnvs();vi.unstubAllGlobals();});
++
++it('hides dashboard content and starts same-origin cleanup after 15 minutes without activity',async()=>{
++  vi.useFakeTimers();vi.stubEnv('NEXT_PUBLIC_MYOPS_SSO_ENABLED','true');
++  // Leave the request pending to verify sensitive UI disappears before networking completes.
++  const request=vi.fn(()=>new Promise(()=>{}));vi.stubGlobal('fetch',request);
++  render(<AuthenticatedAppShell><div>Private finance data</div></AuthenticatedAppShell>);
++  await act(async()=>{vi.advanceTimersByTime(899999);});
++  expect(screen.queryByText('Private finance data')).not.toBeNull();expect(request).not.toHaveBeenCalled();
++  await act(async()=>{vi.advanceTimersByTime(1);});
++  expect(screen.queryByText('Private finance data')).toBeNull();
++  expect(screen.getByRole('status').textContent).toContain('Session expired');
++  expect(request).toHaveBeenCalledWith('/api/myops/logout',expect.objectContaining({method:'POST',credentials:'same-origin',body:'{"reason":"inactivity"}'}));
++});
+diff --git a/tests/myops-transport.test.ts b/tests/myops-transport.test.ts
+index 389bed2..f953a39 100644
+--- a/tests/myops-transport.test.ts
++++ b/tests/myops-transport.test.ts
+@@ -6,9 +6,26 @@ import { canonicalJson, checkMyopsEntitlement, redeemMyopsTicket, requestMyops,
+ const pair = generateKeyPairSync('ed25519');
+ const config = { origin: 'https://myops.example', appId: 'opsfinance', keyVersion: 'current' as const,
+   privateKey: pair.privateKey.export({ type: 'pkcs8', format: 'pem' }).toString() };
+-afterEach(()=>vi.unstubAllEnvs());
++afterEach(()=>{vi.unstubAllEnvs();vi.restoreAllMocks();});
+ 
+ describe('MYOPS signed server transport', () => {
++  it('shares preview bootstrap across concurrent operations but checks entitlement every time and expires transport reuse', async () => {
++    vi.stubEnv('MYOPS_STAGING_SHARE_TOKEN','s'.repeat(32));
++    vi.stubEnv('MYOPS_ORIGIN',config.origin);vi.stubEnv('VERCEL_ENV','preview');
++    let now=1793000000000;vi.spyOn(Date,'now').mockImplementation(()=>now);
++    const transport=vi.fn().mockImplementation(async(url,init)=>init.method==='GET'
++      ? new Response(null,{status:307,headers:{location:new URL(url).pathname,'Set-Cookie':'_vercel_jwt=preview-auth; HttpOnly; Secure'}})
++      : new Response(JSON.stringify({entitled:true,session_active:true}),{status:200}));
++    const id='c08f2182-2a66-4fc9-bbe6-02a21da4d759';
++    await Promise.all([checkMyopsEntitlement(config,id,false,transport),checkMyopsEntitlement(config,id,true,transport)]);
++    expect(transport.mock.calls.filter(c=>c[1].method==='GET')).toHaveLength(1);
++    expect(transport.mock.calls.filter(c=>c[1].method==='POST')).toHaveLength(2);
++    now+=30001;await checkMyopsEntitlement(config,id,false,transport);
++    expect(transport.mock.calls.filter(c=>c[1].method==='GET')).toHaveLength(2);
++    transport.mockImplementation(async()=>new Response('{}',{status:403}));
++    await expect(checkMyopsEntitlement(config,id,false,transport)).rejects.toThrow();
++  });
++
+   it('limits temporary preview access to the configured portal and refuses production forwarding',async()=>{
+     const transport=vi.fn().mockImplementation(async(_url,init)=>init.method==='GET'
+       ? new Response(null,{status:307,headers:{location:config.origin+'/api/app/redeem','Set-Cookie':'_vercel_jwt=preview-auth; HttpOnly; Secure'}})
+diff --git a/tests/reconciliation-live-ui.test.tsx b/tests/reconciliation-live-ui.test.tsx
+new file mode 100644
+index 0000000..dbf7aad
+--- /dev/null
++++ b/tests/reconciliation-live-ui.test.tsx
+@@ -0,0 +1,20 @@
++import React from 'react';
++import {cleanup,render,screen} from '@testing-library/react';
++import {afterEach,expect,it,vi} from 'vitest';
++import {ReconciliationWorkflow} from '../components/reconciliation-workflow';
++afterEach(()=>{cleanup();vi.unstubAllGlobals();});
++it('uses saved opening balance and actual matches, keeps partial rows unresolved, and scopes rows to the current statement',async()=>{
++  vi.stubGlobal('fetch',vi.fn().mockResolvedValue({ok:true,json:async()=>({
++    statements:[{id:'statement-1',opening_balance:'10.00'}],
++    bankTransactions:[{id:'bank-1',bank_statement_id:'statement-1',reference:'UAT partial',amount:'100.00',status:'PARTIAL'},
++      {id:'bank-other',bank_statement_id:'statement-2',reference:'Other statement',amount:'500.00',status:'IMPORTED'}],
++    bookTransactions:[{id:'book-1',amount:'200.00'}],
++    matches:[{bank_transaction_id:'bank-1',matched_amount:'40.00'}],summary:{matched:1},
++  })}));
++  render(<ReconciliationWorkflow businessId="business-1"/>);
++  expect(await screen.findByText('RM60.00')).toBeTruthy();
++  expect(screen.getByText('RM10.00')).toBeTruthy();
++  expect(screen.queryByText('RM12500.00')).toBeNull();
++  expect(screen.queryByText(/Other statement/)).toBeNull();
++  expect((screen.getByRole('button',{name:'Complete reconciliation'}) as HTMLButtonElement).disabled).toBe(true);
++});
+diff --git a/tests/reconciliation-snapshot-errors.test.ts b/tests/reconciliation-snapshot-errors.test.ts
+new file mode 100644
+index 0000000..53ec8b7
+--- /dev/null
++++ b/tests/reconciliation-snapshot-errors.test.ts
+@@ -0,0 +1,15 @@
++import {describe,expect,it} from 'vitest';
++import {getReconciliationSnapshot} from '../lib/accounting/server-operations';
++describe('reconciliation hosted query errors',()=>{
++  for (const failed of ['bank_transactions','transactions','reconciliation_matches']) {
++    it(`does not turn ${failed} failures into an empty successful snapshot`,async()=>{
++      const client={from:(table:string)=>{
++        const result=table===failed?{data:null,error:{message:'permission denied'}}:{data:table==='bank_statements'?[{id:'s1'}]:[],error:null};
++        const query:any=Promise.resolve(result);
++        for(const name of ['select','eq','in','order'])query[name]=()=>query;
++        return query;
++      }};
++      await expect(getReconciliationSnapshot(client,'business-1')).rejects.toThrow('permission denied');
++    });
++  }
++});
+diff --git a/tests/report-csv.test.ts b/tests/report-csv.test.ts
+new file mode 100644
+index 0000000..c668be9
+--- /dev/null
++++ b/tests/report-csv.test.ts
+@@ -0,0 +1,17 @@
++import { describe, expect, it } from 'vitest';
++import { reportCsv } from '../lib/report-csv';
++
++describe('report CSV', () => {
++  it('exports report totals, rows and selected period without dropping zero values', () => {
++    const csv = reportCsv({totalDebit:'100.00', rows:[{accountName:'Cash, "Main"',credit:0}]}, {from:'2026-10-01'});
++    expect(csv).toContain('"from","2026-10-01"');
++    expect(csv).toContain('"report.totalDebit","100.00"');
++    expect(csv).toContain('"report.rows[1].credit","0"');
++    expect(csv).toContain('"Cash, ""Main"""');
++  });
++  it('neutralizes spreadsheet formulas from account names and metadata', () => {
++    const csv = reportCsv({accountName:'=HYPERLINK("https://example.test")'}, {name:'@SUM(1)'});
++    expect(csv).toContain("'@SUM(1)");
++    expect(csv).toContain("'=HYPERLINK");
++  });
++});
+diff --git a/tests/statement-account.test.ts b/tests/statement-account.test.ts
+new file mode 100644
+index 0000000..de542d1
+--- /dev/null
++++ b/tests/statement-account.test.ts
+@@ -0,0 +1,22 @@
++import {expect,it} from 'vitest';
++import {verifyStatementAccount,normalizeAccountNumber} from '../lib/accounting/statement-account';
++const csv='Date,Description,Debit,Credit\n2026-10-29,UAT,,25.00';
++it('compares full numbers with leading zeros and permits only spacing/hyphen formatting',()=>{
++  expect(normalizeAccountNumber('00-12 35')).toBe('001235');
++  expect(verifyStatementAccount('Account Number,00-12 35\n'+csv,'001235')).toEqual({csv,accountNumber:'001235'});
++  expect(()=>verifyStatementAccount('Account Number,1235\n'+csv,'001235')).toThrow('Wrong account uploaded');
++});
++it('rejects wrong, masked, missing or contradictory metadata',()=>{
++  expect(()=>verifyStatementAccount('Account Number,3450\n'+csv,'1235')).toThrow('Wrong account uploaded');
++  expect(()=>verifyStatementAccount(csv,'1235')).toThrow('does not contain');
++  expect(()=>verifyStatementAccount('Account Number,XX1235\n'+csv,'1235')).toThrow('masked');
++  expect(()=>verifyStatementAccount('Account Number,1235\nAccount No,3450\n'+csv,'1235')).toThrow('Wrong account uploaded');
++  expect(()=>verifyStatementAccount(csv,null)).toThrow('Add the account number');
++});
++it('verifies every account-number column value and recognizes colon metadata',()=>{
++  expect(verifyStatementAccount('Account No: 001235\n'+csv,'001235').csv).toBe(csv);
++  const columns='Date,Description,Debit,Credit,Account Number\n2026-10-29,UAT,,25.00,1235';
++  expect(verifyStatementAccount(columns,'1235').accountNumber).toBe('1235');
++  expect(()=>verifyStatementAccount(columns+'\n2026-10-29,UAT,,5.00,3450','1235')).toThrow('Wrong account uploaded');
++  expect(()=>verifyStatementAccount(columns+'\n2026-10-29,UAT,,5.00,','1235')).toThrow('Every statement row');
++});
+diff --git a/tests/upload-account-route.test.ts b/tests/upload-account-route.test.ts
+new file mode 100644
+index 0000000..a28c4ff
+--- /dev/null
++++ b/tests/upload-account-route.test.ts
+@@ -0,0 +1,22 @@
++// @vitest-environment node
++import {afterEach,expect,it,vi} from 'vitest';
++const mocks=vi.hoisted(()=>({client:vi.fn(),membership:vi.fn(),persist:vi.fn(),approve:vi.fn()}));
++vi.mock('../lib/supabase/server',()=>({createSupabaseServerClient:mocks.client}));
++vi.mock('../lib/accounting/server-operations',()=>({assertBusinessMembership:mocks.membership,persistBankStatementImport:mocks.persist,postApprovedBankImport:mocks.approve}));
++import {POST} from '../app/api/upload/route';
++afterEach(()=>vi.resetAllMocks());
++const request=(financialAccountId?:string)=>new Request('https://finance.example/api/upload',{method:'POST',headers:{origin:'https://finance.example','content-type':'application/json'},body:JSON.stringify({businessId:'business-1',action:'preview',content:'dummy csv',financialAccountId})});
++it('rejects missing bank selection before an import can choose a default account',async()=>{
++  mocks.client.mockResolvedValue({auth:{getUser:async()=>({data:{user:{id:'user-1'}}})}});
++  expect((await POST(request())).status).toBe(400);
++  expect(mocks.persist).not.toHaveBeenCalled();
++});
++it('forwards explicit bank selection and preserves rejection of unauthorized accounts',async()=>{
++  const client={auth:{getUser:async()=>({data:{user:{id:'user-1'}}})}};
++  mocks.client.mockResolvedValue(client);
++  mocks.persist.mockResolvedValue({statementId:'s1',rows:[]});
++  expect((await POST(request('bank-2'))).status).toBe(200);
++  expect(mocks.persist).toHaveBeenCalledWith(client,'user-1','business-1','upload.csv','dummy csv','text/csv','bank-2');
++  mocks.persist.mockRejectedValue(new Error('The selected financial account is not active for this business.'));
++  expect((await POST(request('other-business-bank'))).status).toBe(400);
++});
+diff --git a/tests/upload-live-ui.test.tsx b/tests/upload-live-ui.test.tsx
+new file mode 100644
+index 0000000..494fa00
+--- /dev/null
++++ b/tests/upload-live-ui.test.tsx
+@@ -0,0 +1,76 @@
++import React from 'react';
++import {cleanup,fireEvent,render,screen,waitFor} from '@testing-library/react';
++import {afterEach,expect,it,vi} from 'vitest';
++import {UploadWorkflow} from '../components/upload-workflow';
++afterEach(()=>{cleanup();vi.unstubAllGlobals();});
++it('rejects unsupported binary files before trying to read or send them',async()=>{
++  const fetch=vi.fn().mockResolvedValue({ok:true,json:async()=>({accounts:[]})});vi.stubGlobal('fetch',fetch);
++  render(<UploadWorkflow businessId="business-1"/>);
++  const file={name:'UAT-invoice.pdf',size:20,text:vi.fn()};
++  fireEvent.change(screen.getByLabelText('Upload a bank statement'),{target:{files:[file]}});
++  await screen.findByText(/CSV and TXT statements only/);
++  expect(file.text).not.toHaveBeenCalled();
++  expect(fetch.mock.calls.some(call=>call[0]==='/api/upload')).toBe(false);
++});
++it('invalidates an old preview when the source text changes',async()=>{
++  vi.stubGlobal('fetch',vi.fn(async(url)=>({ok:true,json:async()=>String(url).startsWith('/api/accounts')
++    ? {accounts:[{id:'a1',code:'4000',name:'UAT Revenue'}]}
++    : String(url).startsWith('/api/financial-accounts') ? {financialAccounts:[{id:'bank1',account_code:'BANK1',name:'Bank One',status:'ACTIVE',account_id:'ledger1'}]}
++    : {statementId:'s1',rows:[{id:'r1',date:'2026-10-29',description:'UAT',amount:'10.00',direction:'CREDIT'}]}})));
++  render(<UploadWorkflow businessId="business-1"/>);
++  await screen.findByRole('option',{name:'4000 - UAT Revenue'});
++  await screen.findByRole('option',{name:'BANK1 - Bank One'});
++  fireEvent.change(screen.getByLabelText('Bank or financial account'),{target:{value:'bank1'}});
++  fireEvent.change(screen.getByLabelText('Posting account'),{target:{value:'a1'}});
++  fireEvent.change(screen.getByLabelText('Preview content'),{target:{value:'Date,Amount\n2026-10-29,10'}});
++  fireEvent.click(screen.getByRole('button',{name:'Parse & review'}));
++  await screen.findByText('Preview loaded 1 statement rows.');
++  await waitFor(()=>expect((screen.getByRole('button',{name:'Approve and post'}) as HTMLButtonElement).disabled).toBe(false));
++  fireEvent.change(screen.getByLabelText('Preview content'),{target:{value:'changed input'}});
++  expect((screen.getByRole('button',{name:'Approve and post'}) as HTMLButtonElement).disabled).toBe(true);
++});
++
++it('requires an explicit eligible account, sends the selected second account, and invalidates preview on account change',async()=>{
++  const fetch=vi.fn(async(url)=>({ok:true,json:async()=>String(url).startsWith('/api/accounts')
++    ? {accounts:[{id:'a1',code:'4000',name:'UAT Revenue'}]}
++    : String(url).startsWith('/api/financial-accounts') ? {financialAccounts:[
++      {id:'bank1',account_code:'BANK1',name:'Bank One',status:'ACTIVE',account_id:'ledger1'},
++      {id:'bank2',account_code:'BANK2',name:'Bank Two',status:'ACTIVE',account_id:'ledger2'},
++      {id:'inactive',account_code:'OLD',name:'Inactive',status:'INACTIVE',account_id:'ledger3'},
++      {id:'unmapped',account_code:'RAW',name:'Unmapped',status:'ACTIVE',account_id:null},
++    ]} : {statementId:'s2',rows:[{id:'r2',date:'2026-10-29',description:'UAT',amount:'10.00',direction:'CREDIT'}]}}));
++  vi.stubGlobal('fetch',fetch);
++  render(<UploadWorkflow businessId="business-1"/>);
++  await screen.findByRole('option',{name:'BANK2 - Bank Two'});
++  expect(screen.queryByRole('option',{name:'OLD - Inactive'})).toBeNull();
++  expect(screen.queryByRole('option',{name:'RAW - Unmapped'})).toBeNull();
++  fireEvent.change(screen.getByLabelText('Preview content'),{target:{value:'Date,Amount\n2026-10-29,10'}});
++  expect((screen.getByRole('button',{name:'Parse & review'}) as HTMLButtonElement).disabled).toBe(true);
++  expect((screen.getByLabelText('Upload a bank statement') as HTMLInputElement).disabled).toBe(true);
++  fireEvent.change(screen.getByLabelText('Bank or financial account'),{target:{value:'bank2'}});
++  fireEvent.change(screen.getByLabelText('Posting account'),{target:{value:'a1'}});
++  fireEvent.click(screen.getByRole('button',{name:'Parse & review'}));
++  await screen.findByText('Preview loaded 1 statement rows.');
++  const preview=fetch.mock.calls.find(call=>call[0]==='/api/upload');
++  expect(JSON.parse((preview as any)[1].body).financialAccountId).toBe('bank2');
++  await waitFor(()=>expect((screen.getByRole('button',{name:'Approve and post'}) as HTMLButtonElement).disabled).toBe(false));
++  fireEvent.change(screen.getByLabelText('Bank or financial account'),{target:{value:'bank1'}});
++  expect((screen.getByRole('button',{name:'Approve and post'}) as HTMLButtonElement).disabled).toBe(true);
++  expect(screen.queryByText('Imported rows')).toBeNull();
++});
++
++it('shows an import-cancelled popup and prevents approval after server account mismatch',async()=>{
++  vi.stubGlobal('fetch',vi.fn(async(url)=>({ok:!String(url).includes('/api/upload'),json:async()=>String(url).startsWith('/api/accounts')
++    ? {accounts:[]}
++    : String(url).startsWith('/api/financial-accounts') ? {financialAccounts:[{id:'bank1',account_code:'B1',name:'Bank One',status:'ACTIVE',account_id:'ledger1'}]}
++    : {error:'Wrong account uploaded. The statement account number does not match the selected account. Import cancelled.'}})));
++  render(<UploadWorkflow businessId="business-1"/>);
++  await screen.findByRole('option',{name:'B1 - Bank One'});
++  fireEvent.change(screen.getByLabelText('Bank or financial account'),{target:{value:'bank1'}});
++  fireEvent.change(screen.getByLabelText('Preview content'),{target:{value:'Account Number,3450'}});
++  fireEvent.click(screen.getByRole('button',{name:'Parse & review'}));
++  await screen.findByRole('alertdialog',{name:'Import cancelled'});
++  expect((screen.getByRole('button',{name:'Approve and post'}) as HTMLButtonElement).disabled).toBe(true);
++  fireEvent.click(screen.getByRole('button',{name:'Close'}));
++  expect(screen.queryByRole('alertdialog')).toBeNull();
++});
+diff --git a/tests/user-activity.test.ts b/tests/user-activity.test.ts
+new file mode 100644
+index 0000000..0c26af3
+--- /dev/null
++++ b/tests/user-activity.test.ts
+@@ -0,0 +1,58 @@
++// @vitest-environment node
++import {afterEach, describe, expect, it, vi} from 'vitest';
++import {trackUserActivity} from '../lib/auth/user-activity';
++
++describe('user activity reporting', () => {
++  afterEach(() => vi.useRealTimers());
++  it('expires at 15 minutes without sending a heartbeat and cancels on cleanup', () => {
++    vi.useFakeTimers();
++    const target={visibilityState:'visible',addEventListener:vi.fn(),removeEventListener:vi.fn()};
++    const send=vi.fn().mockResolvedValue(undefined);const idle=vi.fn();
++    const stop=trackUserActivity(target as unknown as Document,send,Date.now,idle);
++    vi.advanceTimersByTime(899999);expect(idle).not.toHaveBeenCalled();
++    vi.advanceTimersByTime(1);expect(idle).toHaveBeenCalledTimes(1);
++    expect(send).not.toHaveBeenCalled();stop();
++    const cancelled=vi.fn();const stopAgain=trackUserActivity(target as unknown as Document,send,Date.now,cancelled);
++    stopAgain();vi.advanceTimersByTime(900000);expect(cancelled).not.toHaveBeenCalled();
++  });
++  it('extends the local deadline only for trusted visible activity', async () => {
++    vi.useFakeTimers();
++    const listeners=new Map<string,EventListener>();
++    const target={visibilityState:'visible',addEventListener:vi.fn((name,fn)=>listeners.set(name,fn)),removeEventListener:vi.fn()};
++    const send=vi.fn().mockResolvedValue(undefined);const idle=vi.fn();
++    const stop=trackUserActivity(target as unknown as Document,send,Date.now,idle);
++    await vi.advanceTimersByTimeAsync(600000);
++    listeners.get('keydown')!({isTrusted:true} as Event);
++    await vi.advanceTimersByTimeAsync(600000);
++    listeners.get('pointerdown')!({isTrusted:false} as Event);
++    await vi.advanceTimersByTimeAsync(300000);
++    expect(idle).toHaveBeenCalledTimes(1);expect(send).toHaveBeenCalledTimes(1);stop();
++  });
++  it('expires a resumed tab before accepting a late click', () => {
++    vi.useFakeTimers();let now=0;
++    const listeners=new Map<string,EventListener>();
++    const target={visibilityState:'visible',addEventListener:vi.fn((name,fn)=>listeners.set(name,fn)),removeEventListener:vi.fn()};
++    const send=vi.fn().mockResolvedValue(undefined);const idle=vi.fn();
++    const stop=trackUserActivity(target as unknown as Document,send,()=>now,idle);
++    now=900001;listeners.get('pointerdown')!({isTrusted:true} as Event);
++    expect(idle).toHaveBeenCalledTimes(1);expect(send).not.toHaveBeenCalled();stop();
++  });
++  it('ignores hidden and synthetic events, throttles trusted activity, and removes listeners', async () => {
++    const listeners = new Map<string, EventListener>();
++    const target = {visibilityState:'visible', addEventListener:vi.fn((name, fn)=>listeners.set(name,fn)), removeEventListener:vi.fn()};
++    let now = 0;
++    const send = vi.fn().mockResolvedValue(undefined);
++    const stop = trackUserActivity(target as unknown as Document,send,()=>now);
++    expect(send).not.toHaveBeenCalled(); // no heartbeat on mount
++    listeners.get('pointerdown')!({isTrusted:false} as Event);
++    target.visibilityState='hidden';listeners.get('keydown')!({isTrusted:true} as Event);
++    expect(send).not.toHaveBeenCalled();
++    target.visibilityState='visible';listeners.get('pointerdown')!({isTrusted:true} as Event);
++    await new Promise(resolve=>setImmediate(resolve));
++    listeners.get('keydown')!({isTrusted:true} as Event);
++    expect(send).toHaveBeenCalledTimes(1);
++    now=30001;listeners.get('wheel')!({isTrusted:true} as Event);
++    expect(send).toHaveBeenCalledTimes(2);
++    stop();expect(target.removeEventListener).toHaveBeenCalledTimes(4);
++  });
++});
