@@ -58,7 +58,7 @@ This entry supersedes the earlier temporary-access limits and readiness observat
 | MYOPS | Existing portal preserved | Finance transport repaired; browser launch pending | 140 pass, 36 skip | Blocked on current authenticated browser acceptance |
 | OpsFinance | Existing dashboard | Staging token aligned, new preview READY | 21 SSO tests pass; live negative endpoints pass | Browser dashboard unverified |
 | OpsFlow | Existing frontend and Python backend | SSO code exists; hosted dependencies not verified | 4 frontend tests pass using existing adjacent TypeScript dependency; 3 Python signing/response tests pass | Partial; full install/build and hosted Firebase/MongoDB/session checks outstanding |
-| OpsPS | Existing web code; fix/web-first-provisioning | Hosted central SSO not verified here | TypeScript passes; fresh-schema provisioning test passes (17 tables, RLS, bootstrap denial, existing-install guard) | Partial; hosted UAT outstanding; existing draft PR #5 not merged |
+| OpsPS | Existing web code; fix/web-first-provisioning | Hosted central SSO not verified here | 133/133 unit tests pass (16 files); TypeScript passes; fresh-schema provisioning test passes (17 tables, RLS, bootstrap denial, existing-install guard) | Partial; hosted UAT outstanding; existing draft PR #5 not merged |
 | OpsWMS | Repository lookup returned GitHub 404 | Unverified | Untested | Blocked on repository existence/access |
 | OpsHR | Repository lookup returned GitHub 404 | Unverified | Untested | Blocked on repository existence/access |
 
