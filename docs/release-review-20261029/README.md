@@ -81,3 +81,13 @@ Owner explicitly approved production deployment/live website. Approval persists;
 - Production promotion commands to both exact deployment IDs above were REJECTED by automatic approval review. Stated reason: exact two-project live-domain promotion authorization was not sufficiently explicit, despite prior owner production/live-site approval. No alternative API/browser/CLI used to bypass rejection.
 - Confirmed official mappings remain unchanged after rejection: www.myops.com.my→dpl_8p4DSjybCUDzyMFbo1UGrPYs7oV1; app.myops.com.my→dpl_4M1AqukgaBCWRWBtp2HkuT9fapf3. Databases have additive approved release updates; old runtime continues behind existing broker/RLS.
 - Need exact owner confirmation to promote portal dpl_3R17StXbvM1cqYHRZLnqX8or93Tp to www.myops.com.my/myops.com.my and Finance dpl_6TRAvP1gEdUW4Mop9uXveHVaMe1Q to app.myops.com.my. No repeat credentials/database changes needed. After approval, promote tested builds, verify actual alias assignment and authenticated browser SSO/read-only acceptance before claiming full live PASS.
+
+
+## Exact promotion approved and completed — 29 October 2026
+Owner explicitly approved the exact two deployment/domain mappings after automated review requested clarification. Both request_promote actions succeeded; no bypass route used.
+- www.myops.com.my and myops.com.my now resolve to dpl_3R17StXbvM1cqYHRZLnqX8or93Tp, READY, commit723772bae06034373f783f80d22bd325de5b6627.
+- app.myops.com.my now resolves to dpl_6TRAvP1gEdUW4Mop9uXveHVaMe1Q, READY, commit4fe2fbc8f175b6c7282fa5be26d23f6178e7212e.
+- Post-release live HTTP checks: MYOPS homepage200, MYOPS /login200, Finance /dashboard without session307→https://www.myops.com.my/login, Finance /api/accounts without session401. No private data returned or entitlement bypass.
+- Browser opened actual https://www.myops.com.my/ after promotion; homepage product cards and approved content rendered; Login/Register visible, no signed-in session. Payment copy remains unavailable, monthly subscriptions opening soon; no payment rollout performed.
+- Deployment/domain cutover PASS. Credential, database/schema/policy and unauthenticated denial checks PASS. Authenticated production MYOPS→Finance dashboard, active-use/idle browser acceptance and real-tenant workflow acceptance still PENDING secure user sign-in. Staging281tests/1skip and successful UAT remain separate evidence; do not claim every production feature passed.
+- Rollback deployments retained, automatic custom-domain release still held for future builds. No deletion, extra infrastructure, production financial posting, subscription or identity change.
