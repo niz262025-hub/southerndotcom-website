@@ -97,3 +97,17 @@ Owner explicitly approved the exact two deployment/domain mappings after automat
 - Scoped warning/error/fatal runtime log counts for both promoted deployments over10minutes returned no groups. This is a limited immediate sample, not long-term monitoring or proof of no possible errors.
 - Secure browser auth request returned submitted. Fresh visible page is https://www.myops.com.my/forgot-password, with recovery-email form and Login/Register, no positive signed-in signal. No recovery email or password change initiated by agent; no login/SSO browser PASS claimed. Authentication/manual user completion remains the only blocker to the requested authenticated production check.
 - Domain release remains completed/READY as above. The browser state is not evidence that production SSO failed; a new login and entitled Open App observation are still required. Owner can complete authentication manually; never request credentials in chat.
+
+
+## Delivery tracker — owner acceptance and next application
+29 October 2026: owner confirmed MYOPS and OpsFinance working and instructed to mark both done/live and proceed. Deployment delivery marked DONE/LIVE; this owner confirmation is distinct from agent-observed authenticated browser UAT. New-user/tenant isolation in Production remains explicitly untested; no claim that all edge cases passed.
+
+| Application | Delivery status | Evidence / next gate |
+|---|---|---|
+| MYOPS | DONE — LIVE, owner accepted | Production dpl_3R17StXbvM1cqYHRZLnqX8or93Tp, commit723772bae06034373f783f80d22bd325de5b6627; no new rebuild requested |
+| OpsFinance | DONE — LIVE, owner accepted | Production dpl_6TRAvP1gEdUW4Mop9uXveHVaMe1Q, commit4fe2fbc8f175b6c7282fa5be26d23f6178e7212e; CSV/TXT scope, PDF/image deferred; Production tenant-isolation test pending |
+| OpsFlow | IN PROGRESS | Fresh frontend4/4 PASS, Python signing-contract3/3 PASS. Vercel connected-team project search opsflow returned0; hosted API/Firebase/Mongo and full web build not verified. No infrastructure duplicated or Production changed. |
+| OpsPS | NEXT | Proceed after OpsFlow integration gates; previous local tests are not hosted SSO evidence. |
+| OpsWMS / OpsHR | PENDING | Separate web readiness remains unverified. |
+
+OpsHub stays separate. Central login, subscription authorization and15-minute inactivity policy retained. Next implementation gate is identify existing OpsFlow hosting/configuration and run full web build and hosted launch tests; do not create replacement infrastructure based only on an empty name search.
