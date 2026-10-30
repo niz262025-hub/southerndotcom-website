@@ -42,13 +42,14 @@ export function AdminAudit() {
   return (
     <section className="content-section">
       <div className="container">
-        <h1>Founders 100 audit</h1>
+        <h1>MYOPS Admin — Payments & Income</h1>
         {message && <p role="status">{message}</p>}
         {data && (
           <>
             <p>Allocated {data.founders.allocated} of {data.founders.capacity} · reserved {data.founders.reserved} · remaining {data.founders.remaining}</p>
+            <p>Showing the latest 200 payment records. Bundle payments are shown separately and are not counted again under individual apps. Preview records are sandbox data.</p>
             <Table title="Payments" rows={data.payments} columns={[
-              ['Order', (r) => r.order_ref], ['User', (r) => short(r.user_id)], ['Plan', (r) => r.plan],
+              ['Order', (r) => r.order_ref], ['User', (r) => short(r.user_id)], ['Plan', (r) => r.plan], ['App', (r) => r.product_slug || 'Bundle / all apps'], ['Amount', (r) => Number.isFinite(r.amount_cents) ? `${r.currency || 'MYR'} ${(r.amount_cents / 100).toFixed(2)}` : '—'],
               ['Status', (r) => r.status], ['Outcome', (r) => r.outcome || '—'], ['Created', (r) => time(r.created_at)], ['Confirmed', (r) => time(r.confirmed_at)]]} />
             <Table title="Founder allocations" rows={data.allocations} columns={[
               ['Slot', (r) => r.slot_number], ['User', (r) => short(r.user_id)], ['Payment', (r) => short(r.payment_id)], ['Allocated', (r) => time(r.allocated_at)]]} />
