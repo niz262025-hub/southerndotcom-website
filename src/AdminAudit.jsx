@@ -42,13 +42,18 @@ export function AdminAudit() {
   return (
     <section className="content-section">
       <div className="container">
-        <h1>Founders 100 audit</h1>
+        <h1>MYOPS Admin — Payments & Income</h1>
         {message && <p role="status">{message}</p>}
         {data && (
           <>
-            <p>Allocated {data.founders.allocated} of {data.founders.capacity} · reserved {data.founders.reserved} · remaining {data.founders.remaining}</p>
+            {data.founders && <p>Allocated {data.founders.allocated} of {data.founders.capacity} · reserved {data.founders.reserved} · remaining {data.founders.remaining}</p>}
+            <p>Showing the latest 200 payment records. Bundle payments are shown separately and are not counted again under individual apps. {data.environment === 'production' ? 'Live records. Revenue excludes unpaid and failed payments.' : 'Preview records are sandbox data.'}</p>
+            <Table title="Income by app / bundle (shown payments only)" rows={Object.values(data.payments.filter(r => r.status === 'succeeded').reduce((result, r) => { const key = (r.product_slug || 'Bundle / all apps') + ':' + r.currency; const row = result[key] || { app: r.product_slug || 'Bundle / all apps', currency: r.currency, cents: 0, count: 0 }; row.cents += Number(r.amount_cents) || 0; row.count += 1; result[key] = row; return result; }, {}))} columns={[
+              ['App / package', r => r.app], ['Currency', r => r.currency], ['Income', r => (r.cents / 100).toFixed(2)], ['Payments', r => r.count]]} />
+            {data.subscriptions && <Table title="Subscriptions (latest 200)" rows={data.subscriptions} columns={[
+              ['User / company', r => short(r.personal_user_id || r.organization_id)], ['App / bundle', r => r.is_complete_bundle ? 'All apps' : r.product_slug], ['Status', r => r.status === 'active' && r.current_period_end && Date.parse(r.current_period_end) <= Date.now() ? 'expired' : r.status], ['Renewal', r => r.renewal_mode], ['Period end', r => time(r.current_period_end)]]} />}
             <Table title="Payments" rows={data.payments} columns={[
-              ['Order', (r) => r.order_ref], ['User', (r) => short(r.user_id)], ['Plan', (r) => r.plan],
+              ['Order', (r) => r.order_ref], ['User', (r) => short(r.user_id)], ['Plan', (r) => r.plan], ['App', (r) => r.product_slug || 'Bundle / all apps'], ['Amount', (r) => Number.isFinite(r.amount_cents) ? `${r.currency || 'MYR'} ${(r.amount_cents / 100).toFixed(2)}` : '—'],
               ['Status', (r) => r.status], ['Outcome', (r) => r.outcome || '—'], ['Created', (r) => time(r.created_at)], ['Confirmed', (r) => time(r.confirmed_at)]]} />
             <Table title="Founder allocations" rows={data.allocations} columns={[
               ['Slot', (r) => r.slot_number], ['User', (r) => short(r.user_id)], ['Payment', (r) => short(r.payment_id)], ['Allocated', (r) => time(r.allocated_at)]]} />

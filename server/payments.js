@@ -145,6 +145,14 @@ export function createPayments({ env, transport, adminFactory, project }) {
     if (!ids.includes(userId)) return { status: 403, body: { error: 'Not authorised.' } };
     const client = admin();
     if (!client) return { status: 503, body: { error: 'Audit is not configured.' } };
+    if (env.VERCEL_ENV === 'production') {
+      const [payments, subscriptions] = await Promise.all([
+        client.from('myops_payments').select('order_ref,user_id,plan,product_slug,amount_cents,currency,status,outcome,created_at,confirmed_at').order('created_at', { ascending: false }).limit(200),
+        client.from('myops_subscriptions').select('id,personal_user_id,organization_id,product_slug,is_complete_bundle,status,renewal_mode,current_period_end,created_at').order('created_at', { ascending: false }).limit(200),
+      ]);
+      if (payments.error || subscriptions.error) return { status: 503, body: { error: 'Admin records are unavailable.' } };
+      return { status: 200, body: { environment: 'production', payments: payments.data || [], subscriptions: subscriptions.data || [], allocations: [], entitlements: [], events: [], founders: null } };
+    }
     return { status: 200, body: await rpc(client, 'myops_admin_audit', { p_limit: 200 }) };
   }
 
