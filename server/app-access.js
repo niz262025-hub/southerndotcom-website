@@ -1,6 +1,6 @@
 import { createHash, createHmac, createPublicKey, randomBytes, verify } from 'node:crypto';
 import { createClient } from '@supabase/supabase-js';
-import { resolveProductStates } from './entitlements.js';
+import { resolveProductStates, isPlatformAdmin } from './entitlements.js';
 
 import { projectForEnvironment } from './project.js';
 import { serverServiceKey } from './service-key.js';
@@ -94,7 +94,7 @@ function entitlementRows(client, table, columns, userId) {
   return query;
 }
 
-export async function loadCurrentEntitlements(client, userId, now) {
+export async function loadCurrentEntitlements(client, userId, now, env = {}) {
   const [catalog, personalSubs, memberships, grants, lifetime] = await Promise.all([
     entitlementRows(client, 'myops_products', 'slug,launch_status', userId),
     entitlementRows(client, 'myops_subscriptions', 'personal_user_id,organization_id,product_slug,is_complete_bundle,status,current_period_end', userId),
@@ -118,6 +118,7 @@ export async function loadCurrentEntitlements(client, userId, now) {
     subscriptions,
     grants: grants.data || [],
     lifetime: lifetime.data || [],
+    platformAdmin: isPlatformAdmin(userId, env),
     now,
   });
 }
@@ -357,7 +358,7 @@ export function createAppAccess({ env = process.env, adminFactory = createClient
           || typeof redeemed.user_id !== 'string' || typeof redeemed.session_id !== 'string') {
         return reply(401, { error: 'Launch ticket is invalid or expired.' });
       }
-      const products = await entitlementResolver(admin, redeemed.user_id, now());
+      const products = await entitlementResolver(admin, redeemed.user_id, now(), env);
       if (!products || products[clientData.product_slug] !== 'active') {
         await rpc(admin, 'myops_revoke_app_session', {
           p_session_id: redeemed.session_id, p_reason: 'entitlement_denied',
@@ -398,7 +399,7 @@ export function createAppAccess({ env = process.env, adminFactory = createClient
       if (!appSession?.active || typeof appSession.user_id !== 'string') {
         return reply(403, { entitled: false, session_active: false });
       }
-      const products = await entitlementResolver(admin, appSession.user_id, now());
+      const products = await entitlementResolver(admin, appSession.user_id, now(), env);
       // Unknown state (lookup failed): deny this request but keep the session for a later retry.
       if (!products) return reply(503, { entitled: false, error: 'Application access could not be verified.' });
       const entitled = products[body.product] === 'active';
