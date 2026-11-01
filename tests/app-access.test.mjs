@@ -169,7 +169,7 @@ test('entitlement verification is fresh and revoked or idle sessions are denied'
   const accepted = await call(active.handler.entitlement,
     signedRequest({ path: '/api/app/entitlement', body, nonce: 'nonce-second-1234567890' }));
   assert.equal(accepted.statusCode, 200);
-  assert.deepEqual(accepted.body, { entitled: true, session_active: true, checked_at: new Date(NOW).toISOString() });
+  assert.deepEqual(accepted.body, { entitled: true, session_active: true, access_mode: 'paid', checked_at: new Date(NOW).toISOString() });
   assert.ok(active.calls.some(([name]) => name === 'myops_validate_app_session'));
 
   const idle = make({ sessionActive: false });
@@ -381,3 +381,11 @@ test('trial quota endpoint is unavailable in production and rejects expired sess
  const denied=await call(make({sessionActive:false}).handler.trialQuota,signedRequest({path:'/api/app/trial-quota',body}));assert.equal(denied.statusCode,403);
  const prod=await call(make({env:{...baseEnv,VERCEL_ENV:'production'}}).handler.trialQuota,{headers:{},body});assert.equal(prod.statusCode,404);
 });
+
+ test('central entitlement explicitly identifies existing paid access without granting trial',async()=>{
+ const {handler}=make();
+ const result=await call(handler.entitlement,signedRequest({path:'/api/app/entitlement',body:{session_id:sessionId,product:'opsp'}}));
+ assert.equal(result.statusCode,200);assert.equal(result.body.access_mode,'paid');
+ const denied=await call(make({entitlement:'none'}).handler.entitlement,signedRequest({path:'/api/app/entitlement',body:{session_id:sessionId,product:'opsp'}}));
+ assert.equal(denied.statusCode,403);assert.equal(denied.body.access_mode,undefined);
+ });

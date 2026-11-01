@@ -412,7 +412,7 @@ export function createAppAccess({ env = process.env, adminFactory = createClient
         });
         return reply(403, { entitled: false, session_active: false });
       }
-      return reply(200, { entitled: true, session_active: true, checked_at: new Date(now()).toISOString(),
+      return reply(200, { entitled: true, session_active: true, access_mode: 'paid', checked_at: new Date(now()).toISOString(),
         ...(body.product === 'opsflow' && body.sensitive === true ? { onboarding_profile: await loadAppProfile(admin, appSession.user_id) } : {}) });
     } catch {
       return res.status(503).json({ error: 'Application access could not be verified.' });
