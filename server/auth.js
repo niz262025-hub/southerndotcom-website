@@ -1,3 +1,4 @@
+import { trialAction } from './trial-activation.js';
 import { serverServiceKey } from './service-key.js';
 import { loadEligibleTrial, trialAppsForEnvironment } from './trial-access.js';
 import { createHmac, timingSafeEqual } from 'node:crypto';
@@ -489,7 +490,7 @@ export function createAuthHandler({ env = process.env, clientFactory = createCli
         return runRevocationWorker({ env, headers: req.headers, body, appAccess, reply });
       }
       if (action === 'founders') return reply(200, await payments.founders());
-      if (!['account', 'reset', 'profile', 'session', 'launch', 'checkout', 'admin_audit'].includes(action)) return reply(400, { error: 'Unknown operation.' });
+      if (!['account', 'reset', 'profile', 'session', 'launch', 'checkout', 'admin_audit', 'trial_start', 'trial_status'].includes(action)) return reply(400, { error: 'Unknown operation.' });
       const active = saved[SESSION] && activityValid(secret, saved[ACTIVITY], now());
       const { data: identity, error: identityError } = saved[SESSION]
         ? await client.auth.getUser(saved[SESSION]) : { data: {}, error: true };
@@ -507,7 +508,7 @@ export function createAuthHandler({ env = process.env, clientFactory = createCli
       // Only genuine user activity is recorded server-side (30 s throttle); app polling never is.
       const login = verifiedLogin(secret, saved[LOGIN], now());
       const loginSessionId = login?.userId === identity.user.id ? login.loginSessionId : null;
-      if (!(action === 'session' && body.activity === false)) {
+      if (!(action === 'session' && body.activity === false) && action !== 'trial_status') {
         touch();
         if (loginSessionId && await appAccess.touchLogin(identity.user.id, loginSessionId) === false) {
           // The durable record says this login is over (expired, swept or revoked elsewhere).
@@ -520,6 +521,13 @@ export function createAuthHandler({ env = process.env, clientFactory = createCli
       if (action === 'session') {
         const entitlements = await loadEntitlements(client, identity.user.id, now(), env);
         return reply(200, { signedIn: true, email: identity.user.email, products: entitlements?.products ?? null, lifetime: entitlements?.lifetime ?? false, ...(isPlatformAdmin(identity.user.id, env) ? { platformAdmin: true } : {}) });
+      }
+      if(action==='trial_start'||action==='trial_status') {
+        if(PROJECT!=='https://wengxxiqwtosirealghx.supabase.co'||!trialAppsForEnvironment(env).length) return reply(404,{error:'Trial is not enabled.'});
+        const trialKey=serverServiceKey(env.MYOPS_SERVICE_ROLE_KEY,PROJECT);
+        if(!trialKey) return reply(503,{error:'Trial service is unavailable.'});
+        const result=await trialAction({client:clientFactory(PROJECT,trialKey,{auth:{persistSession:false,autoRefreshToken:false}}),userId:identity.user.id,loginSessionId,action,body,env,now:now()});
+        return reply(result.status,result.body);
       }
       if (action === 'checkout') {
         // Eligibility (Individual-only) is decided inside the database from the server-owned
@@ -576,7 +584,7 @@ export function createAuthHandler({ env = process.env, clientFactory = createCli
       }
       // Auth metadata is user-editable and descriptive only; it never grants access.
       const entitlements = await loadEntitlements(client, identity.user.id, now(), env);
-      return reply(200, { email: identity.user.email, profile: profileFrom(identity.user), products: entitlements?.products ?? null, lifetime: entitlements?.lifetime ?? false, ...(isPlatformAdmin(identity.user.id, env) ? { platformAdmin: true } : {}) });
+      return reply(200, { email: identity.user.email, profile: profileFrom(identity.user), ...(trialAppsForEnvironment(env).length ? {trialAvailable:true} : {}), products: entitlements?.products ?? null, lifetime: entitlements?.lifetime ?? false, ...(isPlatformAdmin(identity.user.id, env) ? { platformAdmin: true } : {}) });
     } catch {
       // Never log SDK errors, credentials, request bodies, cookies or callback codes.
       return reply(500, { error: 'Authentication request failed. Please try again.' });

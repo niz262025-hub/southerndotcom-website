@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {trialAppsForEnvironment,loadEligibleTrial} from '../server/trial-access.js';
 import {resolveProductStates} from '../server/entitlements.js';
-const env={VERCEL_ENV:'preview',MYOPS_ENVIRONMENT:'staging',MYOPS_ENABLE_STAGING_TRIAL_ACCESS:'true',MYOPS_TRIAL_READY_APPS:'opsflow,opsfinance,opsp,opshr'};
+const env={VERCEL_ENV:'preview',MYOPS_ENVIRONMENT:'staging',MYOPS_USE_ISOLATED_STAGING:'true',VITE_SUPABASE_URL:'https://wengxxiqwtosirealghx.supabase.co',MYOPS_ENABLE_STAGING_TRIAL_ACCESS:'true',MYOPS_TRIAL_READY_APPS:'opsflow,opsfinance,opsp,opshr'};
 const now=Date.now();const trial={id:'id',user_id:'user',organization_id:null,status:'active',policy_version:1,started_at:new Date(now-1000).toISOString(),expires_at:new Date(now-1000+604800000).toISOString()};
 const catalog=['opsflow','opsfinance','opsp'].map(slug=>({slug,launch_status:'live'}));
 const states=(t,apps=['opsflow'])=>resolveProductStates({userId:'user',catalog,subscriptions:[],grants:[],trial:t,trialApps:apps,now});

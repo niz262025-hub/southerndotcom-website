@@ -9,6 +9,7 @@ export function AuthPortal({ mode, production = false }) {
   const [message, setMessage] = useState('');
   const [busy, setBusy] = useState(false);
   const [account, setAccount] = useState(null);
+  const [trialInfo,setTrialInfo]=useState(null);
   const [accountType, setAccountType] = useState('personal');
   const started = useRef(false);
   useEffect(() => {
@@ -26,12 +27,12 @@ export function AuthPortal({ mode, production = false }) {
         .catch((error) => setMessage(error.message)).finally(() => setBusy(false));
     } else if (mode === 'dashboard' || mode === 'reset') {
       setBusy(true);
-      request('account').then((data) => { setAccount(data); setAccountType(data.profile?.account_type || 'personal'); }).catch((error) => {
+      request('account').then((data) => { setAccount(data); setAccountType(data.profile?.account_type || 'personal'); if(data.trialAvailable&&!production) request('trial_status').then(setTrialInfo).catch(error=>setMessage(error.message)); }).catch((error) => {
         if (error.status === 401) window.location.replace('/login');
         else setMessage(error.message);
       }).finally(() => setBusy(false));
     }
-  }, [mode]);
+  }, [mode, production]);
 
   async function submit(event) {
     event.preventDefault();
@@ -45,6 +46,20 @@ export function AuthPortal({ mode, production = false }) {
       else setMessage(result.message);
     } catch (error) { setMessage(error.message); }
     finally { setBusy(false); }
+  }
+
+  async function startTrial() {
+    if(busy) return;
+    setBusy(true);setMessage('');
+    try {const result=await request('trial_start',{confirm:true});setTrialInfo(result);setMessage(result.message);}
+    catch(error){setMessage(error.message);}
+    finally{setBusy(false);}
+  }
+  async function openTrialApp(product) {
+    if(busy) return;
+    setBusy(true);setMessage('');
+    try {const result=await request('launch',{product});window.location.assign(result.next);}
+    catch(error){setMessage(error.message);setBusy(false);}
   }
 
   async function logout() {
@@ -81,6 +96,19 @@ export function AuthPortal({ mode, production = false }) {
                 ))}
               </ul>
             ) : <p>Subscription status is currently unavailable.</p>}
+            {!production && account.trialAvailable && <section aria-labelledby="trial-title">
+              <h3 id="trial-title">Free Trial — 7 days</h3>
+              <p>RM0 for 7 × 24 hours from activation. No payment card, automatic charge or renewal. One trial per eligible account/company; 1 user and 1 company. Your data is kept after expiry.</p>
+              <p>Staging UAT: OpsFlow only. Up to 30 transaction records and 2 purchase-order flows. Other applications are not included in this trial yet.</p>
+              {trialInfo ? <>
+                <p>Trial status: {trialInfo.trial.status.replace('_',' ')}</p>
+                {trialInfo.trial.expires_at && <p>Expires: {new Date(trialInfo.trial.expires_at).toLocaleString()}</p>}
+                {trialInfo.canStart && <button type="button" className="btn btn-primary" disabled={busy} onClick={startTrial}>Activate free 7-day trial</button>}
+                {trialInfo.trial.status==='active' && trialInfo.availableApps.map(product=><button key={product} type="button" className="btn btn-primary" disabled={busy} onClick={()=>openTrialApp(product)}>Open {productLabels[product]}</button>)}
+                {!trialInfo.canStart && trialInfo.trial.status==='not_started' && <p>Your existing access is already active; no trial is needed.</p>}
+              </> : <p>Checking trial eligibility…</p>}
+              <p>Other packages: First 100 Subscribers · Normal Subscription (2 apps) · All Apps. New paid checkout is not enabled by this trial test.</p>
+            </section>}
             {account.lifetime && <p>Founders 100 lifetime access: active (all current and future MYOPS apps).</p>}
             <p>{production ? 'Subscriptions and application access are not available for purchase yet.' : 'Preview payments use the ToyyibPay sandbox only. Application access is granted only after the server confirms a verified payment or active subscription.'}</p>
           </section>

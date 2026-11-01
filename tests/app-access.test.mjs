@@ -393,7 +393,7 @@ test('signed entitlement returns server-owned trial metadata and keeps paid mode
  const {admin}=make({product:'opsflow'});
  const trial={id:loginSessionId,user_id:userId,organization_id:null,policy_version:1,status:'active',started_at:new Date(NOW-1000).toISOString(),expires_at:new Date(NOW-1000+604800000).toISOString()};
  admin.from=()=>{const q={select:()=>q,eq:()=>q,maybeSingle:async()=>({data:trial,error:null})};return q;};
- const env={...baseEnv,MYOPS_ENABLE_STAGING_TRIAL_ACCESS:'true',MYOPS_TRIAL_READY_APPS:'opsflow'};
+ const env={...baseEnv,MYOPS_USE_ISOLATED_STAGING:'true',VITE_SUPABASE_URL:'https://wengxxiqwtosirealghx.supabase.co',MYOPS_ENABLE_STAGING_TRIAL_ACCESS:'true',MYOPS_TRIAL_READY_APPS:'opsflow'};
  const handler=createAppAccess({env,adminFactory:()=>admin,now:()=>NOW,entitlementResolver:async(c,u,n,e)=>({opsflow:e.MYOPS_ENABLE_STAGING_TRIAL_ACCESS==='true'?'active':'none'})});
  const body={session_id:sessionId,product:'opsflow'};
  const result=await call(handler.entitlement,signedRequest({path:'/api/app/entitlement',body}));

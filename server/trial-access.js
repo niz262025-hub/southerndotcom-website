@@ -1,6 +1,7 @@
+import { projectForEnvironment, STAGING_PROJECT } from './project.js';
 import { effectiveTrialState } from './subscription-plans.js';
 export function trialAppsForEnvironment(env={}) {
- if(env.VERCEL_ENV!=='preview'||env.MYOPS_ENVIRONMENT!=='staging'||env.MYOPS_ENABLE_STAGING_TRIAL_ACCESS!=='true') return [];
+ if(projectForEnvironment(env)!==STAGING_PROJECT||env.VITE_SUPABASE_URL!==STAGING_PROJECT||env.VERCEL_ENV!=='preview'||env.MYOPS_ENVIRONMENT!=='staging'||env.MYOPS_ENABLE_STAGING_TRIAL_ACCESS!=='true') return [];
  // Only OpsFlow currently has an atomic app-side trial gateway.
  return String(env.MYOPS_TRIAL_READY_APPS||'').split(',').map(x=>x.trim()).filter(x=>x==='opsflow');
 }
