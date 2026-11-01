@@ -1,3 +1,4 @@
+import { consumeVerifiedTrialQuota } from './trial-quota.js';
 import { loadAppProfile } from './app-profile.js';
 import { createHash, createHmac, createPublicKey, randomBytes, verify } from 'node:crypto';
 import { createClient } from '@supabase/supabase-js';
@@ -418,5 +419,25 @@ export function createAppAccess({ env = process.env, adminFactory = createClient
     }
   }
 
-  return { issueTicket, startLogin, touchLogin, processRevocations, queueRevocation, pendingRevocations, revokeUserSessions, redeem, entitlement };
+  async function trialQuota(req, res) {
+    // Trial integration remains staging-only until all apps enforce the contract.
+    if (env.VERCEL_ENV !== 'preview' || env.MYOPS_ENVIRONMENT !== 'staging') return res.status(404).json({ error: 'Not available.' });
+    try {
+      const auth = await authenticate(req, res, 'trial-quota');
+      if (!auth || typeof auth.statusCode === 'number') return auth;
+      const { admin, appId, clientData, body, reply } = auth;
+      if (Object.keys(body).length !== 4 || Object.keys(body).some(key => !['session_id','product','feature','operation_id'].includes(key))
+          || !SESSION_ID.test(body.session_id || '') || !SESSION_ID.test(body.operation_id || '')
+          || body.product !== clientData.product_slug || typeof body.feature !== 'string' || body.feature.length > 64) return reply(400, { error: 'Invalid request.' });
+      const session = await rpc(admin, 'myops_validate_app_session', { p_session_id: body.session_id, p_app_id: appId, p_product_slug: body.product, p_touch: false });
+      if (!session?.active || !USER_ID.test(session.user_id || '')) return reply(403, { allowed: false });
+      const bound = await admin.from('myops_app_sessions').select('user_id,login_session_id').eq('id',body.session_id).eq('app_id',appId).eq('product_slug',body.product).maybeSingle();
+      if (bound.error) return reply(503, { allowed:false });
+      if (!bound.data || bound.data.user_id !== session.user_id) return reply(403, { allowed:false });
+      const result = await consumeVerifiedTrialQuota(admin, { active:true, userId:session.user_id, loginSessionId:bound.data.login_session_id, product:body.product },body.feature,body.operation_id);
+      return reply(result.allowed ? 200 : result.reason === 'unavailable' ? 503 : 403,result);
+    } catch { return res.status(503).json({ allowed:false }); }
+  }
+
+  return { issueTicket, startLogin, touchLogin, processRevocations, queueRevocation, pendingRevocations, revokeUserSessions, redeem, entitlement, trialQuota };
 }

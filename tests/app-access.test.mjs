@@ -364,3 +364,20 @@ test('OpsFlow receives central labels only after signature, ticket, session and 
   const retry=await call(handler.entitlement,signedRequest({path:'/api/app/entitlement',body:{session_id:sessionId,product:'opsflow',activity:true,sensitive:true}}));
   assert.equal(retry.statusCode,200);assert.deepEqual(retry.body.onboarding_profile,result.body.onboarding_profile);
 });
+
+test('trial quota requires a signed matching app/session and never touches activity',async()=>{
+ const {handler,admin,calls}=make();
+ admin.from=table=>{assert.equal(table,'myops_app_sessions');const q={select:()=>q,eq:()=>q,maybeSingle:async()=>({data:{user_id:userId,login_session_id:loginSessionId},error:null})};return q;};
+ const original=admin.rpc;admin.rpc=async(name,args)=>name==='myops_consume_trial_quota'?{data:{allowed:true,used:1,limit:2,replayed:false}}:original(name,args);
+ const body={session_id:sessionId,product:'opsp',feature:'projects',operation_id:loginSessionId};
+ const result=await call(handler.trialQuota,signedRequest({path:'/api/app/trial-quota',body}));
+ assert.equal(result.statusCode,200);assert.equal(result.body.allowed,true);
+ assert.equal(calls.find(c=>c[0]==='myops_validate_app_session')[1].p_touch,false);
+ const wrong=await call(handler.trialQuota,signedRequest({path:'/api/app/entitlement',body}));assert.equal(wrong.statusCode,401);
+ const extra=await call(handler.trialQuota,signedRequest({path:'/api/app/trial-quota',body:{...body,user_id:userId}}));assert.equal(extra.statusCode,400);
+});
+test('trial quota endpoint is unavailable in production and rejects expired sessions',async()=>{
+ const body={session_id:sessionId,product:'opsp',feature:'projects',operation_id:loginSessionId};
+ const denied=await call(make({sessionActive:false}).handler.trialQuota,signedRequest({path:'/api/app/trial-quota',body}));assert.equal(denied.statusCode,403);
+ const prod=await call(make({env:{...baseEnv,VERCEL_ENV:'production'}}).handler.trialQuota,{headers:{},body});assert.equal(prod.statusCode,404);
+});
