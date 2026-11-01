@@ -1,0 +1,9 @@
+# MYOPS central profile release
+
+This narrow release is based on the currently live MYOPS commit 6b94b84420fece804c12934301dc593b2749ab8b. It applies only the tested central profile patch from staging 1a48ac795a8846a0c686151a64a9d2c3267d0200. Unreleased subscription/trial foundations are excluded; no migration, entitlement, payment, timer, homepage styling or infrastructure changes.
+
+Verified staging browser UAT: sign in to the existing MYOPS staging portal, save the user's selected Southern Dotcom Enterprise and registered full name centrally, revisit the account and confirm persistence, launch OpsFlow directly into the existing dashboard without another login or name/company form. Existing test sales RM42.40, purchase RM50 and product stock13 remained visible; no business data was deleted or overwritten. New empty-tenant automatic label copy and malformed/forged browser data denial are covered by automated API tests; a new identity was not created through hosted browser UAT.
+
+Local exact production-base patch verification: 150 tests passed, 36 PostgreSQL-dependent tests skipped because local binaries are absent; PGlite session/RLS tests passed. Lint and web build passed. Staging CI quality #80, validation #117 and OpsFlow #47 passed. Paired OpsFlow release c3feb86f0b4dc9c6f5f21e0f1b0fb0b67c820e19 has 33 backend +28 frontend tests, TypeScript/lint/web export passed. Staging deployment dpl_9JUeDNMzciTT3X8eXPAAQ6jsotrC is READY on the existing staging alias; readiness and signed central transport both returned HTTP200 after alias verification.
+
+Release order: build with existing production environment; release MYOPS first, then OpsFlow. Retain rollback deployments MYOPS dpl_5LyCwPoWcmx5C48pqFZnXL45yUza and OpsFlow dpl_2UYmjzLpEZu29MUgLeJ9zWsUckfj. Run authenticated live launch and anonymous API denial checks after promotion. The user authorized this release in the conversation.

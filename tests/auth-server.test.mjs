@@ -125,7 +125,7 @@ test('onboarding saves only descriptive metadata through the verified user and g
   const client = mock();
   client.rpc = () => assert.fail('onboarding must not call an unapproved provisioning RPC');
   client.from = () => assert.fail('onboarding must not depend on an unapproved profile table');
-  const result = await run({ action: 'profile', displayName: 'A Person', accountType: 'business', role: 'admin' }, {
+  const result = await run({ action: 'profile', displayName: 'A Person', accountType: 'business', companyName: 'Registered Company', role: 'admin' }, {
     client,
     headers: { cookie: signedIn() },
     transport: async (url, init) => {
@@ -138,7 +138,7 @@ test('onboarding saves only descriptive metadata through the verified user and g
   assert.equal(request.url, 'https://uhuukcztdifvpjuopdea.supabase.co/auth/v1/user');
   assert.equal(request.method, 'PUT');
   assert.ok(request.headers.Authorization.startsWith('Bearer '));
-  assert.deepEqual(JSON.parse(request.body), { data: { display_name: 'A Person', account_type: 'business' } });
+  assert.deepEqual(JSON.parse(request.body), { data: { display_name: 'A Person', account_type: 'business', company_name: 'Registered Company' } });
 });
 test('onboarding rejects unsupported account types and reports upstream save failure', async () => {
   const headers = { cookie: signedIn() };
