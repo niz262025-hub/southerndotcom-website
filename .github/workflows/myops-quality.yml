@@ -19,5 +19,6 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm test
+      - run: node --test scripts/test-trial-integration.mjs
       - run: npm run lint
       - run: npm run build

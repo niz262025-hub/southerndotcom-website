@@ -1,3 +1,4 @@
+import { loadEligibleTrial, trialAppsForEnvironment } from './trial-access.js';
 import { consumeVerifiedTrialQuota } from './trial-quota.js';
 import { loadAppProfile } from './app-profile.js';
 import { createHash, createHmac, createPublicKey, randomBytes, verify } from 'node:crypto';
@@ -114,7 +115,9 @@ export async function loadCurrentEntitlements(client, userId, now, env = {}) {
     if (orgSubs.error) return null;
   }
   const subscriptions = [...(personalSubs.data || []), ...(orgSubs.data || [])];
+  const trial = await loadEligibleTrial(client,userId,now,env);
   return resolveProductStates({
+    trial, trialApps:trialAppsForEnvironment(env),
     userId,
     catalog: catalog.data || [],
     subscriptions,
@@ -412,7 +415,17 @@ export function createAppAccess({ env = process.env, adminFactory = createClient
         });
         return reply(403, { entitled: false, session_active: false });
       }
-      return reply(200, { entitled: true, session_active: true, access_mode: 'paid', checked_at: new Date(now()).toISOString(),
+      let mode = { access_mode:'paid' };
+      if(trialAppsForEnvironment(env).includes(body.product)) {
+        const paid = await entitlementResolver(admin,appSession.user_id,now(),{...env,MYOPS_ENABLE_STAGING_TRIAL_ACCESS:'false'});
+        if(!paid) return reply(503,{entitled:false,error:'Application access could not be verified.'});
+        if(paid[body.product]!=='active') {
+          const trial = await loadEligibleTrial(admin,appSession.user_id,now(),env);
+          if(!trial) return reply(403,{entitled:false,session_active:false});
+          mode={access_mode:'trial',trial:{id:trial.id,expires_at:trial.expires_at,policy_version:trial.policy_version}};
+        }
+      }
+      return reply(200, { entitled: true, session_active: true, ...mode, checked_at: new Date(now()).toISOString(),
         ...(body.product === 'opsflow' && body.sensitive === true ? { onboarding_profile: await loadAppProfile(admin, appSession.user_id) } : {}) });
     } catch {
       return res.status(503).json({ error: 'Application access could not be verified.' });

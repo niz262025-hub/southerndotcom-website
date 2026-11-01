@@ -389,3 +389,15 @@ test('trial quota endpoint is unavailable in production and rejects expired sess
  const denied=await call(make({entitlement:'none'}).handler.entitlement,signedRequest({path:'/api/app/entitlement',body:{session_id:sessionId,product:'opsp'}}));
  assert.equal(denied.statusCode,403);assert.equal(denied.body.access_mode,undefined);
  });
+test('signed entitlement returns server-owned trial metadata and keeps paid mode distinct',async()=>{
+ const {admin}=make({product:'opsflow'});
+ const trial={id:loginSessionId,user_id:userId,organization_id:null,policy_version:1,status:'active',started_at:new Date(NOW-1000).toISOString(),expires_at:new Date(NOW-1000+604800000).toISOString()};
+ admin.from=()=>{const q={select:()=>q,eq:()=>q,maybeSingle:async()=>({data:trial,error:null})};return q;};
+ const env={...baseEnv,MYOPS_ENABLE_STAGING_TRIAL_ACCESS:'true',MYOPS_TRIAL_READY_APPS:'opsflow'};
+ const handler=createAppAccess({env,adminFactory:()=>admin,now:()=>NOW,entitlementResolver:async(c,u,n,e)=>({opsflow:e.MYOPS_ENABLE_STAGING_TRIAL_ACCESS==='true'?'active':'none'})});
+ const body={session_id:sessionId,product:'opsflow'};
+ const result=await call(handler.entitlement,signedRequest({path:'/api/app/entitlement',body}));
+ assert.equal(result.statusCode,200);assert.equal(result.body.access_mode,'trial');
+ assert.deepEqual(result.body.trial,{id:loginSessionId,expires_at:trial.expires_at,policy_version:1});
+ assert.equal(JSON.stringify(result.body).includes(userId),false);
+});

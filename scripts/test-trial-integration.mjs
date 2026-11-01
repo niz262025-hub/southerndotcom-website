@@ -1,5 +1,3 @@
-// Opt-in acceptance test: currently FAILS at active trial -> app entitlement.
-// Run: node --test scripts/test-trial-integration.mjs. Not part of normal unit CI.
 import test from 'node:test';
 import { resolveProductStates } from '../server/entitlements.js';
 import assert from 'node:assert/strict';
@@ -29,8 +27,10 @@ test('INTEGRATION: activated trial must authorize a central application launch',
   const catalog=(await db.query('SELECT slug,launch_status FROM myops_products')).rows;
   const subscriptions=(await db.query('SELECT * FROM myops_subscriptions')).rows;
   const grants=(await db.query('SELECT * FROM myops_app_grants')).rows;
-  const states=resolveProductStates({userId:user,catalog,subscriptions,grants,lifetime:[],now:Date.now()});
+  const states=resolveProductStates({userId:user,catalog,subscriptions,grants,lifetime:[],trial:{...trial,user_id:user},trialApps:['opsflow'],now:Date.now()});
   console.log('INTEGRATION OBSERVED:',JSON.stringify({trial:trial.status,cardRequired:trial.card_required,subscriptionRows:subscriptions.length,grantRows:grants.length,opsflow:states.opsflow}));
+  assert.equal(states.opsfinance,'none');
+  assert.equal(states.opsp,'none');
   assert.equal(states.opsflow,'active','Active central trial must reach the launch entitlement resolver without a paid subscription or bypass');
  }finally{await db.close();}
 });

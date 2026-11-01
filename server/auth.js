@@ -1,3 +1,4 @@
+import { loadEligibleTrial, trialAppsForEnvironment } from './trial-access.js';
 import { createHmac, timingSafeEqual } from 'node:crypto';
 import { createClient } from '@supabase/supabase-js';
 import { createAppAccess } from './app-access.js';
@@ -211,8 +212,9 @@ async function loadEntitlements(client, userId, now, env = {}) {
   if (catalog.error || subscriptions.error || grants.error) return null;
   // A failed lifetime read fails closed (no lifetime), e.g. before the Phase 3 SQL is approved.
   const rows = lifetime.error ? [] : lifetime.data || [];
+  const trial = await loadEligibleTrial(client,userId,now,env);
   return {
-    products: resolveProductStates({ userId, catalog: catalog.data || [], subscriptions: subscriptions.data || [], grants: grants.data || [], lifetime: rows, platformAdmin: isPlatformAdmin(userId, env), now }),
+    products: resolveProductStates({ userId, catalog: catalog.data || [], subscriptions: subscriptions.data || [], grants: grants.data || [], lifetime: rows, platformAdmin: isPlatformAdmin(userId, env), trial, trialApps:trialAppsForEnvironment(env), now }),
     lifetime: hasLifetime(userId, rows),
   };
 }
