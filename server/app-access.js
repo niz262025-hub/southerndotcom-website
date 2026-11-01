@@ -1,3 +1,4 @@
+import { loadAppProfile } from './app-profile.js';
 import { createHash, createHmac, createPublicKey, randomBytes, verify } from 'node:crypto';
 import { createClient } from '@supabase/supabase-js';
 import { resolveProductStates, isPlatformAdmin } from './entitlements.js';
@@ -371,6 +372,7 @@ export function createAppAccess({ env = process.env, adminFactory = createClient
         session_id: redeemed.session_id,
         user_ref: userRef(env.MYOPS_APP_USER_REF_SECRET, appId, redeemed.user_id),
         product: clientData.product_slug,
+        ...(clientData.product_slug === 'opsflow' ? { onboarding_profile: await loadAppProfile(admin, redeemed.user_id) } : {}),
         idle_seconds: APP_IDLE_MS / 1000,
         max_session_seconds: APP_MAX_SESSION_MS / 1000,
       });
@@ -409,7 +411,8 @@ export function createAppAccess({ env = process.env, adminFactory = createClient
         });
         return reply(403, { entitled: false, session_active: false });
       }
-      return reply(200, { entitled: true, session_active: true, checked_at: new Date(now()).toISOString() });
+      return reply(200, { entitled: true, session_active: true, checked_at: new Date(now()).toISOString(),
+        ...(body.product === 'opsflow' && body.sensitive === true ? { onboarding_profile: await loadAppProfile(admin, appSession.user_id) } : {}) });
     } catch {
       return res.status(503).json({ error: 'Application access could not be verified.' });
     }

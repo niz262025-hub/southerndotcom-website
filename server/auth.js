@@ -228,7 +228,8 @@ function profileFrom(user) {
   const accountType = metadata.account_type;
   if (typeof displayName !== 'string' || !displayName.trim()
       || !['personal', 'business'].includes(accountType)) return null;
-  return { display_name: displayName.trim(), account_type: accountType };
+  return { display_name: displayName.trim(), account_type: accountType,
+    ...(typeof metadata.company_name === 'string' && metadata.company_name.trim() ? { company_name: metadata.company_name.trim() } : {}) };
 }
 
 // Explicit allowlist: never log arbitrary upstream strings, messages or error objects.
@@ -391,6 +392,10 @@ export function createAuthHandler({ env = process.env, clientFactory = createCli
       if (!pendingCleared && ['login', 'callback'].includes(action)) {
         return reply(503, { error: 'Sign-in is temporarily unavailable. Try again shortly.' });
       }
+      if (['register', 'profile'].includes(action) && body.companyName !== undefined
+          && (typeof body.companyName !== 'string' || body.companyName.trim().length > 200)) {
+        return reply(400, { error: 'Company name must be at most 200 characters.' });
+      }
       if (action === 'register') {
         if (!validEmail || !validPassword || !['personal', 'business'].includes(body.accountType)
             || typeof body.displayName !== 'string' || body.displayName.trim().length < 1 || body.displayName.length > 120) {
@@ -398,7 +403,8 @@ export function createAuthHandler({ env = process.env, clientFactory = createCli
         }
         // Metadata is descriptive only. Never trust it for roles or authorization.
         const { data, error } = await client.auth.signUp({ email: body.email, password: body.password,
-          options: { emailRedirectTo: callback, data: { display_name: body.displayName.trim(), account_type: body.accountType } } });
+          options: { emailRedirectTo: callback, data: { display_name: body.displayName.trim(), account_type: body.accountType,
+            ...(body.companyName !== undefined ? { company_name: body.companyName.trim() } : {}) } } });
         if (!error && data?.user?.id && data.user.identities?.length > 0) {
           await payments.provisionProfile({ userId: data.user.id, displayName: body.displayName.trim(), accountType: body.accountType });
         }
@@ -555,7 +561,8 @@ export function createAuthHandler({ env = process.env, clientFactory = createCli
           method: 'PUT',
           headers: { 'Content-Type': 'application/json', apikey: env.VITE_SUPABASE_PUBLISHABLE_KEY,
             Authorization: `Bearer ${saved[SESSION]}` },
-          body: JSON.stringify({ data: { display_name: body.displayName.trim(), account_type: body.accountType } }),
+          body: JSON.stringify({ data: { display_name: body.displayName.trim(), account_type: body.accountType,
+            ...(body.companyName !== undefined ? { company_name: body.companyName.trim() } : {}) } }),
         });
         if (!updated.ok) return reply(503, { error: 'Profile could not be saved. Try again later.' });
         const updatedUser = await updated.json();
