@@ -1,3 +1,4 @@
+import { serverServiceKey } from './service-key.js';
 import { loadEligibleTrial, trialAppsForEnvironment } from './trial-access.js';
 import { createHmac, timingSafeEqual } from 'node:crypto';
 import { createClient } from '@supabase/supabase-js';
@@ -212,7 +213,10 @@ async function loadEntitlements(client, userId, now, env = {}) {
   if (catalog.error || subscriptions.error || grants.error) return null;
   // A failed lifetime read fails closed (no lifetime), e.g. before the Phase 3 SQL is approved.
   const rows = lifetime.error ? [] : lifetime.data || [];
-  const trial = await loadEligibleTrial(client,userId,now,env);
+  // Company membership must be checked server-side: browser RLS hides other members.
+  const trialProject=projectForEnvironment(env);
+  const trialKey=trialAppsForEnvironment(env).length ? serverServiceKey(env.MYOPS_SERVICE_ROLE_KEY,trialProject) : null;
+  const trial=trialKey ? await loadEligibleTrial(createClient(trialProject,trialKey,{auth:{persistSession:false,autoRefreshToken:false}}),userId,now,env) : null;
   return {
     products: resolveProductStates({ userId, catalog: catalog.data || [], subscriptions: subscriptions.data || [], grants: grants.data || [], lifetime: rows, platformAdmin: isPlatformAdmin(userId, env), trial, trialApps:trialAppsForEnvironment(env), now }),
     lifetime: hasLifetime(userId, rows),
