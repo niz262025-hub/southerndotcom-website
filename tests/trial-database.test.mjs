@@ -14,7 +14,7 @@ test('central trial: exact 168h, one use, no billing/grants, RLS and passive log
    CREATE FUNCTION auth.uid() RETURNS uuid LANGUAGE sql STABLE AS $$ SELECT nullif(current_setting('request.jwt.claim.sub',true),'')::uuid $$;
    GRANT USAGE ON SCHEMA auth,public TO anon,authenticated,service_role;
    ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON TABLES TO anon,authenticated,service_role;`);
-  for(const path of ['migrations/202610160001_myops_identity_foundation.sql','proposals/phase3_founders_100.sql','proposals/202610170001_myops_app_access.sql','proposals/202610170002_myops_login_sessions.sql','migrations/20261101104802_central_trial_7_day_foundation.sql']) await db.exec(readFileSync(new URL('../supabase/'+path,import.meta.url),'utf8'));
+  for(const path of ['migrations/202610160001_myops_identity_foundation.sql','proposals/phase3_founders_100.sql','proposals/202610170001_myops_app_access.sql','proposals/202610170002_myops_login_sessions.sql','migrations/20261101104802_central_trial_7_day_foundation.sql','migrations/20261101164633_central_trial_usage_limits.sql']) await db.exec(readFileSync(new URL('../supabase/'+path,import.meta.url),'utf8'));
   const user=await one("INSERT INTO auth.users(email,email_confirmed_at) VALUES('trial@dummy.invalid',now()) RETURNING id value");
   const other=await one("INSERT INTO auth.users(email,email_confirmed_at) VALUES('other@dummy.invalid',now()) RETURNING id value");
   await asService();await one("SELECT myops_provision_profile($1,'Dummy','personal') value",[user]);await one("SELECT myops_provision_profile($1,'Other','personal') value",[other]);
@@ -23,12 +23,25 @@ test('central trial: exact 168h, one use, no billing/grants, RLS and passive log
   const before=await one('SELECT last_activity_at value FROM myops_login_sessions WHERE id=$1',[login]);
   const trial=await one('SELECT myops_start_trial($1,$2) value',[user,login]);assert.equal(trial.status,'active');assert.equal(trial.auto_renew,false);assert.equal(trial.card_required,false);assert.equal(trial.amount_cents,0);
   assert.equal(Date.parse(trial.expires_at)-Date.parse(trial.started_at),168*3600*1000);
+  const consume=(app,feature,operation)=>one('SELECT myops_consume_trial_quota($1,$2,$3,$4,$5) value',[user,login,app,feature,operation]);
+  const operation=n=>`00000000-0000-4000-8000-${String(n).padStart(12,'0')}`;
+  for(const [app,feature,limit] of [['opsfinance','transactions',30],['opsfinance','bank_statements',2],['opsfinance','invoice_receipt_documents',5],['opsflow','workflows',2],['opsp','projects',2]]) {
+   for(let i=1;i<=limit;i++) assert.equal((await consume(app,feature,operation(i))).used,i);
+   assert.equal((await consume(app,feature,operation(limit+1))).reason,'trial_limit_reached');
+   const replay=await consume(app,feature,operation(1));assert.equal(replay.allowed,true);assert.equal(replay.replayed,true);assert.equal(replay.used,limit);
+  }
+  for(const [app,feature] of [['opsfinance','export_pdf'],['opsfinance','reconciliation'],['opsflow','automation'],['opsflow','advanced_approval'],['opsp','multi_user'],['opshr','transactions']]) assert.equal((await consume(app,feature,operation(1))).allowed,false);
+  await assert.rejects(one('SELECT myops_consume_trial_quota($1,$2,$3,$4,$5) value',[other,login,'opsp','projects',operation(1)]),/Active verified/);
+  assert.deepEqual(await one('SELECT last_activity_at value FROM myops_login_sessions WHERE id=$1',[login]),before);
+
   const again=await one('SELECT myops_start_trial($1,$2) value',[user,login]);assert.equal(again.id,trial.id);assert.equal(again.expires_at,trial.expires_at);
   assert.deepEqual(await one('SELECT last_activity_at value FROM myops_login_sessions WHERE id=$1',[login]),before);
   assert.equal(await one('SELECT count(*)::int value FROM myops_payments'),0);assert.equal(await one('SELECT count(*)::int value FROM myops_subscriptions'),0);assert.equal(await one('SELECT count(*)::int value FROM myops_app_grants'),0);
   await assert.rejects(db.query("UPDATE myops_trials SET expires_at=expires_at+interval '1 day' WHERE user_id=$1",[user]),/immutable/);
   await db.exec('RESET ROLE');await db.query("SELECT set_config('request.jwt.claim.sub',$1,false)",[other]);await db.exec('SET ROLE authenticated');
   assert.equal(await one('SELECT count(*)::int value FROM myops_trials'),0);
+  await assert.rejects(one('SELECT count(*) value FROM myops_trial_usage'),/permission denied/);
+  await assert.rejects(one("SELECT myops_consume_trial_quota($1,$2,'opsp','projects',gen_random_uuid()) value",[other,login]),/permission denied/);
   await assert.rejects(one('SELECT myops_start_trial($1,$2) value',[other,login]),/permission denied/);
   await assert.rejects(db.query('INSERT INTO myops_trials(user_id,expires_at) VALUES($1,now())',[other]),/permission denied/);
   await db.exec('RESET ROLE');await db.query("SELECT set_config('request.jwt.claim.sub',$1,false)",[user]);await db.exec('SET ROLE authenticated');assert.equal(await one('SELECT count(*)::int value FROM myops_trials'),1);
@@ -36,6 +49,7 @@ test('central trial: exact 168h, one use, no billing/grants, RLS and passive log
   await db.exec('RESET ROLE');await db.query("INSERT INTO myops_trials(user_id,started_at,expires_at) VALUES($1,now()-interval '169 hours',now()-interval '1 hour')",[other]);await asService();
   assert.equal((await one('SELECT myops_trial_state($1) value',[other])).status,'expired');
   const otherLogin=await one('SELECT myops_login_start($1) value',[other]);assert.equal((await one('SELECT myops_start_trial($1,$2) value',[other,otherLogin])).status,'expired');
+  assert.equal((await one("SELECT myops_consume_trial_quota($1,$2,'opsp','projects',gen_random_uuid()) value",[other,otherLogin])).reason,'trial_inactive');
   await db.exec('RESET ROLE');
   const owner=await one("INSERT INTO auth.users(email,email_confirmed_at) VALUES('company@dummy.invalid',now()) RETURNING id value");
   const member=await one("INSERT INTO auth.users(email,email_confirmed_at) VALUES('member@dummy.invalid',now()) RETURNING id value");
@@ -50,6 +64,8 @@ test('central trial: exact 168h, one use, no billing/grants, RLS and passive log
   await assert.rejects(one('SELECT myops_start_trial($1,$2,$3) value',[owner,ownerLogin,org]),/one authorized user/);
   await db.query("UPDATE myops_memberships SET status='invited' WHERE user_id=$1 AND organization_id=$2",[member,org]);
   const companyTrial=await one('SELECT myops_start_trial($1,$2,$3) value',[owner,ownerLogin,org]);assert.equal(companyTrial.status,'active');
+  await db.query("UPDATE myops_memberships SET status='active' WHERE user_id=$1 AND organization_id=$2",[member,org]);
+  assert.equal((await one("SELECT myops_consume_trial_quota($1,$2,'opsp','projects',gen_random_uuid()) value",[owner,ownerLogin])).reason,'trial_membership_changed');
   await db.exec('RESET ROLE');
   await assert.rejects(db.query("INSERT INTO myops_trials(user_id,organization_id,started_at,expires_at) VALUES($1,$2,now(),now()+interval '168 hours')",[paid,org]),/unique constraint/);
   await db.query("INSERT INTO myops_subscriptions(personal_user_id,is_complete_bundle,status) VALUES($1,true,'active')",[paid]);await asService();
