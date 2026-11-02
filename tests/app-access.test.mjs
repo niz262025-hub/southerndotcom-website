@@ -349,6 +349,20 @@ test('login-session binding: ticket issuance requires a login id; start/touch/en
   assert.equal(await notStaging.touchLogin(userId, loginSessionId), null);
 });
 
+test('Finance staging provisioning receives only central descriptive labels behind its readiness gate', async () => {
+  for(const ready of [false,true]) {
+    const {handler,admin}=make({product:'opsfinance',env:{...baseEnv,MYOPS_FINANCE_PROVISIONING_READY:String(ready)}});
+    let lookups=0;
+    admin.auth={admin:{getUserById:async id=>{lookups++;return {data:{user:{id,user_metadata:{display_name:'Central owner',company_name:'Registered company',role:'admin'}}}};}}};
+    const body={ticket:Buffer.alloc(32,9).toString('base64url')};
+    const invalid=await call(handler.redeem,signedRequest({path:'/api/app/redeem',body,headers:{'x-myops-signature':'invalid'}}));
+    assert.equal(invalid.statusCode,401);assert.equal(lookups,0);
+    const result=await call(handler.redeem,signedRequest({path:'/api/app/redeem',body}));
+    assert.equal(result.statusCode,200);
+    assert.deepEqual(result.body.onboarding_profile,ready?{display_name:'Central owner',company_name:'Registered company'}:undefined);
+  }
+});
+
 test('OpsFlow receives central labels only after signature, ticket, session and entitlement verification', async () => {
   const {handler,admin}=make({product:'opsflow'});
   let lookups=0;

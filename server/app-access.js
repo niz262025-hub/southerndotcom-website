@@ -376,7 +376,7 @@ export function createAppAccess({ env = process.env, adminFactory = createClient
         session_id: redeemed.session_id,
         user_ref: userRef(env.MYOPS_APP_USER_REF_SECRET, appId, redeemed.user_id),
         product: clientData.product_slug,
-        ...(clientData.product_slug === 'opsflow' ? { onboarding_profile: await loadAppProfile(admin, redeemed.user_id) } : {}),
+        ...((clientData.product_slug === 'opsflow' || (clientData.product_slug === 'opsfinance' && env.VERCEL_ENV === 'preview' && env.MYOPS_ENVIRONMENT === 'staging' && env.MYOPS_FINANCE_PROVISIONING_READY === 'true')) ? { onboarding_profile: await loadAppProfile(admin, redeemed.user_id) } : {}),
         idle_seconds: APP_IDLE_MS / 1000,
         max_session_seconds: APP_MAX_SESSION_MS / 1000,
       });
