@@ -30,7 +30,7 @@ export function resolveProductStates({ userId, catalog, subscriptions, grants, l
     }
   }
   if(trial?.user_id===userId && trial.policy_version===1 && effectiveTrialState(trial,now)==='active') {
-    for(const app of trialApps) if(app==='opsflow' && live.has(app)) entitled.add(app);
+    for(const app of trialApps) if(['opsflow','opsfinance'].includes(app) && live.has(app)) entitled.add(app);
   }
   const slugs = [...new Set([...PRODUCT_SLUGS, ...catalog.map((item) => item.slug).filter((slug) => SLUG.test(slug))])];
   return Object.fromEntries(slugs.map((slug) => [

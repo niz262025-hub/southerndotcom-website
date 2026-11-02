@@ -90,7 +90,7 @@ export function AuthPortal({ mode, production = false }) {
               <ul>
                 {Object.entries(productLabels).map(([slug, label]) => (
                   <li id={`subscription-${slug}`} key={slug}>
-                    {label}: {({ active: 'Active subscription', none: 'No subscription', coming_soon: 'Coming soon' })[account.products[slug]]}
+                    {label}: {account.products[slug]==='active' && trialInfo?.trial.status==='active' && trialInfo.availableApps.includes(slug) ? 'Free trial active' : ({ active: 'Active subscription', none: 'No subscription', coming_soon: 'Coming soon' })[account.products[slug]]}
                     {account.products[slug] === 'none' && <> — <a className="btn btn-secondary" href="/#founders" onClick={jumpToFounders}>View Founders 100 and All Apps offer</a></>}
                   </li>
                 ))}
@@ -99,7 +99,9 @@ export function AuthPortal({ mode, production = false }) {
             {!production && account.trialAvailable && <section aria-labelledby="trial-title">
               <h3 id="trial-title">Free Trial — 7 days</h3>
               <p>RM0 for 7 × 24 hours from activation. No payment card, automatic charge or renewal. One trial per eligible account/company; 1 user and 1 company. Your data is kept after expiry.</p>
-              <p>Staging UAT: OpsFlow only. Up to 30 transaction records and 2 purchase-order flows. Other applications are not included in this trial yet.</p>
+              <p>Staging UAT apps: {trialInfo?.availableApps.map(product=>productLabels[product]).join(', ') || 'Checking availability…'}. Other applications are not included yet.</p>
+              {trialInfo?.availableApps.includes('opsflow') && <p>OpsFlow: up to 30 transaction records and 2 purchase-order flows.</p>}
+              {trialInfo?.availableApps.includes('opsfinance') && <p>OpsFinance: up to 30 transactions and 2 CSV/TXT bank statements, with 30 rows per file. Start bank accounts with zero opening balance. Statement approval, reconciliation and reports are preview only; export requires an upgrade in MYOPS.</p>}
               {trialInfo ? <>
                 <p>Trial status: {trialInfo.trial.status.replace('_',' ')}</p>
                 {trialInfo.trial.expires_at && <p>Expires: {new Date(trialInfo.trial.expires_at).toLocaleString()}</p>}
