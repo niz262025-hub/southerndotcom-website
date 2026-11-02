@@ -102,6 +102,7 @@ export function AuthPortal({ mode, production = false }) {
               <p>Staging UAT apps: {trialInfo?.availableApps.map(product=>productLabels[product]).join(', ') || 'Checking availability…'}. Other applications are not included yet.</p>
               {trialInfo?.availableApps.includes('opsflow') && <p>OpsFlow: up to 30 transaction records and 2 purchase-order flows.</p>}
               {trialInfo?.availableApps.includes('opsfinance') && <p>OpsFinance: up to 30 transactions and 2 CSV/TXT bank statements, with 30 rows per file. Start bank accounts with zero opening balance. Statement approval, reconciliation and reports are preview only; export requires an upgrade in MYOPS.</p>}
+              {trialInfo?.availableApps.includes('opsp') && <p>OpsPS: up to 2 trips/projects and 30 primary orders or manual financial entries. Financial entries linked to an order share its quota. Basic sales/orders reports are included; advanced reporting, export and multi-user require an upgrade in MYOPS.</p>}
               {trialInfo ? <>
                 <p>Trial status: {trialInfo.trial.status.replace('_',' ')}</p>
                 {trialInfo.trial.expires_at && <p>Expires: {new Date(trialInfo.trial.expires_at).toLocaleString()}</p>}

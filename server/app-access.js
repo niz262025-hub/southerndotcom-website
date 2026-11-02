@@ -19,6 +19,12 @@ const APP_MAX_SESSION_MS = 12 * 60 * 60 * 1000;
 const USER_ID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 export const hashTicket = (ticket) => createHash('sha256').update(ticket).digest('hex');
+function receivesCentralLabels(product,env) {
+  if(product==='opsflow')return true;
+  if(env.VERCEL_ENV!=='preview'||env.MYOPS_ENVIRONMENT!=='staging')return false;
+  return (product==='opsfinance'&&env.MYOPS_FINANCE_PROVISIONING_READY==='true')
+    ||(product==='opsp'&&env.MYOPS_OPSPS_PROVISIONING_READY==='true');
+}
 
 // Deterministic JSON: sorted keys at every depth, so no nested field can change unsigned.
 export function canonicalJson(value) {
@@ -376,7 +382,7 @@ export function createAppAccess({ env = process.env, adminFactory = createClient
         session_id: redeemed.session_id,
         user_ref: userRef(env.MYOPS_APP_USER_REF_SECRET, appId, redeemed.user_id),
         product: clientData.product_slug,
-        ...((clientData.product_slug === 'opsflow' || (clientData.product_slug === 'opsfinance' && env.VERCEL_ENV === 'preview' && env.MYOPS_ENVIRONMENT === 'staging' && env.MYOPS_FINANCE_PROVISIONING_READY === 'true')) ? { onboarding_profile: await loadAppProfile(admin, redeemed.user_id) } : {}),
+        ...(receivesCentralLabels(clientData.product_slug,env) ? { onboarding_profile: await loadAppProfile(admin, redeemed.user_id) } : {}),
         idle_seconds: APP_IDLE_MS / 1000,
         max_session_seconds: APP_MAX_SESSION_MS / 1000,
       });

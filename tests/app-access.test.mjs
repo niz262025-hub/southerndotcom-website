@@ -349,9 +349,10 @@ test('login-session binding: ticket issuance requires a login id; start/touch/en
   assert.equal(await notStaging.touchLogin(userId, loginSessionId), null);
 });
 
-test('Finance staging provisioning receives only central descriptive labels behind its readiness gate', async () => {
-  for(const ready of [false,true]) {
-    const {handler,admin}=make({product:'opsfinance',env:{...baseEnv,MYOPS_FINANCE_PROVISIONING_READY:String(ready)}});
+test('Finance and OpsPS staging provisioning receive only central labels behind their own readiness gates', async () => {
+  for(const product of ['opsfinance','opsp']) for(const ready of [false,true]) {
+    const flag=product==='opsfinance'?'MYOPS_FINANCE_PROVISIONING_READY':'MYOPS_OPSPS_PROVISIONING_READY';
+    const {handler,admin}=make({product,env:{...baseEnv,[flag]:String(ready)}});
     let lookups=0;
     admin.auth={admin:{getUserById:async id=>{lookups++;return {data:{user:{id,user_metadata:{display_name:'Central owner',company_name:'Registered company',role:'admin'}}}};}}};
     const body={ticket:Buffer.alloc(32,9).toString('base64url')};

@@ -4,7 +4,7 @@ export function trialAppsForEnvironment(env={}) {
  if(projectForEnvironment(env)!==STAGING_PROJECT||env.VITE_SUPABASE_URL!==STAGING_PROJECT||env.VERCEL_ENV!=='preview'||env.MYOPS_ENVIRONMENT!=='staging'||env.MYOPS_ENABLE_STAGING_TRIAL_ACCESS!=='true') return [];
  // Finance admission is explicitly gated for integrated staging UAT.
  return [...new Set(String(env.MYOPS_TRIAL_READY_APPS||'').split(',').map(x=>x.trim()))]
-  .filter(x=>x==='opsflow'||(x==='opsfinance'&&env.MYOPS_FINANCE_TRIAL_UAT_READY==='true'));
+  .filter(x=>x==='opsflow'||(x==='opsfinance'&&env.MYOPS_FINANCE_TRIAL_UAT_READY==='true')||(x==='opsp'&&env.MYOPS_OPSPS_TRIAL_UAT_READY==='true'));
 }
 export async function loadEligibleTrial(client,userId,now,env={}) {
  if(!trialAppsForEnvironment(env).length) return null;
