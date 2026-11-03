@@ -54,7 +54,7 @@ export function createPayments({ env, transport, adminFactory, project }) {
       userSecretKey: env.TOYYIBPAY_SANDBOX_SECRET_KEY,
       categoryCode: env.TOYYIBPAY_SANDBOX_CATEGORY_CODE,
       billName: name,
-      billDescription: `${name} (sandbox)`,
+      billDescription: `${name} sandbox`,
       billPriceSetting: '1',
       billPayorInfo: '0',
       billAmount: String(cents),
@@ -67,7 +67,12 @@ export function createPayments({ env, transport, adminFactory, project }) {
       billPaymentChannel: '2',
     });
     const code = Array.isArray(result) ? result[0]?.BillCode : null;
-    if (typeof code !== 'string' || !BILL.test(code)) throw new Error('gateway_bill');
+    if (typeof code !== 'string' || !BILL.test(code)) {
+      // Never log provider bodies: they can echo credentials or payer details.
+      const msg = typeof result?.msg === 'string' ? result.msg : '';
+      const field = ['userSecretKey','categoryCode','billName','billDescription','billEmail','billPhone','billAmount','billPaymentChannel'].find(key => msg.startsWith(key + ' '));
+      throw new Error(field ? 'gateway_field_' + field : 'gateway_bill');
+    }
     return code;
   }
 
@@ -129,7 +134,9 @@ export function createPayments({ env, transport, adminFactory, project }) {
       try {
         billCode = await createBill({ orderRef: created.order_ref, origin, cents: created.amount_cents,
           name: plan === 'founders_lifetime' ? 'MYOPS Founders 100' : 'MYOPS single app' });
-      } catch {
+      } catch (error) {
+        const reason = error instanceof Error && /^(gateway_http|gateway_bill|gateway_field_(userSecretKey|categoryCode|billName|billDescription|billEmail|billPhone|billAmount|billPaymentChannel))$/.test(error.message) ? error.message : 'gateway_transport';
+        console.error('myops_sandbox_checkout_failed', reason);
         await rpc(client, 'myops_abort_checkout', { p_order_ref: created.order_ref });
         return { status: 502, body: { error: 'Payment gateway is unavailable. Try again later.' } };
       }
