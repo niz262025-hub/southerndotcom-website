@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
 import { createAuthHandler, signActivity, signLogin, resolveProductStates } from '../server/auth.js';
 import { createCallbackHandler } from '../server/toyyibpay-callback.js';
-import { founderEventKey } from '../server/payments.js';
+import { createPayments, founderEventKey } from '../server/payments.js';
 
 const origin = 'https://trusted-preview.vercel.app';
 const SECRET = 'toyyib-sandbox-secret';
@@ -145,6 +145,27 @@ test('checkout creates a sandbox bill for RM29 and returns only the sandbox paym
   assert.equal(create.body.billExternalReferenceNo, order);
   assert.equal(create.body.billCallbackUrl, `${origin}/api/toyyibpay-callback`);
   assert.equal(state.payments.get(order).gateway_bill_code, 'abc123XY');
+});
+
+test('sandbox callback bypass stays server-side and is used only for Preview', async () => {
+  const bypass = 'test-only-bypass+with/special=characters';
+  for (const environment of ['preview', 'production', 'development']) {
+    const state = ledger();
+    const g = gateway();
+    const payments = createPayments({
+      env: { ...env, VERCEL_ENV: environment, MYOPS_SANDBOX_CALLBACK_BYPASS_SECRET: bypass },
+      project: env.VITE_SUPABASE_URL, adminFactory: () => state.client, transport: g.transport,
+    });
+    const result = await payments.checkout({ userId: 'user-a', plan: 'founders_lifetime', origin });
+    assert.equal(result.status, 200);
+    const callback = new URL(g.requests[0].body.billCallbackUrl);
+    assert.equal(callback.origin, origin);
+    assert.equal(callback.pathname, '/api/toyyibpay-callback');
+    assert.equal(callback.searchParams.get('x-vercel-protection-bypass'), environment === 'preview' ? bypass : null);
+    assert.equal(g.requests[0].body.billReturnUrl, `${origin}/?payment=return`);
+    assert.equal(JSON.stringify(result).includes(bypass), false);
+    assert.equal(JSON.stringify(result).includes('x-vercel-protection-bypass'), false);
+  }
 });
 
 test('checkout failures: gateway error releases the reservation; sold out and duplicates are refused', async () => {
