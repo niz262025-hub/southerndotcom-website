@@ -96,12 +96,13 @@ export function AuthPortal({ mode, production = false }) {
           <p>Open applications from the <a href="/">MYOPS homepage</a>; access is checked by the server on every launch.</p>
           {account.profile?.account_type === 'business' && <p>Business workspace setup, seats and invitations are not enabled yet.</p>}
           <section id="subscription" aria-labelledby="subscription-title">
-            <h2 id="subscription-title">Billing and subscriptions</h2>\n            {!production && <button type="button" className="btn btn-secondary" disabled={busy} onClick={checkSandboxPayment}>Verify sandbox payment</button>}
+            <h2 id="subscription-title">Billing and subscriptions</h2>
+            {!production && <button type="button" className="btn btn-secondary" disabled={busy} onClick={checkSandboxPayment}>Verify sandbox payment</button>}
             {account.products ? (
               <ul>
                 {Object.entries(productLabels).map(([slug, label]) => (
                   <li id={`subscription-${slug}`} key={slug}>
-                    {label}: {account.products[slug]==='active' && trialInfo?.trial.status==='active' && trialInfo.availableApps.includes(slug) ? 'Free trial active' : ({ active: 'Active subscription', none: 'No subscription', coming_soon: 'Coming soon' })[account.products[slug]]}
+                    {label}: {!account.lifetime && account.products[slug]==='active' && trialInfo?.trial.status==='active' && trialInfo.availableApps.includes(slug) ? 'Free trial active' : ({ active: 'Active subscription', none: 'No subscription', coming_soon: 'Coming soon' })[account.products[slug]]}
                     {account.products[slug] === 'none' && <> — <a className="btn btn-secondary" href="/#founders" onClick={jumpToFounders}>View Founders 100 and All Apps offer</a></>}
                   </li>
                 ))}
