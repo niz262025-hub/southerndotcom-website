@@ -490,7 +490,7 @@ export function createAuthHandler({ env = process.env, clientFactory = createCli
         return runRevocationWorker({ env, headers: req.headers, body, appAccess, reply });
       }
       if (action === 'founders') return reply(200, await payments.founders());
-      if (!['account', 'reset', 'profile', 'session', 'launch', 'checkout', 'admin_audit', 'trial_start', 'trial_status'].includes(action)) return reply(400, { error: 'Unknown operation.' });
+      if (!['account', 'reset', 'profile', 'session', 'launch', 'checkout', 'payment_reconcile', 'admin_audit', 'trial_start', 'trial_status'].includes(action)) return reply(400, { error: 'Unknown operation.' });
       const active = saved[SESSION] && activityValid(secret, saved[ACTIVITY], now());
       const { data: identity, error: identityError } = saved[SESSION]
         ? await client.auth.getUser(saved[SESSION]) : { data: {}, error: true };
@@ -527,6 +527,10 @@ export function createAuthHandler({ env = process.env, clientFactory = createCli
         const trialKey=serverServiceKey(env.MYOPS_SERVICE_ROLE_KEY,PROJECT);
         if(!trialKey) return reply(503,{error:'Trial service is unavailable.'});
         const result=await trialAction({client:clientFactory(PROJECT,trialKey,{auth:{persistSession:false,autoRefreshToken:false}}),userId:identity.user.id,loginSessionId,action,body,env,now:now()});
+        return reply(result.status,result.body);
+      }
+      if (action === 'payment_reconcile') {
+        const result = await payments.reconcile({userId:identity.user.id});
         return reply(result.status,result.body);
       }
       if (action === 'checkout') {

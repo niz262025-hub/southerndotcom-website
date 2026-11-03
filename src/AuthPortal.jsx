@@ -48,6 +48,17 @@ export function AuthPortal({ mode, production = false }) {
     finally { setBusy(false); }
   }
 
+  async function checkSandboxPayment() {
+    if(busy) return;
+    setBusy(true);setMessage('');
+    try {
+      const result=await request('payment_reconcile');
+      setMessage(result.message);
+      setAccount(await request('account'));
+      setTrialInfo(await request('trial_status'));
+    } catch(error){setMessage(error.message);}
+    finally{setBusy(false);}
+  }
   async function startTrial() {
     if(busy) return;
     setBusy(true);setMessage('');
@@ -85,7 +96,7 @@ export function AuthPortal({ mode, production = false }) {
           <p>Open applications from the <a href="/">MYOPS homepage</a>; access is checked by the server on every launch.</p>
           {account.profile?.account_type === 'business' && <p>Business workspace setup, seats and invitations are not enabled yet.</p>}
           <section id="subscription" aria-labelledby="subscription-title">
-            <h2 id="subscription-title">Billing and subscriptions</h2>
+            <h2 id="subscription-title">Billing and subscriptions</h2>\n            {!production && <button type="button" className="btn btn-secondary" disabled={busy} onClick={checkSandboxPayment}>Verify sandbox payment</button>}
             {account.products ? (
               <ul>
                 {Object.entries(productLabels).map(([slug, label]) => (

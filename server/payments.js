@@ -211,5 +211,21 @@ export function createPayments({ env, transport, adminFactory, project }) {
     return { status: ok ? 200 : 400, body: { status: result.status } };
   }
 
-  return { founders, checkout, audit, callback, provisionProfile };
+  async function reconcile({ userId }) {
+    if (env.VERCEL_ENV !== 'preview') return {status:404,body:{error:'Preview-only.'}};
+    const client = admin();
+    if (!client || !gatewayConfigured()) return {status:503,body:{error:'Sandbox checkout is not configured.'}};
+    const {data:payment,error} = await client.from('myops_payments')
+      .select('order_ref,gateway_bill_code,status').eq('user_id',userId)
+      .eq('gateway','toyyibpay_sandbox').eq('status','pending')
+      .order('created_at',{ascending:false}).limit(1).maybeSingle();
+    if(error) return {status:503,body:{error:'Payment could not be checked.'}};
+    if(!payment?.gateway_bill_code) return {status:200,body:{message:'No pending sandbox payment found.'}};
+    // Browser return parameters cannot grant access. Reuse independent gateway verification.
+    const result = await callback({status:'1',order_id:payment.order_ref,billcode:payment.gateway_bill_code});
+    return {status:result.status,body:result.status===200
+      ?{message:'Sandbox payment verified. Refresh your account to view access.'}
+      :{error:'Payment is not verified yet. Please try again later.'}};
+  }
+  return { founders, checkout, audit, callback, provisionProfile, reconcile };
 }
