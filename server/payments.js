@@ -57,6 +57,12 @@ export function createPayments({ env, transport, adminFactory, project }) {
   }
 
   async function createBill({ orderRef, origin, cents, name }) {
+    const callbackUrl = new URL('/api/toyyibpay-callback', origin);
+    // Server-only, explicitly configured for sandbox Preview. Never place this credential
+    // on the browser return URL or include it in the checkout response.
+    if (env.VERCEL_ENV === 'preview' && env.MYOPS_SANDBOX_CALLBACK_BYPASS_SECRET) {
+      callbackUrl.searchParams.set('x-vercel-protection-bypass', env.MYOPS_SANDBOX_CALLBACK_BYPASS_SECRET);
+    }
     const result = await gatewayForm('createBill', {
       userSecretKey: env.TOYYIBPAY_SANDBOX_SECRET_KEY,
       categoryCode: env.TOYYIBPAY_SANDBOX_CATEGORY_CODE,
@@ -66,7 +72,7 @@ export function createPayments({ env, transport, adminFactory, project }) {
       billPayorInfo: '0',
       billAmount: String(cents),
       billReturnUrl: `${origin}/?payment=return`,
-      billCallbackUrl: `${origin}/api/toyyibpay-callback`,
+      billCallbackUrl: callbackUrl.toString(),
       billExternalReferenceNo: orderRef,
       billTo: 'MYOPS customer',
       billEmail: 'sandbox@example.invalid',
