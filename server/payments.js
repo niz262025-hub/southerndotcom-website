@@ -39,14 +39,21 @@ export function createPayments({ env, transport, adminFactory, project }) {
   };
 
   async function gatewayForm(path, fields) {
-    const response = await transport(`${SANDBOX}/index.php/api/${path}`, {
+    let response;
+    try {
+    response = await transport(`${SANDBOX}/index.php/api/${path}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
       body: new URLSearchParams(fields).toString(),
       signal: AbortSignal.timeout(8000),
     });
-    if (!response.ok) throw new Error('gateway_http');
-    return response.json();
+    } catch (error) {
+      const code = error?.cause?.code;
+      if (['ETIMEDOUT','ENOTFOUND','ECONNRESET','ECONNREFUSED','UND_ERR_CONNECT_TIMEOUT'].includes(code)) throw new Error('gateway_' + code);
+      throw new Error(error?.name === 'TimeoutError' || error?.name === 'AbortError' ? 'gateway_timeout' : 'gateway_network');
+    }
+    if (!response.ok) throw new Error('gateway_http_' + response.status);
+    try { return await response.json(); } catch { throw new Error('gateway_invalid_json'); }
   }
 
   async function createBill({ orderRef, origin, cents, name }) {
@@ -135,7 +142,7 @@ export function createPayments({ env, transport, adminFactory, project }) {
         billCode = await createBill({ orderRef: created.order_ref, origin, cents: created.amount_cents,
           name: plan === 'founders_lifetime' ? 'MYOPS Founders 100' : 'MYOPS single app' });
       } catch (error) {
-        const reason = error instanceof Error && /^(gateway_http|gateway_bill|gateway_field_(userSecretKey|categoryCode|billName|billDescription|billEmail|billPhone|billAmount|billPaymentChannel))$/.test(error.message) ? error.message : 'gateway_transport';
+        const reason = error instanceof Error && /^(gateway_(timeout|network|invalid_json|ETIMEDOUT|ENOTFOUND|ECONNRESET|ECONNREFUSED|UND_ERR_CONNECT_TIMEOUT|http_[1-5][0-9]{2})|gateway_bill|gateway_field_(userSecretKey|categoryCode|billName|billDescription|billEmail|billPhone|billAmount|billPaymentChannel))$/.test(error.message) ? error.message : 'gateway_transport';
         console.error('myops_sandbox_checkout_failed', reason);
         await rpc(client, 'myops_abort_checkout', { p_order_ref: created.order_ref });
         return { status: 502, body: { error: 'Payment gateway is unavailable. Try again later.' } };
