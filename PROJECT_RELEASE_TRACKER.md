@@ -2,6 +2,14 @@
 
 Updated: 2026-10-27 (Asia/Singapore). This tracker reports verified evidence, not estimated completion. The ecosystem is NOT production-ready.
 
+## OpsFlow verified staging recovery — 5 November 2026
+
+- Commit b4325468a861d828a951baf7e30c6f491928faaf deployment dpl_Huxr8wxezSiAh4m6D7GjVj796AEj READY.
+- New backend /api/sso-ready returned 200 with ready:true, signed_transport:verified, unknown_session:denied. Found staging branch alias still pointed at old code; reassigned only opsflow-staging-git-feat-opsflow-ver-f21c05-mohd-syaiful-nizam1.vercel.app to the verified new deployment. Alias readiness then returned the same verified result.
+- Browser MYOPS to OpsFlow /app passed with a fresh central ticket and no second login. Refresh passed; authenticated MYOPS Trial UAT dashboard and existing trial product/purchase/cash records loaded. No business records changed.
+- OpsPS remains blocked by confirmed staging deployment_protection. Required next authorization: open Supabase Edge Function Secrets for project ojamkplflqafedmxbdxb and replace only MYOPS_STAGING_SHARE_TOKEN with scoped expiring MYOPS access, without reading/revealing other credential values. Browser opening of that page was rejected by automatic approval; no OpsPS secret change made.
+- This updates staging evidence only. Production subscription/trial/payment release gates remain open.
+
 ## OpsFlow / OpsPS follow-up — 5 November 2026
 
 - User approved OpsFlow Preview transport renewal and browser testing of the legacy mobile-named OpsPS web hostname.
