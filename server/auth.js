@@ -1,7 +1,7 @@
 import { createHmac, timingSafeEqual } from 'node:crypto';
 import { createClient } from '@supabase/supabase-js';
 import { createAppAccess } from './app-access.js';
-import { createPayments } from './payments.js';
+import { createPayments, paymentGateway } from './payments.js';
 import { PRODUCT_SLUGS, hasLifetime, resolveProductStates, isPlatformAdmin } from './entitlements.js';
 
 const SESSION = '__Host-myops-access';
@@ -320,17 +320,21 @@ export function createAuthHandler({ env = process.env, clientFactory = createCli
       const productionAppAccessEnabled = production
         && env.MYOPS_ENVIRONMENT === 'production'
         && env.MYOPS_ENABLE_PRODUCTION_APP_ACCESS === 'true';
+      const liveGateway = paymentGateway(env, PROJECT);
+      const productionPaymentsEnabled = production && Boolean(liveGateway?.secret
+        && /^[A-Za-z0-9]{4,40}$/.test(liveGateway.category || ''));
       const productionAccountActions = ['register', 'login', 'forgot', 'callback', 'logout', 'session', 'account', 'reset', 'profile', 'founders'];
       if (production && !productionAccountActions.includes(action)
           && !(action === 'admin_audit' && env.MYOPS_ENABLE_PLATFORM_ADMIN === 'true')
-          && !(action === 'launch' && productionAppAccessEnabled)) {
+          && !(action === 'launch' && productionAppAccessEnabled)
+          && !(action === 'checkout' && productionPaymentsEnabled)) {
         return reply(404, { error: 'This feature is not enabled.' });
       }
-      if (production && action === 'founders') return reply(200, { available: false });
+      if (production && !productionPaymentsEnabled && action === 'founders') return reply(200, { available: false });
       const validEmail = typeof body.email === 'string' && body.email.length <= 254 && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(body.email);
       const validPassword = typeof body.password === 'string' && body.password.length >= 12 && body.password.length <= 128;
       const callback = `${origin}/auth/callback`;
-      const payments = createPayments({ env: production ? { VERCEL_ENV: 'production', MYOPS_ADMIN_USER_IDS: env.MYOPS_ENABLE_PLATFORM_ADMIN === 'true' ? env.MYOPS_ADMIN_USER_IDS : '', MYOPS_SERVICE_ROLE_KEY: env.MYOPS_SERVICE_ROLE_KEY } : env, transport, adminFactory: clientFactory, project: PROJECT });
+      const payments = createPayments({ env: production ? { ...env, MYOPS_ADMIN_USER_IDS: env.MYOPS_ENABLE_PLATFORM_ADMIN === 'true' ? env.MYOPS_ADMIN_USER_IDS : '', MYOPS_SERVICE_ROLE_KEY: env.MYOPS_SERVICE_ROLE_KEY } : env, transport, adminFactory: clientFactory, project: PROJECT });
       const appAccessEnv = production && !productionAppAccessEnabled ? { ...env, MYOPS_ENVIRONMENT: undefined } : env;
       const appAccess = appAccessFactory({ env: appAccessEnv, adminFactory: clientFactory, now, project: PROJECT });
       // Revocation targets only identities proven by the server (signed cookie or verified token).
