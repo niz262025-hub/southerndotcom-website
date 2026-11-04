@@ -1,3 +1,12 @@
+
+## 2026-11-05 — ToyyibPay live integration prepared, activation pending
+
+- Owner authorized continuing ToyyibPay live integration. Draft PR #30: https://github.com/niz262025-hub/southerndotcom-website/pull/30 on feat/toyyibpay-live-integration, commit 1bb214381c61a9f7faa8f7a6453c2e77d4a2fe57.
+- Added fixed live host, separate LIVE credentials and explicit production/project/enablement guards; no sandbox fallback in production. Live callback requires valid live hash plus gateway transaction confirmation and matching live ledger. Unmigrated checkout fails before contacting provider.
+- Production-only SQL proposal preserves historical sandbox orders, changes default gateway and returns gateway identity. Not applied to any hosted database. PGlite validates replay, old-order isolation and service-only ACLs.
+- Validation: 169 pass / 0 fail / 36 PostgreSQL-binary dependent skips. Focused payment/database coverage 23 pass. No real payment made.
+- Vercel metadata still has no production ToyyibPay keys or live enablement flag. Merchant login/config, production schema inspection/review/application, release assembly, deploy and real paid callback UAT remain required. Production trial rollout remains separate/incomplete. Owner SSO evidence from prior checkpoint remains valid.
+
 # MYOPS ecosystem release tracker
 
 Updated: 2026-10-27 (Asia/Singapore). This tracker reports verified evidence, not estimated completion. The ecosystem is NOT production-ready.
