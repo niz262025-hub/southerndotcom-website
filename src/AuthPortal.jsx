@@ -27,7 +27,7 @@ export function AuthPortal({ mode, production = false }) {
         .catch((error) => setMessage(error.message)).finally(() => setBusy(false));
     } else if (mode === 'dashboard' || mode === 'reset') {
       setBusy(true);
-      request('account').then((data) => { setAccount(data); setAccountType(data.profile?.account_type || 'personal'); if(data.trialAvailable&&!production) request('trial_status').then(setTrialInfo).catch(error=>setMessage(error.message)); }).catch((error) => {
+      request('account').then((data) => { setAccount(data); setAccountType(data.profile?.account_type || 'personal'); if(data.trialAvailable&&!data.lifetime&&!production) request('trial_status').then(setTrialInfo).catch(error=>setMessage(error.message)); }).catch((error) => {
         if (error.status === 401) window.location.replace('/login');
         else setMessage(error.message);
       }).finally(() => setBusy(false));
@@ -54,8 +54,10 @@ export function AuthPortal({ mode, production = false }) {
     try {
       const result=await request('payment_reconcile');
       setMessage(result.message);
-      setAccount(await request('account'));
-      setTrialInfo(await request('trial_status'));
+      const updatedAccount = await request('account');
+      setAccount(updatedAccount);
+      if (updatedAccount.trialAvailable && !updatedAccount.lifetime) setTrialInfo(await request('trial_status'));
+      else setTrialInfo(null);
     } catch(error){setMessage(error.message);}
     finally{setBusy(false);}
   }
@@ -108,7 +110,7 @@ export function AuthPortal({ mode, production = false }) {
                 ))}
               </ul>
             ) : <p>Subscription status is currently unavailable.</p>}
-            {!production && account.trialAvailable && <section aria-labelledby="trial-title">
+            {!production && account.trialAvailable && !account.lifetime && <section aria-labelledby="trial-title">
               <h3 id="trial-title">Free Trial — 7 days</h3>
               <p>RM0 for 7 × 24 hours from activation. No payment card, automatic charge or renewal. One trial per eligible account/company; 1 user and 1 company. Your data is kept after expiry.</p>
               <p>Staging UAT apps: {trialInfo?.availableApps.map(product=>productLabels[product]).join(', ') || 'Checking availability…'}. Other applications are not included yet.</p>
