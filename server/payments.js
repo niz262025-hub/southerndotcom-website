@@ -39,27 +39,40 @@ export function createPayments({ env, transport, adminFactory, project }) {
   };
 
   async function gatewayForm(path, fields) {
-    const response = await transport(`${SANDBOX}/index.php/api/${path}`, {
+    let response;
+    try {
+    response = await transport(`${SANDBOX}/index.php/api/${path}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
       body: new URLSearchParams(fields).toString(),
       signal: AbortSignal.timeout(8000),
     });
-    if (!response.ok) throw new Error('gateway_http');
-    return response.json();
+    } catch (error) {
+      const code = error?.cause?.code;
+      if (['ETIMEDOUT','ENOTFOUND','ECONNRESET','ECONNREFUSED','UND_ERR_CONNECT_TIMEOUT'].includes(code)) throw new Error('gateway_' + code);
+      throw new Error(error?.name === 'TimeoutError' || error?.name === 'AbortError' ? 'gateway_timeout' : 'gateway_network');
+    }
+    if (!response.ok) throw new Error('gateway_http_' + response.status);
+    try { return await response.json(); } catch { throw new Error('gateway_invalid_json'); }
   }
 
   async function createBill({ orderRef, origin, cents, name }) {
+    const callbackUrl = new URL('/api/toyyibpay-callback', origin);
+    // Server-only, explicitly configured for sandbox Preview. Never place this credential
+    // on the browser return URL or include it in the checkout response.
+    if (env.VERCEL_ENV === 'preview' && env.MYOPS_SANDBOX_CALLBACK_BYPASS_SECRET) {
+      callbackUrl.searchParams.set('x-vercel-protection-bypass', env.MYOPS_SANDBOX_CALLBACK_BYPASS_SECRET);
+    }
     const result = await gatewayForm('createBill', {
       userSecretKey: env.TOYYIBPAY_SANDBOX_SECRET_KEY,
       categoryCode: env.TOYYIBPAY_SANDBOX_CATEGORY_CODE,
       billName: name,
-      billDescription: `${name} (sandbox)`,
+      billDescription: `${name} sandbox`,
       billPriceSetting: '1',
       billPayorInfo: '0',
       billAmount: String(cents),
       billReturnUrl: `${origin}/?payment=return`,
-      billCallbackUrl: `${origin}/api/toyyibpay-callback`,
+      billCallbackUrl: callbackUrl.toString(),
       billExternalReferenceNo: orderRef,
       billTo: 'MYOPS customer',
       billEmail: 'sandbox@example.invalid',
@@ -67,7 +80,12 @@ export function createPayments({ env, transport, adminFactory, project }) {
       billPaymentChannel: '2',
     });
     const code = Array.isArray(result) ? result[0]?.BillCode : null;
-    if (typeof code !== 'string' || !BILL.test(code)) throw new Error('gateway_bill');
+    if (typeof code !== 'string' || !BILL.test(code)) {
+      // Never log provider bodies: they can echo credentials or payer details.
+      const msg = typeof result?.msg === 'string' ? result.msg : '';
+      const field = ['userSecretKey','categoryCode','billName','billDescription','billEmail','billPhone','billAmount','billPaymentChannel'].find(key => msg.startsWith(key + ' '));
+      throw new Error(field ? 'gateway_field_' + field : 'gateway_bill');
+    }
     return code;
   }
 
@@ -129,7 +147,9 @@ export function createPayments({ env, transport, adminFactory, project }) {
       try {
         billCode = await createBill({ orderRef: created.order_ref, origin, cents: created.amount_cents,
           name: plan === 'founders_lifetime' ? 'MYOPS Founders 100' : 'MYOPS single app' });
-      } catch {
+      } catch (error) {
+        const reason = error instanceof Error && /^(gateway_(timeout|network|invalid_json|ETIMEDOUT|ENOTFOUND|ECONNRESET|ECONNREFUSED|UND_ERR_CONNECT_TIMEOUT|http_[1-5][0-9]{2})|gateway_bill|gateway_field_(userSecretKey|categoryCode|billName|billDescription|billEmail|billPhone|billAmount|billPaymentChannel))$/.test(error.message) ? error.message : 'gateway_transport';
+        console.error('myops_sandbox_checkout_failed', reason);
         await rpc(client, 'myops_abort_checkout', { p_order_ref: created.order_ref });
         return { status: 502, body: { error: 'Payment gateway is unavailable. Try again later.' } };
       }
@@ -197,5 +217,21 @@ export function createPayments({ env, transport, adminFactory, project }) {
     return { status: ok ? 200 : 400, body: { status: result.status } };
   }
 
-  return { founders, checkout, audit, callback, provisionProfile };
+  async function reconcile({ userId }) {
+    if (env.VERCEL_ENV !== 'preview') return {status:404,body:{error:'Preview-only.'}};
+    const client = admin();
+    if (!client || !gatewayConfigured()) return {status:503,body:{error:'Sandbox checkout is not configured.'}};
+    const {data:payment,error} = await client.from('myops_payments')
+      .select('order_ref,gateway_bill_code,status').eq('user_id',userId)
+      .eq('gateway','toyyibpay_sandbox').eq('status','pending')
+      .order('created_at',{ascending:false}).limit(1).maybeSingle();
+    if(error) return {status:503,body:{error:'Payment could not be checked.'}};
+    if(!payment?.gateway_bill_code) return {status:200,body:{message:'No pending sandbox payment found.'}};
+    // Browser return parameters cannot grant access. Reuse independent gateway verification.
+    const result = await callback({status:'1',order_id:payment.order_ref,billcode:payment.gateway_bill_code});
+    return {status:result.status,body:result.status===200
+      ?{message:'Sandbox payment verified. Refresh your account to view access.'}
+      :{error:'Payment is not verified yet. Please try again later.'}};
+  }
+  return { founders, checkout, audit, callback, provisionProfile, reconcile };
 }

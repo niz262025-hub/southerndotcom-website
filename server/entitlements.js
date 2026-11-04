@@ -1,3 +1,8 @@
+import { effectiveTrialState } from './subscription-plans.js';
+export function isPlatformAdmin(userId, env = {}) {
+  return typeof userId === 'string' && userId.length > 0 && String(env.MYOPS_ADMIN_USER_IDS || '').split(',').map(id => id.trim()).filter(Boolean).includes(userId);
+}
+
 export const PRODUCT_SLUGS = ['opsp', 'opsfinance', 'opsflow', 'opswms', 'opshr'];
 
 const SLUG = /^[a-z0-9_]{1,32}$/;
@@ -5,10 +10,10 @@ const SLUG = /^[a-z0-9_]{1,32}$/;
 export const hasLifetime = (userId, lifetime = []) =>
   lifetime.some((row) => row.user_id === userId && row.status === 'active' && row.scope === 'all_apps');
 
-export function resolveProductStates({ userId, catalog, subscriptions, grants, lifetime = [], now }) {
+export function resolveProductStates({ userId, catalog, subscriptions, grants, lifetime = [], platformAdmin = false, trial = null, trialApps = [], now }) {
   const entitled = new Set();
   const live = new Set(catalog.filter((item) => item.launch_status === 'live' && SLUG.test(item.slug)).map((item) => item.slug));
-  if (hasLifetime(userId, lifetime)) live.forEach((slug) => entitled.add(slug));
+  if (platformAdmin === true || hasLifetime(userId, lifetime)) live.forEach((slug) => entitled.add(slug));
   for (const sub of subscriptions) {
     if (sub.status !== 'active') continue;
     if (sub.current_period_end && !(Date.parse(sub.current_period_end) > now)) continue;
@@ -23,6 +28,9 @@ export function resolveProductStates({ userId, catalog, subscriptions, grants, l
         }
       }
     }
+  }
+  if(trial?.user_id===userId && trial.policy_version===1 && effectiveTrialState(trial,now)==='active') {
+    for(const app of trialApps) if(['opsflow','opsfinance','opsp'].includes(app) && live.has(app)) entitled.add(app);
   }
   const slugs = [...new Set([...PRODUCT_SLUGS, ...catalog.map((item) => item.slug).filter((slug) => SLUG.test(slug))])];
   return Object.fromEntries(slugs.map((slug) => [

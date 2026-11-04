@@ -25,10 +25,10 @@ const baseEnv = {
 };
 
 function make({ entitlement = 'active', nonceAccepted = true, redeemStatus = 'redeemed',
-  sessionActive = true, service = true, rate = true, env = baseEnv } = {}) {
+  sessionActive = true, service = true, rate = true, env = baseEnv, product = 'opsp' } = {}) {
   const calls = [];
   const clientData = {
-    app_id: appId, product_slug: 'opsp', enabled: true,
+    app_id: appId, product_slug: product, enabled: true,
     public_key_current: publicPem, public_key_next: null,
   };
   const admin = { rpc: async (name, args) => {
@@ -38,7 +38,7 @@ function make({ entitlement = 'active', nonceAccepted = true, redeemStatus = 're
     if (name === 'myops_record_app_nonce') return { data: nonceAccepted, error: null };
     if (name === 'myops_issue_app_ticket') return { data: { status: 'issued' }, error: null };
     if (name === 'myops_redeem_app_ticket') return { data: {
-      status: redeemStatus, user_id: userId, session_id: sessionId, product_slug: 'opsp',
+      status: redeemStatus, user_id: userId, session_id: sessionId, product_slug: product,
     }, error: null };
     if (name === 'myops_validate_app_session') return { data: sessionActive
       ? { active: true, user_id: userId } : { active: false }, error: null };
@@ -47,7 +47,7 @@ function make({ entitlement = 'active', nonceAccepted = true, redeemStatus = 're
   const serviceFactory = () => service ? admin : null;
   const handler = createAppAccess({
     env, adminFactory: serviceFactory, now: () => NOW,
-    entitlementResolver: async () => entitlement === 'error' ? null : { opsp: entitlement },
+    entitlementResolver: async () => entitlement === 'error' ? null : { [product]: entitlement },
   });
   return { handler, calls, admin, clientData };
 }
@@ -169,7 +169,7 @@ test('entitlement verification is fresh and revoked or idle sessions are denied'
   const accepted = await call(active.handler.entitlement,
     signedRequest({ path: '/api/app/entitlement', body, nonce: 'nonce-second-1234567890' }));
   assert.equal(accepted.statusCode, 200);
-  assert.deepEqual(accepted.body, { entitled: true, session_active: true, checked_at: new Date(NOW).toISOString() });
+  assert.deepEqual(accepted.body, { entitled: true, session_active: true, access_mode: 'paid', checked_at: new Date(NOW).toISOString() });
   assert.ok(active.calls.some(([name]) => name === 'myops_validate_app_session'));
 
   const idle = make({ sessionActive: false });
@@ -347,4 +347,72 @@ test('login-session binding: ticket issuance requires a login id; start/touch/en
   const notStaging = createAppAccess({ env: { ...baseEnv, MYOPS_ENVIRONMENT: undefined }, adminFactory: () => ({}), now: () => NOW });
   assert.equal(await notStaging.startLogin(userId), null);
   assert.equal(await notStaging.touchLogin(userId, loginSessionId), null);
+});
+
+test('Finance and OpsPS staging provisioning receive only central labels behind their own readiness gates', async () => {
+  for(const product of ['opsfinance','opsp']) for(const ready of [false,true]) {
+    const flag=product==='opsfinance'?'MYOPS_FINANCE_PROVISIONING_READY':'MYOPS_OPSPS_PROVISIONING_READY';
+    const {handler,admin}=make({product,env:{...baseEnv,[flag]:String(ready)}});
+    let lookups=0;
+    admin.auth={admin:{getUserById:async id=>{lookups++;return {data:{user:{id,user_metadata:{display_name:'Central owner',company_name:'Registered company',role:'admin'}}}};}}};
+    const body={ticket:Buffer.alloc(32,9).toString('base64url')};
+    const invalid=await call(handler.redeem,signedRequest({path:'/api/app/redeem',body,headers:{'x-myops-signature':'invalid'}}));
+    assert.equal(invalid.statusCode,401);assert.equal(lookups,0);
+    const result=await call(handler.redeem,signedRequest({path:'/api/app/redeem',body}));
+    assert.equal(result.statusCode,200);
+    assert.deepEqual(result.body.onboarding_profile,ready?{display_name:'Central owner',company_name:'Registered company'}:undefined);
+  }
+});
+
+test('OpsFlow receives central labels only after signature, ticket, session and entitlement verification', async () => {
+  const {handler,admin}=make({product:'opsflow'});
+  let lookups=0;
+  admin.auth={admin:{getUserById:async id=>{lookups++;assert.equal(id,userId);return {data:{user:{id,user_metadata:{display_name:'Central owner',company_name:'Registered company',role:'admin',company_id:'victim'}}}};}}};
+  const body={ticket:Buffer.alloc(32,9).toString('base64url')};
+  const invalid=await call(handler.redeem,signedRequest({path:'/api/app/redeem',body,headers:{'x-myops-signature':'invalid'}}));
+  assert.equal(invalid.statusCode,401);assert.equal(lookups,0);
+  const result=await call(handler.redeem,signedRequest({path:'/api/app/redeem',body}));
+  assert.equal(result.statusCode,200);
+  assert.deepEqual(result.body.onboarding_profile,{display_name:'Central owner',company_name:'Registered company'});
+  const passive=await call(handler.entitlement,signedRequest({path:'/api/app/entitlement',body:{session_id:sessionId,product:'opsflow',activity:false}}));
+  assert.equal(passive.statusCode,200);assert.equal(passive.body.onboarding_profile,undefined);assert.equal(lookups,1);
+  const retry=await call(handler.entitlement,signedRequest({path:'/api/app/entitlement',body:{session_id:sessionId,product:'opsflow',activity:true,sensitive:true}}));
+  assert.equal(retry.statusCode,200);assert.deepEqual(retry.body.onboarding_profile,result.body.onboarding_profile);
+});
+
+test('trial quota requires a signed matching app/session and never touches activity',async()=>{
+ const {handler,admin,calls}=make();
+ admin.from=table=>{assert.equal(table,'myops_app_sessions');const q={select:()=>q,eq:()=>q,maybeSingle:async()=>({data:{user_id:userId,login_session_id:loginSessionId},error:null})};return q;};
+ const original=admin.rpc;admin.rpc=async(name,args)=>name==='myops_consume_trial_quota'?{data:{allowed:true,used:1,limit:2,replayed:false}}:original(name,args);
+ const body={session_id:sessionId,product:'opsp',feature:'projects',operation_id:loginSessionId};
+ const result=await call(handler.trialQuota,signedRequest({path:'/api/app/trial-quota',body}));
+ assert.equal(result.statusCode,200);assert.equal(result.body.allowed,true);
+ assert.equal(calls.find(c=>c[0]==='myops_validate_app_session')[1].p_touch,false);
+ const wrong=await call(handler.trialQuota,signedRequest({path:'/api/app/entitlement',body}));assert.equal(wrong.statusCode,401);
+ const extra=await call(handler.trialQuota,signedRequest({path:'/api/app/trial-quota',body:{...body,user_id:userId}}));assert.equal(extra.statusCode,400);
+});
+test('trial quota endpoint is unavailable in production and rejects expired sessions',async()=>{
+ const body={session_id:sessionId,product:'opsp',feature:'projects',operation_id:loginSessionId};
+ const denied=await call(make({sessionActive:false}).handler.trialQuota,signedRequest({path:'/api/app/trial-quota',body}));assert.equal(denied.statusCode,403);
+ const prod=await call(make({env:{...baseEnv,VERCEL_ENV:'production'}}).handler.trialQuota,{headers:{},body});assert.equal(prod.statusCode,404);
+});
+
+ test('central entitlement explicitly identifies existing paid access without granting trial',async()=>{
+ const {handler}=make();
+ const result=await call(handler.entitlement,signedRequest({path:'/api/app/entitlement',body:{session_id:sessionId,product:'opsp'}}));
+ assert.equal(result.statusCode,200);assert.equal(result.body.access_mode,'paid');
+ const denied=await call(make({entitlement:'none'}).handler.entitlement,signedRequest({path:'/api/app/entitlement',body:{session_id:sessionId,product:'opsp'}}));
+ assert.equal(denied.statusCode,403);assert.equal(denied.body.access_mode,undefined);
+ });
+test('signed entitlement returns server-owned trial metadata and keeps paid mode distinct',async()=>{
+ const {admin}=make({product:'opsflow'});
+ const trial={id:loginSessionId,user_id:userId,organization_id:null,policy_version:1,status:'active',started_at:new Date(NOW-1000).toISOString(),expires_at:new Date(NOW-1000+604800000).toISOString()};
+ admin.from=()=>{const q={select:()=>q,eq:()=>q,maybeSingle:async()=>({data:trial,error:null})};return q;};
+ const env={...baseEnv,MYOPS_USE_ISOLATED_STAGING:'true',VITE_SUPABASE_URL:'https://wengxxiqwtosirealghx.supabase.co',MYOPS_ENABLE_STAGING_TRIAL_ACCESS:'true',MYOPS_TRIAL_READY_APPS:'opsflow'};
+ const handler=createAppAccess({env,adminFactory:()=>admin,now:()=>NOW,entitlementResolver:async(c,u,n,e)=>({opsflow:e.MYOPS_ENABLE_STAGING_TRIAL_ACCESS==='true'?'active':'none'})});
+ const body={session_id:sessionId,product:'opsflow'};
+ const result=await call(handler.entitlement,signedRequest({path:'/api/app/entitlement',body}));
+ assert.equal(result.statusCode,200);assert.equal(result.body.access_mode,'trial');
+ assert.deepEqual(result.body.trial,{id:loginSessionId,expires_at:trial.expires_at,policy_version:1});
+ assert.equal(JSON.stringify(result.body).includes(userId),false);
 });
