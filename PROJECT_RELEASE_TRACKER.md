@@ -1,4 +1,15 @@
 
+## 2026-11-05 — ToyyibPay live runtime deployed; customer payment UAT pending
+
+- Owner explicitly approved transfer of live merchant secret to Vercel Production and live release. Merchant key and active category MYOPS Live Subscriptions saved as sensitive Production-only settings; MYOPS_ENABLE_LIVE_PAYMENTS=true. No credential values in source/tracker.
+- Inspected central production uhuukcztdifvpjuopdea: empty plan/payment tables, no payment RPCs, no founder allocation/events tables. Applied myops_live_billing_foundation via Supabase migration: reviewed phase3 foundation plus live gateway changes. Verification: 0 payments, 100 remaining, live gateway default, anon/authenticated create/settle denied, service_role allowed. Historical/business data not copied.
+- Release branch release/toyyibpay-live-20261105 from actual production 6bd11be; final SHA a7a1a275a8cc57219b5c218fb65f06c5978caac6. Draft PR #31 https://github.com/niz262025-hub/southerndotcom-website/pull/31. Existing production admin audit preserved; central auth explicitly gates live checkout; live callbacks require hash and independent API verification. Frontend live payment messaging enabled.
+- Validation: 156 pass, 0 fail, 36 local PostgreSQL-binary dependent skips; lint/build pass. Exact production-auth browser bundle also rendered in JSDOM smoke test.
+- Production deployment dpl_3unGsciHTpzvkEu5cwwLXjQwomhS READY and promoted. Initial browser blank triggered temporary rollback to old deployment; no code change was needed, subsequent promotion and fresh request rendered normal homepage, 100 slots and live ToyyibPay note. Root cause of initial transient blank not proven. Official alias verified to new deployment. Public JS asset200, callback GET405, invalid POST400. Runtime error/fatal query had no entries.
+- Screenshot proof: /workspace/scratch/myops-live-pricing-1793818969229.jpg. Browser now at production MYOPS login, awaiting customer Individual login and real RM29 payment UAT. No bill/payment created yet. Paid callback and post-payment satellite entitlement flow remain UNVERIFIED. Monthly packages and production trials remain closed; DuitNow QR merchant consent still pending.
+- Rollback: promote dpl_EpC8AHXH2vrP1rw7MqDMzLGAjM6T and disable MYOPS_ENABLE_LIVE_PAYMENTS for later builds; retain all financial records and migration.
+
+
 ## 2026-11-05 — ToyyibPay live integration prepared, activation pending
 
 - Owner authorized continuing ToyyibPay live integration. Draft PR #30: https://github.com/niz262025-hub/southerndotcom-website/pull/30 on feat/toyyibpay-live-integration, commit 1bb214381c61a9f7faa8f7a6453c2e77d4a2fe57.
