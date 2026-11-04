@@ -1,4 +1,11 @@
 
+## 2026-11-05 — First live checkout created; owner payment handoff
+
+- Production MYOPS login verified on /account, Personal account, platform admin. Initial checkout correctly refused missing server-owned profile; inspected verified owner identity, confirmed no profile, and inserted missing personal profile via insert-only myops_provision_profile. No entitlement granted by this repair. Legacy profile-save provisioning gap remains to fix generally; do not infer eligibility from auth metadata.
+- Browser Claim lifetime access created live ToyyibPay bill fa6dy4cm, order MYOPS-fEpeMJyICZIiNjkL, MYR2900 cents, gateway toyyibpay_live, status pending. Hosted bill rendered correct merchant/MYOPS Founders100/RM29 with Online Banking options. No credentials shared in tracker.
+- Payment handed to owner before terms acceptance/bank transaction. Screenshot /workspace/scratch/myops-live-checkout-1793819802466.jpg. Await real payment and verified callback/settlement. Do not regenerate a second bill or mark paid from browser return. Test account is platform admin, so app-open success alone cannot prove paid-customer entitlement enforcement.
+
+
 ## 2026-11-05 — ToyyibPay live runtime deployed; customer payment UAT pending
 
 - Owner explicitly approved transfer of live merchant secret to Vercel Production and live release. Merchant key and active category MYOPS Live Subscriptions saved as sensitive Production-only settings; MYOPS_ENABLE_LIVE_PAYMENTS=true. No credential values in source/tracker.
