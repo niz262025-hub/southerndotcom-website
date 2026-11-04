@@ -1,4 +1,13 @@
 
+## 2026-11-05 — Admin UAT resumed; current browser SSO blocked
+
+- User explicitly paused real payment and requested complete admin UAT for Finance, Flow and OpsPS. No payment initiated, no grant fabricated.
+- Current browser portal initially rendered My Account/Admin and Open App. Finance launch switched portal to signed out; direct /account redirected to login. Thus current SSO happy path is NOT certified.
+- Read-only central login check at 19:55UTC: latest owner login created19:51:23UTC, last_activity same, revoked_at NULL, myops_login_live=true. Browser session unavailable despite DB login being live; exact cause unproven, do not call it normal15minute inactivity or change security settings without evidence.
+- Direct app probes: Finance/dashboard -> MYOPS/login; Flow/app -> MYOPS home signed out; OpsPS/dashboard -> MYOPS home signed out. No protected data exposed. This proves redirect/access denial behavior only, not full backend session revocation coverage.
+- Production alias remains dpl_3unGsciHTpzvkEu5cwwLXjQwomhS. Recent warning/error/fatal runtime query returned no entries. Happy-path SSO, app CRUD/report/refresh and coordinated logout remain pending in this resumed UAT. Historical earlier owner SSO evidence is not a substitute for this current run.
+
+
 ## 2026-11-05 — First live checkout created; owner payment handoff
 
 - Production MYOPS login verified on /account, Personal account, platform admin. Initial checkout correctly refused missing server-owned profile; inspected verified owner identity, confirmed no profile, and inserted missing personal profile via insert-only myops_provision_profile. No entitlement granted by this repair. Legacy profile-save provisioning gap remains to fix generally; do not infer eligibility from auth metadata.
