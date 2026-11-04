@@ -2,6 +2,15 @@
 
 Updated: 2026-10-27 (Asia/Singapore). This tracker reports verified evidence, not estimated completion. The ecosystem is NOT production-ready.
 
+## OpsPS verified staging recovery — 5 November 2026
+
+- User completed Supabase browser sign-in. Verified target project ojamkplflqafedmxbdxb (OpsFlow Staging, hosting OpsPS Edge Function).
+- Replaced only MYOPS_STAGING_SHARE_TOKEN through the authorized Edge Function Secrets screen with existing valid expiring MYOPS alias access. New digest/update timestamp visible; no other secret values inspected.
+- Staging Edge Function readiness changed from HTTP503 deployment_protection to HTTP200 ready:true, signed_transport:verified, unknown_session:denied.
+- Real browser MYOPS to OpsPS dashboard passed without a second login for MYOPS Trial UAT. Trips page and refresh passed; three existing synthetic UAT trips loaded, including upgraded trip 03. No business records created/changed.
+- Finance, Flow and OpsPS now have verified basic paid/lifetime staging SSO launch and refresh evidence. This does not certify fresh payment callbacks, full trial enforcement, or production billing readiness.
+- Remaining launch gates: new paid callback UAT, live ToyyibPay integration/configuration, coordinated production trial/subscription activation and release verification.
+
 ## OpsFlow verified staging recovery — 5 November 2026
 
 - Commit b4325468a861d828a951baf7e30c6f491928faaf deployment dpl_Huxr8wxezSiAh4m6D7GjVj796AEj READY.
