@@ -2,6 +2,16 @@
 
 Updated: 2026-10-27 (Asia/Singapore). This tracker reports verified evidence, not estimated completion. The ecosystem is NOT production-ready.
 
+## OpsFlow / OpsPS follow-up — 5 November 2026
+
+- User approved OpsFlow Preview transport renewal and browser testing of the legacy mobile-named OpsPS web hostname.
+- Updated MYOPS_STAGING_SHARE_TOKEN only in OpsFlow Vercel Preview for feat/opsflow-vercel-migration; refreshed staging deployment dpl_AVLaw8Q2rcJssDscVGusRp8g34va READY. Browser launch still failed after token renewal.
+- Reproduced MYOPS share-cookie bootstrap: old 8-second timeout failed; a 20-second probe succeeded in 14 seconds and obtained the Vercel protection cookie. Configured canonical MYOPS origin was verified.
+- Commit b4325468a861d828a951baf7e30c6f491928faaf raises Preview bootstrap/upstream timeout to 20 seconds, retains production upstream timeout 8 seconds, and adds bounded Preview readiness reason headers without exception details. All 42 current backend CI contract tests passed, including diagnostic credential-redaction coverage. Deployment dpl_Huxr8wxezSiAh4m6D7GjVj796AEj building at this checkpoint; browser launch not yet certified for that commit.
+- OpsPS browser access now authorized and tested with a fresh MYOPS ticket: launch still denied. Staging Edge Function readiness probe returned HTTP 503, ready:false, reason:deployment_protection.
+- Supabase connector does not offer secret updates; local Supabase CLI/management authentication unavailable. Opening the staging Supabase secret-management dashboard was rejected by automatic approval because that credential destination requires explicit user authorization. No OpsPS secret read or write performed. Need permission to open that page and replace only MYOPS_STAGING_SHARE_TOKEN in staging project ojamkplflqafedmxbdxb.
+- Production deployment records remain READY: Finance d09da171, Flow c3feb86f, OpsPS 99bd42dc. These records do not certify new staging subscription features for production. No production release performed.
+
 ## Verified follow-up — 5 November 2026
 
 - Owner explicitly approved Finance staging transport renewal. Updated only Finance Preview MYOPS_STAGING_SHARE_TOKEN on feat/myops-launch-session-bridge using an expiring MYOPS staging alias share.
