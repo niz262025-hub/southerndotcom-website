@@ -2,6 +2,21 @@
 
 Updated: 2026-10-27 (Asia/Singapore). This tracker reports verified evidence, not estimated completion. The ecosystem is NOT production-ready.
 
+## Launch checkpoint — 5 November 2026, Malaysia time
+
+Target requested: 06:00 MYT, 5 November. This checkpoint supersedes historical status below for the checks listed here.
+
+- Scope: MYOPS, OpsFinance, OpsFlow, OpsPS web, subscriptions/payments. OpsWMS/OpsHR and mobile remain Phase 2.
+- MYOPS production inspected: READY deployment dpl_EpC8AHXH2vrP1rw7MqDMzLGAjM6T, commit 6bd11be4cf4bfa6cc5cfd6c49d0ac286945e07ee. Central staging: 56b897f7.
+- Current open draft PRs: MYOPS #29, Finance #27, Flow #3, OpsPS #5. Descriptions include older checkpoints; do not treat them as current UAT results.
+- Central full local test run at 56b897f7: 164 pass, 0 fail, 36 PostgreSQL-binary-dependent skips. New lifetime/trial UI regression: 2 pass; lint and build pass after UI change.
+- Browser staging account: Founders lifetime active, Finance/Flow/OpsPS active. Manual payment verification returns no pending sandbox payment. This is not evidence that a fresh gateway callback succeeded.
+- Confirmed current staging launch failure: MYOPS to Finance renders Access could not be verified. Temporary transport access renewal is blocked by approval review pending explicit authorization to store the scoped MYOPS token in Finance Preview MYOPS_STAGING_SHARE_TOKEN, branch feat/myops-launch-session-bridge.
+- MYOPS Vercel metadata contains sandbox ToyyibPay credentials for Preview only. Production paid checkout is not configured/certified. Code uses sandbox host and Preview-only callback; do not claim live payment readiness by changing environment variables alone.
+- Trial admission remains explicitly staging-only in central and satellite code. Production enablement requires coordinated implementation, database migration verification, and cross-app quota/upgrade UAT.
+- UI fix: lifetime accounts do not display trial limits or request trial status; payment reconciliation result is preserved without an unnecessary trial lookup.
+- Production release was not performed at this checkpoint. Live paid launch remains blocked by payment integration and production trial/subscription certification, in addition to the staging SSO failure above.
+
 ## Current status
 
 | Application | Verified completion % | Open PRs | Tests | Deployment | Blocking gates |
