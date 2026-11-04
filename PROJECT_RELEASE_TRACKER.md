@@ -2,6 +2,16 @@
 
 Updated: 2026-10-27 (Asia/Singapore). This tracker reports verified evidence, not estimated completion. The ecosystem is NOT production-ready.
 
+## Production account verification and Finance release — 5 November 2026
+
+- User authorized continuing to the live account. Secure browser login to www.myops.com.my succeeded with the owner's existing platform-admin account.
+- Released Finance full-ledger dashboard fix from the actual prior production base d09da171 to commit 9102c7ed106a227a8e0af6a335a97cb84d6606fe, branch release/live-dashboard-totals-20261105. Production deployment dpl_7zsNacnq5knE5f2tni86UoXd64G3 READY, promoted; app.myops.com.my alias verified on that deployment.
+- Compare against prior production: only dashboard component and regression tests changed. No data/schema/environment change in production. Rollback target dpl_9ogRCSumNyydGgz7y5wURW8VqrH6 retained.
+- Candidate validation: 289 tests passed, 1 live-credential persistence test skipped; typecheck/lint/build passed. Post-release error/fatal log query returned no entries.
+- Production owner-account browser smoke: MYOPS -> Finance app.myops.com.my/dashboard passed, data loaded and refresh passed; MYOPS -> OpsFlow opsflow.myops.com.my/app passed and refresh passed; MYOPS -> OpsPS Web opsp-mobile-r1.vercel.app/dashboard passed and refresh passed. This validates owner/platform-admin access, not customer checkout, trial signup or paid subscriber lifecycle.
+- Staging business data, sandbox payments and test entitlements were not copied into production.
+- Billing still blocked: current MYOPS production has no live ToyyibPay configuration; payment host and payment schema remain sandbox-specific in source. Production page visibly states Payments are not available yet and monthly plans opening soon. Live integration, real merchant category/key setup, callback/payment activation tests and production trial rollout remain unfinished. Do not describe the overall paid launch as ready.
+
 ## OpsPS verified staging recovery — 5 November 2026
 
 - User completed Supabase browser sign-in. Verified target project ojamkplflqafedmxbdxb (OpsFlow Staging, hosting OpsPS Edge Function).
