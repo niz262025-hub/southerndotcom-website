@@ -25,10 +25,10 @@ const baseEnv = {
 };
 
 function make({ entitlement = 'active', nonceAccepted = true, redeemStatus = 'redeemed',
-  sessionActive = true, service = true, rate = true, env = baseEnv } = {}) {
+  sessionActive = true, service = true, rate = true, env = baseEnv, product = 'opsp' } = {}) {
   const calls = [];
   const clientData = {
-    app_id: appId, product_slug: 'opsp', enabled: true,
+    app_id: appId, product_slug: product, enabled: true,
     public_key_current: publicPem, public_key_next: null,
   };
   const admin = { rpc: async (name, args) => {
@@ -38,7 +38,7 @@ function make({ entitlement = 'active', nonceAccepted = true, redeemStatus = 're
     if (name === 'myops_record_app_nonce') return { data: nonceAccepted, error: null };
     if (name === 'myops_issue_app_ticket') return { data: { status: 'issued' }, error: null };
     if (name === 'myops_redeem_app_ticket') return { data: {
-      status: redeemStatus, user_id: userId, session_id: sessionId, product_slug: 'opsp',
+      status: redeemStatus, user_id: userId, session_id: sessionId, product_slug: product,
     }, error: null };
     if (name === 'myops_validate_app_session') return { data: sessionActive
       ? { active: true, user_id: userId } : { active: false }, error: null };
@@ -47,7 +47,7 @@ function make({ entitlement = 'active', nonceAccepted = true, redeemStatus = 're
   const serviceFactory = () => service ? admin : null;
   const handler = createAppAccess({
     env, adminFactory: serviceFactory, now: () => NOW,
-    entitlementResolver: async () => entitlement === 'error' ? null : { opsp: entitlement },
+    entitlementResolver: async () => entitlement === 'error' ? null : { [product]: entitlement },
   });
   return { handler, calls, admin, clientData };
 }
@@ -347,4 +347,20 @@ test('login-session binding: ticket issuance requires a login id; start/touch/en
   const notStaging = createAppAccess({ env: { ...baseEnv, MYOPS_ENVIRONMENT: undefined }, adminFactory: () => ({}), now: () => NOW });
   assert.equal(await notStaging.startLogin(userId), null);
   assert.equal(await notStaging.touchLogin(userId, loginSessionId), null);
+});
+
+test('OpsFlow receives central labels only after signature, ticket, session and entitlement verification', async () => {
+  const {handler,admin}=make({product:'opsflow'});
+  let lookups=0;
+  admin.auth={admin:{getUserById:async id=>{lookups++;assert.equal(id,userId);return {data:{user:{id,user_metadata:{display_name:'Central owner',company_name:'Registered company',role:'admin',company_id:'victim'}}}};}}};
+  const body={ticket:Buffer.alloc(32,9).toString('base64url')};
+  const invalid=await call(handler.redeem,signedRequest({path:'/api/app/redeem',body,headers:{'x-myops-signature':'invalid'}}));
+  assert.equal(invalid.statusCode,401);assert.equal(lookups,0);
+  const result=await call(handler.redeem,signedRequest({path:'/api/app/redeem',body}));
+  assert.equal(result.statusCode,200);
+  assert.deepEqual(result.body.onboarding_profile,{display_name:'Central owner',company_name:'Registered company'});
+  const passive=await call(handler.entitlement,signedRequest({path:'/api/app/entitlement',body:{session_id:sessionId,product:'opsflow',activity:false}}));
+  assert.equal(passive.statusCode,200);assert.equal(passive.body.onboarding_profile,undefined);assert.equal(lookups,1);
+  const retry=await call(handler.entitlement,signedRequest({path:'/api/app/entitlement',body:{session_id:sessionId,product:'opsflow',activity:true,sensitive:true}}));
+  assert.equal(retry.statusCode,200);assert.deepEqual(retry.body.onboarding_profile,result.body.onboarding_profile);
 });

@@ -141,7 +141,7 @@ const routes = {
   '/account/update-password': () => <PageShell>{portal('reset')}</PageShell>,
   '/auth/callback': () => <PageShell>{portal('callback')}</PageShell>,
   '/account': () => <PageShell>{portal('dashboard')}</PageShell>,
-  '/admin/audit': () => <PageShell>{buildMode === 'preview-auth' ? <AdminAudit /> : portal('login')}</PageShell>,
+  '/admin/audit': () => <PageShell>{customerAuthEnabled ? <AdminAudit /> : portal('login')}</PageShell>,
   '/solutions': SolutionsPage,
   '/solutions/opsp': SolutionPage,
   '/solutions/opsfinance': SolutionPage,
