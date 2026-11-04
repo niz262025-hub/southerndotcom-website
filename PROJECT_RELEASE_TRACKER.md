@@ -2,6 +2,18 @@
 
 Updated: 2026-10-27 (Asia/Singapore). This tracker reports verified evidence, not estimated completion. The ecosystem is NOT production-ready.
 
+## Verified follow-up — 5 November 2026
+
+- Owner explicitly approved Finance staging transport renewal. Updated only Finance Preview MYOPS_STAGING_SHARE_TOKEN on feat/myops-launch-session-bridge using an expiring MYOPS staging alias share.
+- Browser MYOPS to Finance dashboard, Transactions and refresh passed without a second login; existing company MYOPS Trial Test retained.
+- Found real dashboard defect: totals were calculated from only six recent journals and balanced entries displayed zero. Fixed complete paginated journal loading, deterministic same-date order, six-row presentation only, and debit-side entry amounts.
+- Finance commit 55c31b03a2d750ad6789fa854d5b6a94c347e64c, staging deployment dpl_3F49hz1kBR8CA81vtEhw5MRM1cw8 READY. Browser confirms RM30 cash/revenue/profit from 30 RM1 entries and recent entries RM1 each. No financial test records created or changed in this follow-up.
+- Finance full tests 300 pass, 1 credential-dependent skip; typecheck/lint/build pass. Regression covers 1001 journals across three pages and rejection of partial totals on page failure.
+- MYOPS lifetime panel fix browser-confirmed: no trial panel for lifetime account.
+- OpsFlow staging launch still fails session verification; Preview transport renewal in its own Vercel project is a separate pending authorization.
+- OpsPS browser UAT blocked by automatic origin approval interpreting legacy mobile hostname as Phase 2. Repository package build is explicitly web export; browser retry remained rejected. No workaround attempted. Explicit permission for that web origin is required to resume.
+- Production paid checkout/trial gates from the prior checkpoint remain open; no Production changes in this follow-up.
+
 ## Launch checkpoint — 5 November 2026, Malaysia time
 
 Target requested: 06:00 MYT, 5 November. This checkpoint supersedes historical status below for the checks listed here.
