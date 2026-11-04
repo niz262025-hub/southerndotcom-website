@@ -82,7 +82,7 @@ export function AuthPortal({ mode, production = false }) {
               </ul>
             ) : <p>Subscription status is currently unavailable.</p>}
             {account.lifetime && <p>Founders 100 lifetime access: active (all current and future MYOPS apps).</p>}
-            <p>{production ? 'Subscriptions and application access are not available for purchase yet.' : 'Preview payments use the ToyyibPay sandbox only. Application access is granted only after the server confirms a verified payment or active subscription.'}</p>
+            <p>{production ? 'View subscription availability and pricing on the MYOPS homepage. Access is granted after payment verification.' : 'Preview payments use the ToyyibPay sandbox only. Application access is granted only after the server confirms a verified payment or active subscription.'}</p>
           </section>
           <p>Applications open through your MYOPS login. This site signs you out after 15 minutes of inactivity.</p>
           <button type="button" className="btn btn-primary" disabled={busy} onClick={logout}>Sign out</button>
