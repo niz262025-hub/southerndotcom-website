@@ -1,8 +1,18 @@
+import { PRODUCTION_PROJECT } from './project.js';
 import { serverServiceKey } from './service-key.js';
 import { createHash, randomBytes, timingSafeEqual } from 'node:crypto';
 
-// Sandbox only. The host is a constant so live ToyyibPay cannot be reached by configuration.
-const SANDBOX = 'https://dev.toyyibpay.com';
+// Fixed provider hosts; credentials never choose an arbitrary destination.
+export function paymentGateway(env, project) {
+  if (env.VERCEL_ENV === 'production') {
+    if (project !== PRODUCTION_PROJECT || env.MYOPS_ENVIRONMENT !== 'production'
+        || env.MYOPS_ENABLE_LIVE_PAYMENTS !== 'true') return null;
+    return { host: 'https://toyyibpay.com', ledger: 'toyyibpay_live',
+      secret: env.TOYYIBPAY_LIVE_SECRET_KEY, category: env.TOYYIBPAY_LIVE_CATEGORY_CODE };
+  }
+  return { host: 'https://dev.toyyibpay.com', ledger: 'toyyibpay_sandbox',
+    secret: env.TOYYIBPAY_SANDBOX_SECRET_KEY, category: env.TOYYIBPAY_SANDBOX_CATEGORY_CODE };
+}
 // Only these plans can be purchased. Two-app (RM49), all-app (RM79) and Business plans are
 // proposed and stay disabled here and in the database until the owner approves them.
 const PLANS = ['founders_lifetime', 'single_app_monthly'];
@@ -26,7 +36,8 @@ const toCents = (value) => {
 };
 
 export function createPayments({ env, transport, adminFactory, project }) {
-  const gatewayConfigured = () => Boolean(env.TOYYIBPAY_SANDBOX_SECRET_KEY && /^[A-Za-z0-9]{4,40}$/.test(env.TOYYIBPAY_SANDBOX_CATEGORY_CODE || ''));
+  const gateway = paymentGateway(env, project);
+  const gatewayConfigured = () => Boolean(gateway?.secret && /^[A-Za-z0-9]{4,40}$/.test(gateway.category || ''));
   const adminKey = () => serverServiceKey(env.MYOPS_SERVICE_ROLE_KEY, project);
   const admin = () => {
     const key = adminKey();
@@ -41,7 +52,7 @@ export function createPayments({ env, transport, adminFactory, project }) {
   async function gatewayForm(path, fields) {
     let response;
     try {
-    response = await transport(`${SANDBOX}/index.php/api/${path}`, {
+    response = await transport(`${gateway.host}/index.php/api/${path}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
       body: new URLSearchParams(fields).toString(),
@@ -64,19 +75,19 @@ export function createPayments({ env, transport, adminFactory, project }) {
       callbackUrl.searchParams.set('x-vercel-protection-bypass', env.MYOPS_SANDBOX_CALLBACK_BYPASS_SECRET);
     }
     const result = await gatewayForm('createBill', {
-      userSecretKey: env.TOYYIBPAY_SANDBOX_SECRET_KEY,
-      categoryCode: env.TOYYIBPAY_SANDBOX_CATEGORY_CODE,
+      userSecretKey: gateway.secret,
+      categoryCode: gateway.category,
       billName: name,
-      billDescription: `${name} sandbox`,
+      billDescription: gateway.ledger === 'toyyibpay_live' ? name : `${name} sandbox`,
       billPriceSetting: '1',
       billPayorInfo: '0',
       billAmount: String(cents),
       billReturnUrl: `${origin}/?payment=return`,
       billCallbackUrl: callbackUrl.toString(),
       billExternalReferenceNo: orderRef,
-      billTo: 'MYOPS customer',
-      billEmail: 'sandbox@example.invalid',
-      billPhone: '0000000000',
+      billTo: gateway.ledger === 'toyyibpay_live' ? '' : 'MYOPS customer',
+      billEmail: gateway.ledger === 'toyyibpay_live' ? '' : 'sandbox@example.invalid',
+      billPhone: gateway.ledger === 'toyyibpay_live' ? '' : '0000000000',
       billPaymentChannel: '2',
     });
     const code = Array.isArray(result) ? result[0]?.BillCode : null;
@@ -121,7 +132,10 @@ export function createPayments({ env, transport, adminFactory, project }) {
 
   async function checkout({ userId, plan, product, origin }) {
     const client = admin();
-    if (!client || !gatewayConfigured()) return { status: 503, body: { error: 'Sandbox checkout is not configured for this Preview.' } };
+    if (!client || !gatewayConfigured()) return { status: 503, body: { error: 'Checkout is not configured.' } };
+    if (gateway.ledger === 'toyyibpay_live' && origin !== 'https://www.myops.com.my') {
+      return { status: 400, body: { error: 'Invalid payment origin.' } };
+    }
     if (!PLANS.includes(plan)) return { status: 403, body: { error: 'This plan is not available yet.' } };
     if ((plan === 'single_app_monthly') !== (product !== undefined && product !== null)
         || (product !== undefined && product !== null && !(typeof product === 'string' && SLUG.test(product)))) {
@@ -142,6 +156,10 @@ export function createPayments({ env, transport, adminFactory, project }) {
     if (refused) return { status: refused[0], body: { error: refused[1] } };
     if (!['created', 'existing'].includes(created.status) || !REF.test(created.order_ref || '')
         || !Number.isInteger(created.amount_cents) || created.amount_cents <= 0) throw new Error('rpc_shape');
+    if (gateway.ledger === 'toyyibpay_live' && created.gateway !== gateway.ledger) {
+      await rpc(client, 'myops_abort_checkout', { p_order_ref: created.order_ref });
+      return { status: 503, body: { error: 'Payment ledger is not ready.' } };
+    }
     let billCode = created.bill_code;
     if (!billCode) {
       try {
@@ -149,7 +167,7 @@ export function createPayments({ env, transport, adminFactory, project }) {
           name: plan === 'founders_lifetime' ? 'MYOPS Founders 100' : 'MYOPS single app' });
       } catch (error) {
         const reason = error instanceof Error && /^(gateway_(timeout|network|invalid_json|ETIMEDOUT|ENOTFOUND|ECONNRESET|ECONNREFUSED|UND_ERR_CONNECT_TIMEOUT|http_[1-5][0-9]{2})|gateway_bill|gateway_field_(userSecretKey|categoryCode|billName|billDescription|billEmail|billPhone|billAmount|billPaymentChannel))$/.test(error.message) ? error.message : 'gateway_transport';
-        console.error('myops_sandbox_checkout_failed', reason);
+        console.error('myops_checkout_failed', reason);
         await rpc(client, 'myops_abort_checkout', { p_order_ref: created.order_ref });
         return { status: 502, body: { error: 'Payment gateway is unavailable. Try again later.' } };
       }
@@ -157,7 +175,7 @@ export function createPayments({ env, transport, adminFactory, project }) {
       if (!attached) return { status: 502, body: { error: 'Checkout could not be started. Try again.' } };
     }
     if (!BILL.test(billCode)) throw new Error('bill_shape');
-    return { status: 200, body: { next: `${SANDBOX}/${billCode}` } };
+    return { status: 200, body: { next: `${gateway.host}/${billCode}` } };
   }
 
   async function audit({ userId }) {
@@ -181,16 +199,18 @@ export function createPayments({ env, transport, adminFactory, project }) {
     if (!['1', '2', '3'].includes(f.status) || !REF.test(f.order_id || '') || !BILL.test(f.billcode || '')) {
       return { status: 400, body: { error: 'invalid' } };
     }
-    const expected = createHash('md5').update(`${env.TOYYIBPAY_SANDBOX_SECRET_KEY}${f.status}${f.order_id}${f.refno ?? ''}ok`).digest('hex');
+    const expected = createHash('md5').update(`${gateway.secret}${f.status}${f.order_id}${f.refno ?? ''}ok`).digest('hex');
     const hashOk = typeof f.hash === 'string' && safeEqualHex(expected, f.hash);
     // A supplied hash must match. Failure/cancel is only accepted with a valid hash; success
     // is additionally confirmed with the gateway API below.
-    if (f.hash !== undefined && !hashOk) return { status: 400, body: { error: 'invalid' } };
+    if ((gateway.ledger === 'toyyibpay_live' || f.hash !== undefined) && !hashOk) return { status: 400, body: { error: 'invalid' } };
     if (f.status === '2') return { status: 200, body: { status: 'pending_ignored' } };
     if (f.status === '3' && !hashOk) return { status: 400, body: { error: 'invalid' } };
 
     const payment = await rpc(client, 'myops_get_payment', { p_order_ref: f.order_id });
-    if (!payment || payment.gateway_bill_code !== f.billcode) return { status: 400, body: { error: 'invalid' } };
+    if (!payment || (payment.gateway && payment.gateway !== gateway.ledger)
+        || (gateway.ledger === 'toyyibpay_live' && payment.gateway !== gateway.ledger)
+        || payment.gateway_bill_code !== f.billcode) return { status: 400, body: { error: 'invalid' } };
 
     const key = founderEventKey(f);
     let outcome = 'failed';
