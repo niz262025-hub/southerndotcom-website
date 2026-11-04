@@ -1,5 +1,5 @@
 import { createClient } from '@supabase/supabase-js';
-import { createPayments } from './payments.js';
+import { createPayments, paymentGateway } from './payments.js';
 import { projectForEnvironment } from './project.js';
 
 
@@ -9,7 +9,7 @@ export function createCallbackHandler({ env = process.env, clientFactory = creat
   return async function handler(req, res) {
     res.setHeader('Cache-Control', 'no-store');
     const reply = (status, body) => res.status(status).json(body);
-    if (env.VERCEL_ENV !== 'preview') return reply(404, { error: 'Preview-only.' });
+    if (env.VERCEL_ENV !== 'preview' && !paymentGateway(env, projectForEnvironment(env))) return reply(404, { error: 'Preview-only.' });
     if (req.method !== 'POST') return reply(405, { error: 'Method not allowed.' });
     try {
       let fields = req.body;
