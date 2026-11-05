@@ -1,3 +1,14 @@
+## 2026-11-05 — Authenticated live return-button UAT passed
+
+Owner completed browser login. Live MYOPS displayed MyAccount/Admin and “Log keluar semua aplikasi”. The following were exercised sequentially with this same login, with no additional sign-in:
+
+- Finance: app launched; exactly one “Kembali ke MYOPS” button visible at top-right, duplicate sidebar exit absent. Clicking returned to https://www.myops.com.my/ and MyAccount/global-signout remained available.
+- Flow: app launched with existing UAT records; “Kembali ke MYOPS” button and home icon visible in common top-bar. Clicking returned to the same central homepage with active MYOPS login.
+- OpsPS: app dashboard loaded with new accessible top-right “Kembali ke MYOPS” button beside Settings. Clicking returned to the central homepage; MyAccount/global-signout still available. Initial app hydration took longer than the first locator wait; a fresh AX snapshot then showed the correct dashboard/button, and the actual click/return passed. No permanent missing-button defect.
+- Portal global-signout label confirmed visually. It was intentionally not clicked again in this run, preserving the owner's new login; prior central logout/revocation/reload-denial evidence and unchanged server behavior remain the evidence for global logout. Do not imply a new global-logout click occurred today in this follow-up.
+
+Screenshots saved and visually inspected: /workspace/scratch/uat-return-finance.jpg, uat-return-flow.jpg, uat-return-opsps.jpg, uat-myops-central-logout-label.jpg. No payment or business-data mutation in this follow-up. ToyyibPay remains paused. This completes the post-deployment browser checks pending in the previous checkpoint, for the owner-approved portal-return semantics; it does not certify paid-customer billing or all permission/trial/fulfilment scenarios.
+
 ## 2026-11-05 — Owner-approved MYOPS return navigation deployed
 
 This supersedes the previous single-sign-out blocker interpretation. Owner explicitly chose satellite “Kembali ke MYOPS” and portal-only “Log keluar semua aplikasi”, then authorized implementation with “ok ubah”. MYOPS issue#34 closed not_planned with the clarification; satellite global revocation was not implemented or claimed.
