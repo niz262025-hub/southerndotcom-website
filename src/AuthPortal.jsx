@@ -85,7 +85,7 @@ export function AuthPortal({ mode, production = false }) {
             <p>{production ? 'View subscription availability and pricing on the MYOPS homepage. Access is granted after payment verification.' : 'Preview payments use the ToyyibPay sandbox only. Application access is granted only after the server confirms a verified payment or active subscription.'}</p>
           </section>
           <p>Applications open through your MYOPS login. This site signs you out after 15 minutes of inactivity.</p>
-          <button type="button" className="btn btn-primary" disabled={busy} onClick={logout}>Sign out</button>
+          <button type="button" className="btn btn-primary" disabled={busy} onClick={logout}>Log keluar semua aplikasi</button>
           <p><a href="/forgot-password">Change password</a></p>
         </>}
         {mode === 'callback' && <p><a href="/login">Return to sign in</a></p>}
