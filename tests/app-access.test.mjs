@@ -364,3 +364,14 @@ test('OpsFlow receives central labels only after signature, ticket, session and 
   const retry=await call(handler.entitlement,signedRequest({path:'/api/app/entitlement',body:{session_id:sessionId,product:'opsflow',activity:true,sensitive:true}}));
   assert.equal(retry.statusCode,200);assert.deepEqual(retry.body.onboarding_profile,result.body.onboarding_profile);
 });
+
+test('durable login liveness is a read-only, user-bound lookup and fails closed on outage', async () => {
+  for (const expected of [true, false, null]) {
+    const calls = [];
+    const handler = createAppAccess({ env: baseEnv, now: () => NOW, adminFactory: () => ({ rpc: async (name, args) => {
+      calls.push([name, args]); return expected === null ? { error: { code: 'outage' } } : { data: expected, error: null };
+    } }) });
+    assert.equal(await handler.loginLive(userId, loginSessionId), expected);
+    assert.deepEqual(calls, [['myops_login_live', { p_id: loginSessionId, p_user_id: userId }]]);
+  }
+});
