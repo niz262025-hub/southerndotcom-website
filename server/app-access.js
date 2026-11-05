@@ -1,6 +1,7 @@
+import { loadAppProfile } from './app-profile.js';
 import { createHash, createHmac, createPublicKey, randomBytes, verify } from 'node:crypto';
 import { createClient } from '@supabase/supabase-js';
-import { resolveProductStates } from './entitlements.js';
+import { resolveProductStates, isPlatformAdmin } from './entitlements.js';
 
 import { projectForEnvironment } from './project.js';
 import { serverServiceKey } from './service-key.js';
@@ -94,7 +95,7 @@ function entitlementRows(client, table, columns, userId) {
   return query;
 }
 
-export async function loadCurrentEntitlements(client, userId, now) {
+export async function loadCurrentEntitlements(client, userId, now, env = {}) {
   const [catalog, personalSubs, memberships, grants, lifetime] = await Promise.all([
     entitlementRows(client, 'myops_products', 'slug,launch_status', userId),
     entitlementRows(client, 'myops_subscriptions', 'personal_user_id,organization_id,product_slug,is_complete_bundle,status,current_period_end', userId),
@@ -118,6 +119,7 @@ export async function loadCurrentEntitlements(client, userId, now) {
     subscriptions,
     grants: grants.data || [],
     lifetime: lifetime.data || [],
+    platformAdmin: isPlatformAdmin(userId, env),
     now,
   });
 }
@@ -213,6 +215,17 @@ export function createAppAccess({ env = process.env, adminFactory = createClient
     } catch (error) {
       return unavailable('rpc', error.code);
     }
+  }
+
+  // Read only: satellite activity already updates this same bound durable login.
+  async function loginLive(userId, loginSessionId) {
+    if (!configured(env) || !USER_ID.test(String(userId)) || !USER_ID.test(String(loginSessionId))) return false;
+    const admin = client();
+    if (!admin) return null;
+    try {
+      const live = await rpc(admin, 'myops_login_live', { p_id: loginSessionId, p_user_id: userId });
+      return typeof live === 'boolean' ? live : null;
+    } catch { return null; }
   }
 
   // Records MYOPS user activity (throttled to 30 s in SQL). false = login no longer live; null = unknown.
@@ -357,7 +370,7 @@ export function createAppAccess({ env = process.env, adminFactory = createClient
           || typeof redeemed.user_id !== 'string' || typeof redeemed.session_id !== 'string') {
         return reply(401, { error: 'Launch ticket is invalid or expired.' });
       }
-      const products = await entitlementResolver(admin, redeemed.user_id, now());
+      const products = await entitlementResolver(admin, redeemed.user_id, now(), env);
       if (!products || products[clientData.product_slug] !== 'active') {
         await rpc(admin, 'myops_revoke_app_session', {
           p_session_id: redeemed.session_id, p_reason: 'entitlement_denied',
@@ -370,6 +383,7 @@ export function createAppAccess({ env = process.env, adminFactory = createClient
         session_id: redeemed.session_id,
         user_ref: userRef(env.MYOPS_APP_USER_REF_SECRET, appId, redeemed.user_id),
         product: clientData.product_slug,
+        ...(clientData.product_slug === 'opsflow' ? { onboarding_profile: await loadAppProfile(admin, redeemed.user_id) } : {}),
         idle_seconds: APP_IDLE_MS / 1000,
         max_session_seconds: APP_MAX_SESSION_MS / 1000,
       });
@@ -398,7 +412,7 @@ export function createAppAccess({ env = process.env, adminFactory = createClient
       if (!appSession?.active || typeof appSession.user_id !== 'string') {
         return reply(403, { entitled: false, session_active: false });
       }
-      const products = await entitlementResolver(admin, appSession.user_id, now());
+      const products = await entitlementResolver(admin, appSession.user_id, now(), env);
       // Unknown state (lookup failed): deny this request but keep the session for a later retry.
       if (!products) return reply(503, { entitled: false, error: 'Application access could not be verified.' });
       const entitled = products[body.product] === 'active';
@@ -408,11 +422,12 @@ export function createAppAccess({ env = process.env, adminFactory = createClient
         });
         return reply(403, { entitled: false, session_active: false });
       }
-      return reply(200, { entitled: true, session_active: true, checked_at: new Date(now()).toISOString() });
+      return reply(200, { entitled: true, session_active: true, checked_at: new Date(now()).toISOString(),
+        ...(body.product === 'opsflow' && body.sensitive === true ? { onboarding_profile: await loadAppProfile(admin, appSession.user_id) } : {}) });
     } catch {
       return res.status(503).json({ error: 'Application access could not be verified.' });
     }
   }
 
-  return { issueTicket, startLogin, touchLogin, processRevocations, queueRevocation, pendingRevocations, revokeUserSessions, redeem, entitlement };
+  return { issueTicket, startLogin, touchLogin, loginLive, processRevocations, queueRevocation, pendingRevocations, revokeUserSessions, redeem, entitlement };
 }

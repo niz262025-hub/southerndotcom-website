@@ -22,7 +22,7 @@ export function SessionProvider({ enabled, children }) {
     try {
       const result = await authRequest('session', { activity });
       setState(result.signedIn
-        ? { status: 'ready', signedIn: true, email: result.email, products: result.products, lifetime: Boolean(result.lifetime) }
+        ? { status: 'ready', signedIn: true, email: result.email, products: result.products, lifetime: Boolean(result.lifetime), platformAdmin: result.platformAdmin === true }
         : SignedOut);
     } catch {
       setState(SignedOut);
@@ -82,6 +82,7 @@ export function AuthNav() {
     return (
       <div className="nav-auth">
         <a href="/account" className="btn btn-secondary">My Account</a>
+        {session.platformAdmin && <a href="/admin/audit" className="btn btn-secondary">Admin</a>}
         <button type="button" className="btn btn-primary" disabled={session.logoutBusy} onClick={session.logout}>{session.logoutBusy ? 'Signing out…' : 'Logout'}</button>
         {session.logoutError && <p role="alert">{session.logoutError}</p>}
       </div>

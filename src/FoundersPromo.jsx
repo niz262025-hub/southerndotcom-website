@@ -97,7 +97,7 @@ export function FoundersPromo({ production = false }) {
         {waiting && <p role="status">Confirming your payment…</p>}
         <p role="status" className="founders-error">{message}</p>
         <p className="founders-note">Monthly subscriptions are not open for purchase yet.</p>
-        <p className="founders-note">{production ? 'Payments are not available yet.' : 'Sandbox payments only: no real money is charged in Preview. Payments are verified server-side before access is granted.'}</p>
+        <p className="founders-note">{production ? (founders?.capacity ? 'Live payments are processed by ToyyibPay. Access is granted after payment verification.' : 'Payments are not available yet.') : 'Sandbox payments only: no real money is charged in Preview. Payments are verified server-side before access is granted.'}</p>
       </div>
     </section>
   );

@@ -1,8 +1,18 @@
+import { PRODUCTION_PROJECT } from './project.js';
 import { serverServiceKey } from './service-key.js';
 import { createHash, randomBytes, timingSafeEqual } from 'node:crypto';
 
-// Sandbox only. The host is a constant so live ToyyibPay cannot be reached by configuration.
-const SANDBOX = 'https://dev.toyyibpay.com';
+// Fixed provider hosts; credentials never choose an arbitrary destination.
+export function paymentGateway(env, project) {
+  if (env.VERCEL_ENV === 'production') {
+    if (project !== PRODUCTION_PROJECT || env.MYOPS_ENVIRONMENT !== 'production'
+        || env.MYOPS_ENABLE_LIVE_PAYMENTS !== 'true') return null;
+    return { host: 'https://toyyibpay.com', ledger: 'toyyibpay_live',
+      secret: env.TOYYIBPAY_LIVE_SECRET_KEY, category: env.TOYYIBPAY_LIVE_CATEGORY_CODE };
+  }
+  return { host: 'https://dev.toyyibpay.com', ledger: 'toyyibpay_sandbox',
+    secret: env.TOYYIBPAY_SANDBOX_SECRET_KEY, category: env.TOYYIBPAY_SANDBOX_CATEGORY_CODE };
+}
 // Only these plans can be purchased. Two-app (RM49), all-app (RM79) and Business plans are
 // proposed and stay disabled here and in the database until the owner approves them.
 const PLANS = ['founders_lifetime', 'single_app_monthly'];
@@ -26,7 +36,8 @@ const toCents = (value) => {
 };
 
 export function createPayments({ env, transport, adminFactory, project }) {
-  const gatewayConfigured = () => Boolean(env.TOYYIBPAY_SANDBOX_SECRET_KEY && /^[A-Za-z0-9]{4,40}$/.test(env.TOYYIBPAY_SANDBOX_CATEGORY_CODE || ''));
+  const gateway = paymentGateway(env, project);
+  const gatewayConfigured = () => Boolean(gateway?.secret && /^[A-Za-z0-9]{4,40}$/.test(gateway.category || ''));
   const adminKey = () => serverServiceKey(env.MYOPS_SERVICE_ROLE_KEY, project);
   const admin = () => {
     const key = adminKey();
@@ -39,35 +50,53 @@ export function createPayments({ env, transport, adminFactory, project }) {
   };
 
   async function gatewayForm(path, fields) {
-    const response = await transport(`${SANDBOX}/index.php/api/${path}`, {
+    let response;
+    try {
+    response = await transport(`${gateway.host}/index.php/api/${path}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
       body: new URLSearchParams(fields).toString(),
       signal: AbortSignal.timeout(8000),
     });
-    if (!response.ok) throw new Error('gateway_http');
-    return response.json();
+    } catch (error) {
+      const code = error?.cause?.code;
+      if (['ETIMEDOUT','ENOTFOUND','ECONNRESET','ECONNREFUSED','UND_ERR_CONNECT_TIMEOUT'].includes(code)) throw new Error('gateway_' + code);
+      throw new Error(error?.name === 'TimeoutError' || error?.name === 'AbortError' ? 'gateway_timeout' : 'gateway_network');
+    }
+    if (!response.ok) throw new Error('gateway_http_' + response.status);
+    try { return await response.json(); } catch { throw new Error('gateway_invalid_json'); }
   }
 
   async function createBill({ orderRef, origin, cents, name }) {
+    const callbackUrl = new URL('/api/toyyibpay-callback', origin);
+    // Server-only, explicitly configured for sandbox Preview. Never place this credential
+    // on the browser return URL or include it in the checkout response.
+    if (env.VERCEL_ENV === 'preview' && env.MYOPS_SANDBOX_CALLBACK_BYPASS_SECRET) {
+      callbackUrl.searchParams.set('x-vercel-protection-bypass', env.MYOPS_SANDBOX_CALLBACK_BYPASS_SECRET);
+    }
     const result = await gatewayForm('createBill', {
-      userSecretKey: env.TOYYIBPAY_SANDBOX_SECRET_KEY,
-      categoryCode: env.TOYYIBPAY_SANDBOX_CATEGORY_CODE,
+      userSecretKey: gateway.secret,
+      categoryCode: gateway.category,
       billName: name,
-      billDescription: `${name} (sandbox)`,
+      billDescription: gateway.ledger === 'toyyibpay_live' ? name : `${name} sandbox`,
       billPriceSetting: '1',
       billPayorInfo: '0',
       billAmount: String(cents),
       billReturnUrl: `${origin}/?payment=return`,
-      billCallbackUrl: `${origin}/api/toyyibpay-callback`,
+      billCallbackUrl: callbackUrl.toString(),
       billExternalReferenceNo: orderRef,
-      billTo: 'MYOPS customer',
-      billEmail: 'sandbox@example.invalid',
-      billPhone: '0000000000',
+      billTo: gateway.ledger === 'toyyibpay_live' ? '' : 'MYOPS customer',
+      billEmail: gateway.ledger === 'toyyibpay_live' ? '' : 'sandbox@example.invalid',
+      billPhone: gateway.ledger === 'toyyibpay_live' ? '' : '0000000000',
       billPaymentChannel: '2',
     });
     const code = Array.isArray(result) ? result[0]?.BillCode : null;
-    if (typeof code !== 'string' || !BILL.test(code)) throw new Error('gateway_bill');
+    if (typeof code !== 'string' || !BILL.test(code)) {
+      // Never log provider bodies: they can echo credentials or payer details.
+      const msg = typeof result?.msg === 'string' ? result.msg : '';
+      const field = ['userSecretKey','categoryCode','billName','billDescription','billEmail','billPhone','billAmount','billPaymentChannel'].find(key => msg.startsWith(key + ' '));
+      throw new Error(field ? 'gateway_field_' + field : 'gateway_bill');
+    }
     return code;
   }
 
@@ -103,7 +132,10 @@ export function createPayments({ env, transport, adminFactory, project }) {
 
   async function checkout({ userId, plan, product, origin }) {
     const client = admin();
-    if (!client || !gatewayConfigured()) return { status: 503, body: { error: 'Sandbox checkout is not configured for this Preview.' } };
+    if (!client || !gatewayConfigured()) return { status: 503, body: { error: 'Checkout is not configured.' } };
+    if (gateway.ledger === 'toyyibpay_live' && origin !== 'https://www.myops.com.my') {
+      return { status: 400, body: { error: 'Invalid payment origin.' } };
+    }
     if (!PLANS.includes(plan)) return { status: 403, body: { error: 'This plan is not available yet.' } };
     if ((plan === 'single_app_monthly') !== (product !== undefined && product !== null)
         || (product !== undefined && product !== null && !(typeof product === 'string' && SLUG.test(product)))) {
@@ -124,12 +156,18 @@ export function createPayments({ env, transport, adminFactory, project }) {
     if (refused) return { status: refused[0], body: { error: refused[1] } };
     if (!['created', 'existing'].includes(created.status) || !REF.test(created.order_ref || '')
         || !Number.isInteger(created.amount_cents) || created.amount_cents <= 0) throw new Error('rpc_shape');
+    if (gateway.ledger === 'toyyibpay_live' && created.gateway !== gateway.ledger) {
+      await rpc(client, 'myops_abort_checkout', { p_order_ref: created.order_ref });
+      return { status: 503, body: { error: 'Payment ledger is not ready.' } };
+    }
     let billCode = created.bill_code;
     if (!billCode) {
       try {
         billCode = await createBill({ orderRef: created.order_ref, origin, cents: created.amount_cents,
           name: plan === 'founders_lifetime' ? 'MYOPS Founders 100' : 'MYOPS single app' });
-      } catch {
+      } catch (error) {
+        const reason = error instanceof Error && /^(gateway_(timeout|network|invalid_json|ETIMEDOUT|ENOTFOUND|ECONNRESET|ECONNREFUSED|UND_ERR_CONNECT_TIMEOUT|http_[1-5][0-9]{2})|gateway_bill|gateway_field_(userSecretKey|categoryCode|billName|billDescription|billEmail|billPhone|billAmount|billPaymentChannel))$/.test(error.message) ? error.message : 'gateway_transport';
+        console.error('myops_checkout_failed', reason);
         await rpc(client, 'myops_abort_checkout', { p_order_ref: created.order_ref });
         return { status: 502, body: { error: 'Payment gateway is unavailable. Try again later.' } };
       }
@@ -137,7 +175,7 @@ export function createPayments({ env, transport, adminFactory, project }) {
       if (!attached) return { status: 502, body: { error: 'Checkout could not be started. Try again.' } };
     }
     if (!BILL.test(billCode)) throw new Error('bill_shape');
-    return { status: 200, body: { next: `${SANDBOX}/${billCode}` } };
+    return { status: 200, body: { next: `${gateway.host}/${billCode}` } };
   }
 
   async function audit({ userId }) {
@@ -145,6 +183,14 @@ export function createPayments({ env, transport, adminFactory, project }) {
     if (!ids.includes(userId)) return { status: 403, body: { error: 'Not authorised.' } };
     const client = admin();
     if (!client) return { status: 503, body: { error: 'Audit is not configured.' } };
+    if (env.VERCEL_ENV === 'production') {
+      const [payments, subscriptions] = await Promise.all([
+        client.from('myops_payments').select('order_ref,user_id,plan,product_slug,amount_cents,currency,status,outcome,created_at,confirmed_at').order('created_at', { ascending: false }).limit(200),
+        client.from('myops_subscriptions').select('id,personal_user_id,organization_id,product_slug,is_complete_bundle,status,renewal_mode,current_period_end,created_at').order('created_at', { ascending: false }).limit(200),
+      ]);
+      if (payments.error || subscriptions.error) return { status: 503, body: { error: 'Admin records are unavailable.' } };
+      return { status: 200, body: { environment: 'production', payments: payments.data || [], subscriptions: subscriptions.data || [], allocations: [], entitlements: [], events: [], founders: null } };
+    }
     return { status: 200, body: await rpc(client, 'myops_admin_audit', { p_limit: 200 }) };
   }
 
@@ -161,16 +207,18 @@ export function createPayments({ env, transport, adminFactory, project }) {
     if (!['1', '2', '3'].includes(f.status) || !REF.test(f.order_id || '') || !BILL.test(f.billcode || '')) {
       return { status: 400, body: { error: 'invalid' } };
     }
-    const expected = createHash('md5').update(`${env.TOYYIBPAY_SANDBOX_SECRET_KEY}${f.status}${f.order_id}${f.refno ?? ''}ok`).digest('hex');
+    const expected = createHash('md5').update(`${gateway.secret}${f.status}${f.order_id}${f.refno ?? ''}ok`).digest('hex');
     const hashOk = typeof f.hash === 'string' && safeEqualHex(expected, f.hash);
     // A supplied hash must match. Failure/cancel is only accepted with a valid hash; success
     // is additionally confirmed with the gateway API below.
-    if (f.hash !== undefined && !hashOk) return { status: 400, body: { error: 'invalid' } };
+    if ((gateway.ledger === 'toyyibpay_live' || f.hash !== undefined) && !hashOk) return { status: 400, body: { error: 'invalid' } };
     if (f.status === '2') return { status: 200, body: { status: 'pending_ignored' } };
     if (f.status === '3' && !hashOk) return { status: 400, body: { error: 'invalid' } };
 
     const payment = await rpc(client, 'myops_get_payment', { p_order_ref: f.order_id });
-    if (!payment || payment.gateway_bill_code !== f.billcode) return { status: 400, body: { error: 'invalid' } };
+    if (!payment || (payment.gateway && payment.gateway !== gateway.ledger)
+        || (gateway.ledger === 'toyyibpay_live' && payment.gateway !== gateway.ledger)
+        || payment.gateway_bill_code !== f.billcode) return { status: 400, body: { error: 'invalid' } };
 
     const key = founderEventKey(f);
     let outcome = 'failed';
@@ -197,5 +245,21 @@ export function createPayments({ env, transport, adminFactory, project }) {
     return { status: ok ? 200 : 400, body: { status: result.status } };
   }
 
-  return { founders, checkout, audit, callback, provisionProfile };
+  async function reconcile({ userId }) {
+    if (env.VERCEL_ENV !== 'preview') return {status:404,body:{error:'Preview-only.'}};
+    const client = admin();
+    if (!client || !gatewayConfigured()) return {status:503,body:{error:'Sandbox checkout is not configured.'}};
+    const {data:payment,error} = await client.from('myops_payments')
+      .select('order_ref,gateway_bill_code,status').eq('user_id',userId)
+      .eq('gateway','toyyibpay_sandbox').eq('status','pending')
+      .order('created_at',{ascending:false}).limit(1).maybeSingle();
+    if(error) return {status:503,body:{error:'Payment could not be checked.'}};
+    if(!payment?.gateway_bill_code) return {status:200,body:{message:'No pending sandbox payment found.'}};
+    // Browser return parameters cannot grant access. Reuse independent gateway verification.
+    const result = await callback({status:'1',order_id:payment.order_ref,billcode:payment.gateway_bill_code});
+    return {status:result.status,body:result.status===200
+      ?{message:'Sandbox payment verified. Refresh your account to view access.'}
+      :{error:'Payment is not verified yet. Please try again later.'}};
+  }
+  return { founders, checkout, audit, callback, provisionProfile, reconcile };
 }

@@ -15,6 +15,7 @@ test('registration form submits fields, shows pending state, success and retryab
   try {
     await act(async () => root.render(createElement(AuthPortal, { mode: 'register' })));
     document.querySelector('[name=displayName]').value = 'Preview Tester';
+    document.querySelector('[name=companyName]').value = 'Registered Company';
     document.querySelector('[name=email]').value = 'preview@example.test';
     document.querySelector('[name=password]').value = 'long-test-password';
     let resolveRequest;
@@ -28,7 +29,7 @@ test('registration form submits fields, shows pending state, success and retryab
     assert.equal(document.querySelector('button[type=submit]').disabled, true);
     assert.match(document.querySelector('[role=status]').textContent, /Please wait/);
     assert.equal(sent.url, '/api/auth');
-    assert.deepEqual(JSON.parse(sent.body), { action: 'register', displayName: 'Preview Tester', accountType: 'personal', email: 'preview@example.test', password: 'long-test-password' });
+    assert.deepEqual(JSON.parse(sent.body), { action: 'register', displayName: 'Preview Tester', companyName: 'Registered Company', accountType: 'personal', email: 'preview@example.test', password: 'long-test-password' });
     await act(async () => resolveRequest(Response.json({ message: 'Check your email in this browser.' })));
     assert.match(document.querySelector('[role=status]').textContent, /Check your email/);
     for (const response of [Response.json({ error: 'Preview authentication is not configured.' }, { status: 503 }), new Response('<html>unavailable</html>', { status: 502 })]) {

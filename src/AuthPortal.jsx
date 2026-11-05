@@ -26,7 +26,7 @@ export function AuthPortal({ mode, production = false }) {
         .catch((error) => setMessage(error.message)).finally(() => setBusy(false));
     } else if (mode === 'dashboard' || mode === 'reset') {
       setBusy(true);
-      request('account').then(setAccount).catch((error) => {
+      request('account').then((data) => { setAccount(data); setAccountType(data.profile?.account_type || 'personal'); }).catch((error) => {
         if (error.status === 401) window.location.replace('/login');
         else setMessage(error.message);
       }).finally(() => setBusy(false));
@@ -65,6 +65,7 @@ export function AuthPortal({ mode, production = false }) {
         <p role="status" aria-live="polite">{busy ? 'Please wait…' : message}</p>
         {mode === 'dashboard' && account && <>
           <p>Signed in as {account.email}</p>
+          {account.profile?.company_name && <p>{account.profile.company_name}</p>}
           {account.profile && <p>{account.profile.display_name} · {account.profile.account_type === 'business' ? 'Business' : 'Personal'}</p>}
           <p>Open applications from the <a href="/">MYOPS homepage</a>; access is checked by the server on every launch.</p>
           {account.profile?.account_type === 'business' && <p>Business workspace setup, seats and invitations are not enabled yet.</p>}
@@ -81,19 +82,20 @@ export function AuthPortal({ mode, production = false }) {
               </ul>
             ) : <p>Subscription status is currently unavailable.</p>}
             {account.lifetime && <p>Founders 100 lifetime access: active (all current and future MYOPS apps).</p>}
-            <p>{production ? 'Subscriptions and application access are not available for purchase yet.' : 'Preview payments use the ToyyibPay sandbox only. Application access is granted only after the server confirms a verified payment or active subscription.'}</p>
+            <p>{production ? 'View subscription availability and pricing on the MYOPS homepage. Access is granted after payment verification.' : 'Preview payments use the ToyyibPay sandbox only. Application access is granted only after the server confirms a verified payment or active subscription.'}</p>
           </section>
-          <p>Cross-app SSO is not enabled. This site signs you out after 15 minutes of inactivity.</p>
+          <p>Applications open through your MYOPS login. This site signs you out after 15 minutes of inactivity.</p>
           <button type="button" className="btn btn-primary" disabled={busy} onClick={logout}>Sign out</button>
           <p><a href="/forgot-password">Change password</a></p>
         </>}
         {mode === 'callback' && <p><a href="/login">Return to sign in</a></p>}
-        {mode !== 'callback' && (mode !== 'dashboard' || (account && !account.profile)) && (mode !== 'reset' || account) && (
+        {mode !== 'callback' && (mode !== 'dashboard' || account) && (mode !== 'reset' || account) && (
           <form onSubmit={submit} aria-busy={busy}>
             {(mode === 'register' || mode === 'dashboard') && <>
               <h2>{mode === 'dashboard' ? 'Complete your profile' : 'Account details'}</h2>
-              {mode === 'dashboard' && <p>Your name and account type are saved to your MYOPS account as descriptive details. Business workspaces, seats and invitations are not enabled.</p>}
-              <label>Full name<input name="displayName" autoComplete="name" required maxLength={120} disabled={busy} /></label>
+              {mode === 'dashboard' && <p>Save your name and company here once. Applications use these details when setting up your account; existing application data is preserved.</p>}
+              <label>Full name<input name="displayName" autoComplete="name" defaultValue={account?.profile?.display_name || ''} required maxLength={100} disabled={busy} /></label>
+              <label>Company name<input name="companyName" autoComplete="organization" defaultValue={account?.profile?.company_name || ''} maxLength={200} disabled={busy} /></label>
               <label>Account type<select name="accountType" value={accountType} onChange={(e) => setAccountType(e.target.value)} disabled={busy}>
                 <option value="personal">Personal / Individual</option><option value="business">Business</option>
               </select></label>

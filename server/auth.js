@@ -1,8 +1,8 @@
 import { createHmac, timingSafeEqual } from 'node:crypto';
 import { createClient } from '@supabase/supabase-js';
 import { createAppAccess } from './app-access.js';
-import { createPayments } from './payments.js';
-import { PRODUCT_SLUGS, hasLifetime, resolveProductStates } from './entitlements.js';
+import { createPayments, paymentGateway } from './payments.js';
+import { PRODUCT_SLUGS, hasLifetime, resolveProductStates, isPlatformAdmin } from './entitlements.js';
 
 const SESSION = '__Host-myops-access';
 const VERIFIER = '__Host-myops-pkce';
@@ -201,7 +201,7 @@ export async function runRevocationWorker({ env, headers = {}, body = {}, appAcc
 export { PRODUCT_SLUGS, hasLifetime, resolveProductStates };
 const SLUG = /^[a-z0-9_]{1,32}$/;
 
-async function loadEntitlements(client, userId, now) {
+async function loadEntitlements(client, userId, now, env = {}) {
   const [catalog, subscriptions, grants, lifetime] = await Promise.all([
     client.from('myops_products').select('slug,launch_status'),
     client.from('myops_subscriptions').select('personal_user_id,organization_id,product_slug,is_complete_bundle,status,current_period_end'),
@@ -212,13 +212,13 @@ async function loadEntitlements(client, userId, now) {
   // A failed lifetime read fails closed (no lifetime), e.g. before the Phase 3 SQL is approved.
   const rows = lifetime.error ? [] : lifetime.data || [];
   return {
-    products: resolveProductStates({ userId, catalog: catalog.data || [], subscriptions: subscriptions.data || [], grants: grants.data || [], lifetime: rows, now }),
+    products: resolveProductStates({ userId, catalog: catalog.data || [], subscriptions: subscriptions.data || [], grants: grants.data || [], lifetime: rows, platformAdmin: isPlatformAdmin(userId, env), now }),
     lifetime: hasLifetime(userId, rows),
   };
 }
 
-async function loadProductStates(client, userId, now) {
-  return (await loadEntitlements(client, userId, now))?.products ?? null;
+async function loadProductStates(client, userId, now, env = {}) {
+  return (await loadEntitlements(client, userId, now, env))?.products ?? null;
 }
 
 function profileFrom(user) {
@@ -228,7 +228,8 @@ function profileFrom(user) {
   const accountType = metadata.account_type;
   if (typeof displayName !== 'string' || !displayName.trim()
       || !['personal', 'business'].includes(accountType)) return null;
-  return { display_name: displayName.trim(), account_type: accountType };
+  return { display_name: displayName.trim(), account_type: accountType,
+    ...(typeof metadata.company_name === 'string' && metadata.company_name.trim() ? { company_name: metadata.company_name.trim() } : {}) };
 }
 
 // Explicit allowlist: never log arbitrary upstream strings, messages or error objects.
@@ -319,16 +320,21 @@ export function createAuthHandler({ env = process.env, clientFactory = createCli
       const productionAppAccessEnabled = production
         && env.MYOPS_ENVIRONMENT === 'production'
         && env.MYOPS_ENABLE_PRODUCTION_APP_ACCESS === 'true';
+      const liveGateway = paymentGateway(env, PROJECT);
+      const productionPaymentsEnabled = production && Boolean(liveGateway?.secret
+        && /^[A-Za-z0-9]{4,40}$/.test(liveGateway.category || ''));
       const productionAccountActions = ['register', 'login', 'forgot', 'callback', 'logout', 'session', 'account', 'reset', 'profile', 'founders'];
       if (production && !productionAccountActions.includes(action)
-          && !(action === 'launch' && productionAppAccessEnabled)) {
+          && !(action === 'admin_audit' && env.MYOPS_ENABLE_PLATFORM_ADMIN === 'true')
+          && !(action === 'launch' && productionAppAccessEnabled)
+          && !(action === 'checkout' && productionPaymentsEnabled)) {
         return reply(404, { error: 'This feature is not enabled.' });
       }
-      if (production && action === 'founders') return reply(200, { available: false });
+      if (production && !productionPaymentsEnabled && action === 'founders') return reply(200, { available: false });
       const validEmail = typeof body.email === 'string' && body.email.length <= 254 && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(body.email);
       const validPassword = typeof body.password === 'string' && body.password.length >= 12 && body.password.length <= 128;
       const callback = `${origin}/auth/callback`;
-      const payments = createPayments({ env: production ? {} : env, transport, adminFactory: clientFactory, project: PROJECT });
+      const payments = createPayments({ env: production ? { ...env, MYOPS_ADMIN_USER_IDS: env.MYOPS_ENABLE_PLATFORM_ADMIN === 'true' ? env.MYOPS_ADMIN_USER_IDS : '', MYOPS_SERVICE_ROLE_KEY: env.MYOPS_SERVICE_ROLE_KEY } : env, transport, adminFactory: clientFactory, project: PROJECT });
       const appAccessEnv = production && !productionAppAccessEnabled ? { ...env, MYOPS_ENVIRONMENT: undefined } : env;
       const appAccess = appAccessFactory({ env: appAccessEnv, adminFactory: clientFactory, now, project: PROJECT });
       // Revocation targets only identities proven by the server (signed cookie or verified token).
@@ -390,6 +396,10 @@ export function createAuthHandler({ env = process.env, clientFactory = createCli
       if (!pendingCleared && ['login', 'callback'].includes(action)) {
         return reply(503, { error: 'Sign-in is temporarily unavailable. Try again shortly.' });
       }
+      if (['register', 'profile'].includes(action) && body.companyName !== undefined
+          && (typeof body.companyName !== 'string' || body.companyName.trim().length > 200)) {
+        return reply(400, { error: 'Company name must be at most 200 characters.' });
+      }
       if (action === 'register') {
         if (!validEmail || !validPassword || !['personal', 'business'].includes(body.accountType)
             || typeof body.displayName !== 'string' || body.displayName.trim().length < 1 || body.displayName.length > 120) {
@@ -397,7 +407,8 @@ export function createAuthHandler({ env = process.env, clientFactory = createCli
         }
         // Metadata is descriptive only. Never trust it for roles or authorization.
         const { data, error } = await client.auth.signUp({ email: body.email, password: body.password,
-          options: { emailRedirectTo: callback, data: { display_name: body.displayName.trim(), account_type: body.accountType } } });
+          options: { emailRedirectTo: callback, data: { display_name: body.displayName.trim(), account_type: body.accountType,
+            ...(body.companyName !== undefined ? { company_name: body.companyName.trim() } : {}) } } });
         if (!error && data?.user?.id && data.user.identities?.length > 0) {
           await payments.provisionProfile({ userId: data.user.id, displayName: body.displayName.trim(), accountType: body.accountType });
         }
@@ -478,9 +489,19 @@ export function createAuthHandler({ env = process.env, clientFactory = createCli
       }
       if (action === 'founders') return reply(200, await payments.founders());
       if (!['account', 'reset', 'profile', 'session', 'launch', 'checkout', 'admin_audit'].includes(action)) return reply(400, { error: 'Unknown operation.' });
-      const active = saved[SESSION] && activityValid(secret, saved[ACTIVITY], now());
+      let active = saved[SESSION] && activityValid(secret, saved[ACTIVITY], now());
       const { data: identity, error: identityError } = saved[SESSION]
         ? await client.auth.getUser(saved[SESSION]) : { data: {}, error: true };
+      const login = verifiedLogin(secret, saved[LOGIN], now());
+      const loginSessionId = login && login.userId === identity.user?.id ? login.loginSessionId : null;
+      if (!active && !identityError && identity.user?.email_confirmed_at && loginSessionId && appAccess.loginLive) {
+        // The portal cookie cannot see activity in another app. Check its server-owned,
+        // user-bound login without touching it; expired/revoked logins remain denied.
+        let durableLive = null;
+        try { durableLive = await appAccess.loginLive(identity.user.id, loginSessionId); } catch { /* Unknown; fail closed without revoking. */ }
+        if (durableLive === null) return reply(503, { error: 'Session validation is temporarily unavailable. Try again shortly.' });
+        active = durableLive === true;
+      }
       if (!active || identityError || !identity.user?.email_confirmed_at) {
         const expired = Boolean(saved[SESSION] || saved[IDENTITY]);
         const knownUser = identity.user?.id;
@@ -493,8 +514,6 @@ export function createAuthHandler({ env = process.env, clientFactory = createCli
       }
       // Passive probes must not extend the inactivity window.
       // Only genuine user activity is recorded server-side (30 s throttle); app polling never is.
-      const login = verifiedLogin(secret, saved[LOGIN], now());
-      const loginSessionId = login?.userId === identity.user.id ? login.loginSessionId : null;
       if (!(action === 'session' && body.activity === false)) {
         touch();
         if (loginSessionId && await appAccess.touchLogin(identity.user.id, loginSessionId) === false) {
@@ -506,8 +525,8 @@ export function createAuthHandler({ env = process.env, clientFactory = createCli
         }
       }
       if (action === 'session') {
-        const entitlements = await loadEntitlements(client, identity.user.id, now());
-        return reply(200, { signedIn: true, email: identity.user.email, products: entitlements?.products ?? null, lifetime: entitlements?.lifetime ?? false });
+        const entitlements = await loadEntitlements(client, identity.user.id, now(), env);
+        return reply(200, { signedIn: true, email: identity.user.email, products: entitlements?.products ?? null, lifetime: entitlements?.lifetime ?? false, ...(isPlatformAdmin(identity.user.id, env) ? { platformAdmin: true } : {}) });
       }
       if (action === 'checkout') {
         // Eligibility (Individual-only) is decided inside the database from the server-owned
@@ -521,7 +540,7 @@ export function createAuthHandler({ env = process.env, clientFactory = createCli
       }
       if (action === 'launch') {
         if (typeof body.product !== 'string' || !SLUG.test(body.product)) return reply(400, { error: 'Unknown product.' });
-        const products = await loadProductStates(client, identity.user.id, now());
+        const products = await loadProductStates(client, identity.user.id, now(), env);
         if (!products) return reply(503, { error: 'Subscription status is unavailable. Try again later.' });
         if (!products[body.product]) return reply(400, { error: 'Unknown product.' });
         if (products[body.product] !== 'active') return reply(403, { error: 'An active subscription is required for this application.' });
@@ -554,7 +573,8 @@ export function createAuthHandler({ env = process.env, clientFactory = createCli
           method: 'PUT',
           headers: { 'Content-Type': 'application/json', apikey: env.VITE_SUPABASE_PUBLISHABLE_KEY,
             Authorization: `Bearer ${saved[SESSION]}` },
-          body: JSON.stringify({ data: { display_name: body.displayName.trim(), account_type: body.accountType } }),
+          body: JSON.stringify({ data: { display_name: body.displayName.trim(), account_type: body.accountType,
+            ...(body.companyName !== undefined ? { company_name: body.companyName.trim() } : {}) } }),
         });
         if (!updated.ok) return reply(503, { error: 'Profile could not be saved. Try again later.' });
         const updatedUser = await updated.json();
@@ -562,8 +582,8 @@ export function createAuthHandler({ env = process.env, clientFactory = createCli
         return reply(200, { next: '/account' });
       }
       // Auth metadata is user-editable and descriptive only; it never grants access.
-      const entitlements = await loadEntitlements(client, identity.user.id, now());
-      return reply(200, { email: identity.user.email, profile: profileFrom(identity.user), products: entitlements?.products ?? null, lifetime: entitlements?.lifetime ?? false });
+      const entitlements = await loadEntitlements(client, identity.user.id, now(), env);
+      return reply(200, { email: identity.user.email, profile: profileFrom(identity.user), products: entitlements?.products ?? null, lifetime: entitlements?.lifetime ?? false, ...(isPlatformAdmin(identity.user.id, env) ? { platformAdmin: true } : {}) });
     } catch {
       // Never log SDK errors, credentials, request bodies, cookies or callback codes.
       return reply(500, { error: 'Authentication request failed. Please try again.' });
