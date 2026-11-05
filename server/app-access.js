@@ -217,6 +217,17 @@ export function createAppAccess({ env = process.env, adminFactory = createClient
     }
   }
 
+  // Read only: satellite activity already updates this same bound durable login.
+  async function loginLive(userId, loginSessionId) {
+    if (!configured(env) || !USER_ID.test(String(userId)) || !USER_ID.test(String(loginSessionId))) return false;
+    const admin = client();
+    if (!admin) return null;
+    try {
+      const live = await rpc(admin, 'myops_login_live', { p_id: loginSessionId, p_user_id: userId });
+      return typeof live === 'boolean' ? live : null;
+    } catch { return null; }
+  }
+
   // Records MYOPS user activity (throttled to 30 s in SQL). false = login no longer live; null = unknown.
   async function touchLogin(userId, loginSessionId) {
     if (!configured(env) || !USER_ID.test(String(userId)) || !USER_ID.test(String(loginSessionId))) return null;
@@ -418,5 +429,5 @@ export function createAppAccess({ env = process.env, adminFactory = createClient
     }
   }
 
-  return { issueTicket, startLogin, touchLogin, processRevocations, queueRevocation, pendingRevocations, revokeUserSessions, redeem, entitlement };
+  return { issueTicket, startLogin, touchLogin, loginLive, processRevocations, queueRevocation, pendingRevocations, revokeUserSessions, redeem, entitlement };
 }
