@@ -951,3 +951,48 @@ test('recovery does not report email success for upstream outages or disabled em
     assert.ok(!JSON.stringify(result.data).includes('private SMTP detail'));
   }
 });
+
+test('satellite activity keeps a verified bound login active after the portal activity cookie expires', async () => {
+  for (const cookie of [signedIn(16 * 60 * 1000), `__Host-myops-access=test-access-token; ${loginCookie()}`]) {
+    const state = { checked: [], touched: 0, revoked: 0 };
+    const result = await run({ action: 'session', activity: false }, { headers: { cookie }, client: withData(), appAccessFactory: () => ({
+      loginLive: async (...args) => { state.checked.push(args); return true; },
+      touchLogin: async () => { state.touched++; return true; },
+      revokeUserSessions: async () => { state.revoked++; return true; },
+    }) });
+    assert.equal(result.data.signedIn, true);
+    assert.deepEqual(state.checked, [[user.id, LOGIN_ID]]);
+    assert.equal(state.touched, 0, 'passive checks must not extend durable activity');
+    assert.equal(state.revoked, 0);
+    assert.ok(!setCookies(result).some(c => c.startsWith('__Host-myops-activity=') && !c.includes('Max-Age=0')));
+  }
+});
+
+test('expired portal activity cannot resume a revoked or expired durable login', async () => {
+  const result = await run({ action: 'session', activity: false }, { headers: { cookie: signedIn(16 * 60 * 1000) }, appAccessFactory: () => ({
+    loginLive: async () => false, revokeUserSessions: async () => true,
+  }) });
+  assert.equal(result.data.signedIn, false);
+});
+
+test('expired portal activity with an unavailable durable check fails closed without destroying the login', async () => {
+  for (const loginLive of [async () => null, async () => { throw new Error('temporary outage'); }]) {
+    let revoked = false;
+    const result = await run({ action: 'session', activity: false }, { headers: { cookie: signedIn(16 * 60 * 1000) }, appAccessFactory: () => ({
+      loginLive, revokeUserSessions: async () => { revoked = true; return true; },
+    }) });
+    assert.equal(result.code, 503);
+    assert.equal(revoked, false);
+    assert.ok(!setCookies(result).some(c => c.includes('Max-Age=0')));
+  }
+});
+
+test('durable activity fallback requires a signed login belonging to a verified confirmed identity', async () => {
+  for (const extra of ['', loginCookie('someone-else'), '__Host-myops-login=forged.value']) {
+    const cookie = signedIn(16 * 60 * 1000).replace(/; __Host-myops-login=.*/, '') + '; ' + extra;
+    const result = await run({ action: 'session', activity: false }, { headers: { cookie }, appAccessFactory: () => ({
+      loginLive: async () => assert.fail('unbound login must not be checked'), revokeUserSessions: async () => true,
+    }) });
+    assert.equal(result.data.signedIn, false);
+  }
+});
