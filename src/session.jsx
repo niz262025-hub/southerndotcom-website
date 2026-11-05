@@ -58,7 +58,7 @@ export function SessionProvider({ enabled, children }) {
       const result = await authRequest('logout');
       window.location.replace(result.next);
     } catch (error) {
-      setLogoutError(`Sign out could not be confirmed. ${error.message} Please retry Logout.`);
+      setLogoutError(`Sign out could not be confirmed. ${error.message} Sila cuba Log keluar semua aplikasi sekali lagi.`);
     } finally {
       logoutPending.current = false;
       setLogoutBusy(false);
@@ -83,7 +83,7 @@ export function AuthNav() {
       <div className="nav-auth">
         <a href="/account" className="btn btn-secondary">My Account</a>
         {session.platformAdmin && <a href="/admin/audit" className="btn btn-secondary">Admin</a>}
-        <button type="button" className="btn btn-primary" disabled={session.logoutBusy} onClick={session.logout}>{session.logoutBusy ? 'Signing out…' : 'Logout'}</button>
+        <button type="button" className="btn btn-primary" disabled={session.logoutBusy} onClick={session.logout}>{session.logoutBusy ? 'Sedang log keluar…' : 'Log keluar semua aplikasi'}</button>
         {session.logoutError && <p role="alert">{session.logoutError}</p>}
       </div>
     );
