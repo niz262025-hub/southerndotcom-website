@@ -1,3 +1,24 @@
+## 2026-11-05 — Owner-approved MYOPS return navigation deployed
+
+This supersedes the previous single-sign-out blocker interpretation. Owner explicitly chose satellite “Kembali ke MYOPS” and portal-only “Log keluar semua aplikasi”, then authorized implementation with “ok ubah”. MYOPS issue#34 closed not_planned with the clarification; satellite global revocation was not implemented or claimed.
+
+- Portal: homepage and account global sign-out controls renamed, busy/retry wording adjusted; existing central logout POST/revocation retained.
+- Finance: primary return control top-right; duplicate sidebar exit removed. Manual app exit clears the app cookie and returns to the central homepage rather than dashboard; inactivity still returns to central login. Origin checks, cookie security and central session untouched.
+- Flow: both common top-bar and account-menu return labels/icons updated; existing local cleanup and central-home redirect retained.
+- OpsPS: common tabs header gains an accessible top-right return button alongside Settings; settings/admin/customer exit labels updated. Existing app-session cleanup and return-to-portal behavior retained. No new permissions or auth bypass.
+- Validation: portal161 tests pass/36 environment skips and lint; Finance295 pass/1 credentials skip plus typecheck/lint; Flow28 frontend tests/typecheck; OpsPS199 tests/typecheck/lint. Four Vercel production builds READY and all official aliases verified against exact intended deployment IDs. No DB/env/payment changes. Existing15minute inactivity behavior retained.
+
+| Repository | Exact commit | Verified production deployment | PR |
+|---|---|---|---|
+| southerndotcom-website | 71cbb0f8c0a35faf3995e5ecc7c4b2c0c05abfff | dpl_FAqxWU7ArhnXAQagerZLBfMDh22p | https://github.com/niz262025-hub/southerndotcom-website/pull/35 |
+| OpsFinance | 1bbd75c2d86ea68d1c75a4babeb1290d9e523482 | dpl_68GwQ4J4KXUL63iAKbDgMsT3mwj5 | https://github.com/niz262025-hub/OpsFinance/pull/36 |
+| OpsFlow | 99cf601aa6d7f639561059ca92f90031128fe538 | dpl_5ZtAyiEnsWXZxe17Ug7TKRPmcN4C | https://github.com/niz262025-hub/OpsFlow/pull/6 |
+| OpsPSMobileR1 | 4ce533e89426d997cf1dd52af6af8a9faba46800 | dpl_21dy75b6yShU5j3dqTed1HhjL8PJ | https://github.com/niz262025-hub/OpsPSMobileR1/pull/8 |
+
+Rollback targets, respectively: portal dpl_G2CS8J2VhwPmjcCWQXYXnry9MfVD; Finance dpl_3i7r7Jn1JUffTafjpajSpva52WAa; Flow dpl_9eBiNQ1X5qnhPsV24rLsNZMMnCy9; OpsPS dpl_E5aHre92HVqwhR6r2k3AYZDQ7zv8.
+
+Browser verification limitation: current browser started signed out. Secure browserAuth request returned submitted, but no signed-in signal or website error appeared; fresh canonical-home verification still showed Login/Register. Do not claim the new labels/return clicks passed authenticated browser UAT yet. Manual sign-in confirmation is the next dependent step. No credentials inspected or stored in source/tracker. ToyyibPay stays paused; no new bill/payment.
+
 ## 2026-11-05 10:09 MYT — Live admin UAT results and deployed fixes
 
 Decision: selected admin operational flows passed, but FULL UAT/launch approval remains BLOCKED by satellite single-sign-out (MYOPS issue#34). ToyyibPay LAST/PAUSED. No new bill, actual payment, payment proof, subscription grant or payment callback in this run.
