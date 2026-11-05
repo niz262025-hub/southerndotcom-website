@@ -1,3 +1,10 @@
+## 2026-11-05 — Cross-app inactivity fix deployed; fresh login retest required
+
+- MYOPS issue #32 and PR #33 https://github.com/niz262025-hub/southerndotcom-website/pull/33. Production candidate is based on exact live a7a1a275, preserving current live billing configuration/code. Four-file fix commit526c135ee1431178951ec0130f6b0c4dc2534aba adds read-only myops_login_live check for a confirmed authenticated user with matching signed login binding when portal activity cookie expires. Existing durable idle15min/absolute12h rules unchanged; no polling touches activity; revoked/expired login denied; lookup outage503 without revoking. No SQL/environment change.
+- 161 tests pass,36 environment-dependent skips; lint/local build pass; Vercel production-auth build READY. Deployment dpl_G2CS8J2VhwPmjcCWQXYXnry9MfVD promoted and official www.myops.com.my alias verified. Rollback dpl_3unGsciHTpzvkEu5cwwLXjQwomhS retained. Browser elapsed-time verification is NOT yet complete; do not call the SSO blocker fully passed from unit tests alone.
+- Old login remains revoked, intentionally not revived. Finance reload redirected to MYOPS/login; Flow reload redirected to signed-out MYOPS home; OpsPS had already redirected. This verifies revoked-session reload denial, not an explicit logout test. Fresh owner login needed for remaining UAT.
+- Follow-up UI findings recorded: Flow issue#4 (minStock0 fallback10) and OpsPS issue#6 (transient false NotFound while loading). Synthetic test records retained. ToyyibPay stays LAST/paused; no bill or actual payment in this UAT.
+
 ## 2026-11-05 — Fresh live admin UAT, Finance reversal fixed; cross-app inactivity blocker
 
 This supersedes the earlier browser-SSO-blocked checkpoint. Owner instructed ToyyibPay LAST, only after apps pass. No ToyyibPay payment or new bill initiated.
