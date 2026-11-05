@@ -489,9 +489,19 @@ export function createAuthHandler({ env = process.env, clientFactory = createCli
       }
       if (action === 'founders') return reply(200, await payments.founders());
       if (!['account', 'reset', 'profile', 'session', 'launch', 'checkout', 'admin_audit'].includes(action)) return reply(400, { error: 'Unknown operation.' });
-      const active = saved[SESSION] && activityValid(secret, saved[ACTIVITY], now());
+      let active = saved[SESSION] && activityValid(secret, saved[ACTIVITY], now());
       const { data: identity, error: identityError } = saved[SESSION]
         ? await client.auth.getUser(saved[SESSION]) : { data: {}, error: true };
+      const login = verifiedLogin(secret, saved[LOGIN], now());
+      const loginSessionId = login && login.userId === identity.user?.id ? login.loginSessionId : null;
+      if (!active && !identityError && identity.user?.email_confirmed_at && loginSessionId && appAccess.loginLive) {
+        // The portal cookie cannot see activity in another app. Check its server-owned,
+        // user-bound login without touching it; expired/revoked logins remain denied.
+        let durableLive = null;
+        try { durableLive = await appAccess.loginLive(identity.user.id, loginSessionId); } catch { /* Unknown; fail closed without revoking. */ }
+        if (durableLive === null) return reply(503, { error: 'Session validation is temporarily unavailable. Try again shortly.' });
+        active = durableLive === true;
+      }
       if (!active || identityError || !identity.user?.email_confirmed_at) {
         const expired = Boolean(saved[SESSION] || saved[IDENTITY]);
         const knownUser = identity.user?.id;
@@ -504,8 +514,6 @@ export function createAuthHandler({ env = process.env, clientFactory = createCli
       }
       // Passive probes must not extend the inactivity window.
       // Only genuine user activity is recorded server-side (30 s throttle); app polling never is.
-      const login = verifiedLogin(secret, saved[LOGIN], now());
-      const loginSessionId = login?.userId === identity.user.id ? login.loginSessionId : null;
       if (!(action === 'session' && body.activity === false)) {
         touch();
         if (loginSessionId && await appAccess.touchLogin(identity.user.id, loginSessionId) === false) {
