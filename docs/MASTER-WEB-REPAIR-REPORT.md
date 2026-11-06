@@ -55,7 +55,7 @@ FAIL means a known requirement is still unmet. BLOCKED means the specified accep
 | OpsPS | 199 passed, no skips | TypeScript and Expo web export passed | Authenticated desktop/mobile workflows not executed. |
 | OpsHR | No new test run | Existing PR evidence only; do not count as current acceptance | Prior report explicitly records in-memory employee changes lost on reload. |
 
-Total for four changed repositories: **698 passing automated tests, 37 skips, zero final failures**. This is not 698 browser UAT cases. Test summaries and build logs are retained in the Finance PR under `docs/uat-evidence/` and alongside this report.
+Total for four changed repositories: **698 passing automated tests, 37 skips, zero final failures**. This is not 698 browser UAT cases. Finance test summaries, build logs and benchmark JSON are retained in the Finance PR under `docs/uat-evidence/`. Other counts above are execution results from this session.
 
 The local browser installation failed because the downloaded archive was invalid. The available cloud browser verified the desktop form but offered no viewport-resizing capability. Phone/tablet browser tests are therefore BLOCKED, not inferred from CSS or screenshots.
 
@@ -64,7 +64,7 @@ The local browser installation failed because the downloaded archive was invalid
 | App | Build status | Preview URL |
 | --- | --- | --- |
 | MYOPS | READY | https://southerndotcom-website-jy7739jt5-mohd-syaiful-nizam1.vercel.app |
-| Finance | READY (auth-boundary build; later performance build recorded in PR) | https://opsfinance-2h6zbt09f-mohd-syaiful-nizam1.vercel.app |
+| Finance | READY (including P&L optimization) | https://opsfinance-alde4zff2-mohd-syaiful-nizam1.vercel.app |
 | OpsFlow | READY | https://opsflow-staging-cokwwhye0-mohd-syaiful-nizam1.vercel.app |
 | OpsPS | READY | https://opsp-mobile-r1-nkzxxsz0m-mohd-syaiful-nizam1.vercel.app |
 
