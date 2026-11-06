@@ -21,7 +21,7 @@ Root cause: preview credentials and SSO flags are scoped to the existing staging
 | Central public subscription-capacity probe | HTTP 200, expected bounded response fields |
 | Unauthenticated application launch | HTTP 401, “Sign in to continue.” |
 | Finance login and protected dashboard without session | HTTP 307 to the isolated central staging login |
-| Browser state | Central UAT email/password form visible; actual user sign-in still required |
+| Browser state | Secure credential request reported submitted, but a fresh /account tab returned to /login. No explicit error was displayed and field validation passed. Authenticated session is NOT verified; manual sign-in handoff is required. |
 
 Stable UAT login: https://southerndotcom-website-git-feat-myop-ca0019-mohd-syaiful-nizam1.vercel.app/login
 
@@ -29,7 +29,7 @@ The expiring central preview transport authorization was renewed only on Finance
 
 These recovery counts describe the existing staging branches. They are not added to the earlier 698-test count, and the staging branches must still be reconciled with the exact final release candidates before production approval. In particular, neither a healthy API nor the signed-out redirect tests prove successful SSO launch, subscription/trial activation, email confirmation, tenant isolation or global logout.
 
-Current next gate: secure user sign-in to the central UAT account, then test entitled application launch and session handling. No database mutation or production promotion was performed during this recovery.
+Current next gate: complete manual sign-in in the existing central UAT browser and verify a positive signed-in signal, then test entitled application launch and session handling. The secure form reported submitted but did not produce a verifiable session; do not treat submission as PASS. No database mutation or production promotion was performed during this recovery.
 
 ## Source and deployment inventory
 
