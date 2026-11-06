@@ -4,6 +4,33 @@ Date: 7 November 2026, Malaysia. Release recommendation: **NOT READY**.
 
 This is an interim implementation report. Four development PRs and preview builds exist. The nine-item programme and OpsHR V1 are not complete. No production promotion, database mutation, paid service, APK, native iOS build or app-store configuration was performed in this work.
 
+
+## Latest recovery update — 7 November 2026
+
+The Central/Finance staging database APIs are operational. A missing project in the connected Management API is not proof the database is unavailable: direct publishable-key health checks returned HTTP 200 for both existing isolated projects. Management access remains unavailable, so schema administration through that connector is still blocked.
+
+Root cause: preview credentials and SSO flags are scoped to the existing staging branches, not the new repair branches. The registration repair was integrated into `feat/myops-isolated-staging` and Finance repairs into `feat/myops-launch-session-bridge`; no production credential was copied or production branch merged.
+
+| Recovery surface | Evidence |
+| --- | --- |
+| Central UAT source | `fb4b79e94fda7deeb83b6e545a88b8b2df22ee64`; 168 tests passed, 36 skipped; lint/build passed |
+| Finance UAT source | `bc6ebdca6852ebb0580d6d1cba311cd85866c353`; 291 tests passed, 1 skipped; typecheck/build passed |
+| Central preview deployment | `dpl_8v2fmRQNJbwtv9VCYrfRQDjHVKA6`, READY |
+| Finance preview deployment after transport renewal | `dpl_6fESeJyhauKJeWjGPNeUrxFsfTMR`, READY |
+| Central signed-out session probe | HTTP 200, `signedIn:false` |
+| Central public subscription-capacity probe | HTTP 200, expected bounded response fields |
+| Unauthenticated application launch | HTTP 401, “Sign in to continue.” |
+| Finance login and protected dashboard without session | HTTP 307 to the isolated central staging login |
+| Browser state | Central UAT email/password form visible; actual user sign-in still required |
+
+Stable UAT login: https://southerndotcom-website-git-feat-myop-ca0019-mohd-syaiful-nizam1.vercel.app/login
+
+The expiring central preview transport authorization was renewed only on Finance's existing staging-scoped environment variable, and Finance was rebuilt to receive it. Protection remains enabled. The renewal expires within 23 hours and may need renewal for later UAT.
+
+These recovery counts describe the existing staging branches. They are not added to the earlier 698-test count, and the staging branches must still be reconciled with the exact final release candidates before production approval. In particular, neither a healthy API nor the signed-out redirect tests prove successful SSO launch, subscription/trial activation, email confirmation, tenant isolation or global logout.
+
+Current next gate: secure user sign-in to the central UAT account, then test entitled application launch and session handling. No database mutation or production promotion was performed during this recovery.
+
 ## Source and deployment inventory
 
 All new work uses `fix/myops-web-master-repair` in the four changed repositories. MYOPS, OpsFlow and OpsPS use the inspected live branch as their PR base, avoiding unrelated changes in other branches. Finance uses latest main to retain the newly added bank-ledger feature and explicitly restores report fixes found on the live branch.
@@ -89,7 +116,7 @@ This is about 92% lower CPU time for that fixture; it is not a site-loading benc
 - Central `myops_profiles` has only user/name/account type/created timestamp, and organizations lack company-contact/logo fields. This batch uses existing descriptive Auth metadata; no tenant/role changes or schema migration were applied.
 - Production catalog is `opsfinance`, `opsflow`, `opsp` live; `opshr` and `opswms` Coming Soon. No product state changed.
 - OpsHR staging has 11 private `opshr_stage` tables with RLS enabled. RLS metadata alone does not prove correct tenant access.
-- The central isolated-staging code references `wengxxiqwtosirealghx`. That project is absent from both accessible project lists; one connection returns Project not found and the other denies permission. The integrated preview must be connected to an accessible approved central test environment before write-based registration/trial/SSO UAT. No replacement service was purchased or production credential copied into preview.
+- The central staging project is not visible through the connected Management APIs, but its Auth/Data API health has now been verified. See the latest recovery update above; the remaining immediate gate is secure UAT account sign-in.
 - OpsHR has no active central app client/verified launch-to-tenant contract in the inspected work. Employee persistence, attendance/leave approval, payroll/payslips, private documents and reports need implementation, not just a release switch.
 
 ## OpsHR acceptance backlog
