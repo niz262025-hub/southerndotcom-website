@@ -1042,6 +1042,7 @@ export default function App() {
     pathname === '/solutions/opsp' ||
     pathname === '/solutions/opsfinance' ||
     pathname === '/solutions/opsflow' ||
+    pathname === '/solutions/opshr' ||
     pathname === '/solutions/business-website-application-development' ||
     pathname === '/services/web-and-business-applications'
   ) {
