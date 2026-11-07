@@ -140,6 +140,7 @@ export function AuthPortal({ mode, production = false }) {
               <h2>{mode === 'dashboard' ? 'Complete your profile' : 'Account details'}</h2>
               {mode === 'dashboard' && <p>Save your name and company here once. Applications use these details when setting up your account; existing application data is preserved.</p>}
               <label>Full name<input name="displayName" autoComplete="name" defaultValue={account?.profile?.display_name || ''} required maxLength={100} disabled={busy} /></label>
+              {accountType !== 'business' && <label>Company name<input name="companyName" autoComplete="organization" defaultValue={account?.profile?.company_name || ''} maxLength={200} disabled={busy} /></label>}
               <label>Account type<select name="accountType" value={accountType} onChange={(e) => setAccountType(e.target.value)} disabled={busy}>
                 <option value="personal">Personal / Individual</option><option value="business">Business</option>
               </select></label>

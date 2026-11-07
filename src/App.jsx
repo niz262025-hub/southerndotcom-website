@@ -141,7 +141,7 @@ const routes = {
   '/account/update-password': () => <PageShell>{portal('reset')}</PageShell>,
   '/auth/callback': () => <PageShell>{portal('callback')}</PageShell>,
   '/account': () => <PageShell>{portal('dashboard')}</PageShell>,
-  '/admin/audit': () => <PageShell>{buildMode === 'preview-auth' ? <AdminAudit /> : portal('login')}</PageShell>,
+  '/admin/audit': () => <PageShell>{customerAuthEnabled ? <AdminAudit /> : portal('login')}</PageShell>,
   '/solutions': SolutionsPage,
   '/solutions/opsp': SolutionPage,
   '/solutions/opsfinance': SolutionPage,
@@ -799,7 +799,7 @@ function PricingPage() {
     <PageShell pageClass="page-shell-plain">
       <section className="page-hero">
         <div className="container narrow-content">
-          <SectionIntro label="Pricing" title="Simple product access for modern operations" text="MYOPS pricing is structured around product access and business needs. OpsFinance is currently listed at RM29/month/company with a 7-day free trial. Custom development services are quoted separately based on project scope." />
+          <SectionIntro label="Pricing" title="Simple product access for modern operations" text="Explore the MYOPS ecosystem with a 7-day free trial for eligible new accounts. The trial is offered centrally through MYOPS for available applications, including OpsFinance, OpsFlow, OpsPS and OpsHR. Paid subscription plans apply after the trial. Custom development services are quoted separately." />
           <div className="pricing-grid">
             <article className="pricing-card highlight">
               <span className="pricing-tag">OpsFinance</span>
@@ -809,7 +809,7 @@ function PricingPage() {
                 <span>/month/company</span>
               </div>
               <ul>
-                <li>7-day free trial</li>
+                <li>Included in the MYOPS 7-day free trial for eligible new accounts</li>
                 <li>Core accounting and operational visibility</li>
                 <li>Business financial coordination</li>
               </ul>

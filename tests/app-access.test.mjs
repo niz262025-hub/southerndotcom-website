@@ -379,7 +379,6 @@ test('OpsFlow receives central labels only after signature, ticket, session and 
   const retry=await call(handler.entitlement,signedRequest({path:'/api/app/entitlement',body:{session_id:sessionId,product:'opsflow',activity:true,sensitive:true}}));
   assert.equal(retry.statusCode,200);assert.deepEqual(retry.body.onboarding_profile,result.body.onboarding_profile);
 });
-
 test('trial quota requires a signed matching app/session and never touches activity',async()=>{
  const {handler,admin,calls}=make();
  admin.from=table=>{assert.equal(table,'myops_app_sessions');const q={select:()=>q,eq:()=>q,maybeSingle:async()=>({data:{user_id:userId,login_session_id:loginSessionId},error:null})};return q;};

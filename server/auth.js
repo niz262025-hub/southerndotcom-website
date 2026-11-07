@@ -330,6 +330,7 @@ export function createAuthHandler({ env = process.env, clientFactory = createCli
         && env.MYOPS_ENABLE_PRODUCTION_APP_ACCESS === 'true';
       const productionAccountActions = ['register', 'login', 'forgot', 'callback', 'logout', 'session', 'account', 'reset', 'profile', 'founders'];
       if (production && !productionAccountActions.includes(action)
+          && !(action === 'admin_audit' && env.MYOPS_ENABLE_PLATFORM_ADMIN === 'true')
           && !(action === 'launch' && productionAppAccessEnabled)) {
         return reply(404, { error: 'This feature is not enabled.' });
       }
@@ -337,7 +338,7 @@ export function createAuthHandler({ env = process.env, clientFactory = createCli
       const validEmail = typeof body.email === 'string' && body.email.length <= 254 && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(body.email);
       const validPassword = typeof body.password === 'string' && body.password.length >= 12 && body.password.length <= 128;
       const callback = `${origin}/auth/callback`;
-      const payments = createPayments({ env: production ? {} : env, transport, adminFactory: clientFactory, project: PROJECT });
+      const payments = createPayments({ env: production ? { VERCEL_ENV: 'production', MYOPS_ADMIN_USER_IDS: env.MYOPS_ENABLE_PLATFORM_ADMIN === 'true' ? env.MYOPS_ADMIN_USER_IDS : '', MYOPS_SERVICE_ROLE_KEY: env.MYOPS_SERVICE_ROLE_KEY } : env, transport, adminFactory: clientFactory, project: PROJECT });
       const appAccessEnv = production && !productionAppAccessEnabled ? { ...env, MYOPS_ENVIRONMENT: undefined } : env;
       const appAccess = appAccessFactory({ env: appAccessEnv, adminFactory: clientFactory, now, project: PROJECT });
       // Revocation targets only identities proven by the server (signed cookie or verified token).
