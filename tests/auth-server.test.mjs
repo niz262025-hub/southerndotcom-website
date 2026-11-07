@@ -37,6 +37,21 @@ async function run(body, options = {}) {
 const registrationDetails = { contactNumber: '+60123456789', address: 'Johor Bahru' };
 const login = { action: 'login', email: user.email, password: 'staging-password' };
 
+test('anonymous session probes cannot delete cookies issued by a concurrent login', async () => {
+  const result=await run({action:'session',activity:false});
+  assert.equal(result.code,200);
+  assert.deepEqual(result.data,{signedIn:false});
+  assert.equal(result.headers['Set-Cookie'],undefined);
+  const loggedIn=await run(login);
+  assert.equal(loggedIn.code,200);
+  assert.ok(loggedIn.headers['Set-Cookie'].some(c=>c.startsWith('__Host-myops-access=')&&!c.includes('Max-Age=0')));
+});
+test('transient identity lookup failure preserves cookies and denies access until retry', async () => {
+  const result=await run({action:'session',activity:false},{headers:{cookie:signedIn()},client:mock({getUser:async()=>({data:{user:null},error:{name:'AuthRetryableFetchError',status:503}})})});
+  assert.equal(result.code,503);
+  assert.equal(result.headers['Set-Cookie'],undefined);
+});
+
 test('production disabled regardless of configured values', async () => {
   const result = await run(login, { env: { VERCEL_ENV: 'production' }, factory: () => assert.fail('no upstream call') });
   assert.equal(result.code, 404);

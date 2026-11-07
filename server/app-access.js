@@ -1,5 +1,6 @@
 import { loadAppProfile } from './app-profile.js';
 import { loadCentralProfile } from './central-profile.js';
+import { loadEligibleTrial, trialAppsForEnvironment } from './trial-access.js';
 import { createHash, createHmac, createPublicKey, randomBytes, verify } from 'node:crypto';
 import { createClient } from '@supabase/supabase-js';
 import { resolveProductStates, isPlatformAdmin } from './entitlements.js';
@@ -114,6 +115,7 @@ export async function loadCurrentEntitlements(client, userId, now, env = {}) {
     if (orgSubs.error) return null;
   }
   const subscriptions = [...(personalSubs.data || []), ...(orgSubs.data || [])];
+  const trial = await loadEligibleTrial(client,userId,now,env);
   return resolveProductStates({
     userId,
     catalog: catalog.data || [],
@@ -121,6 +123,7 @@ export async function loadCurrentEntitlements(client, userId, now, env = {}) {
     grants: grants.data || [],
     lifetime: lifetime.data || [],
     platformAdmin: isPlatformAdmin(userId, env),
+    trial, trialApps: trialAppsForEnvironment(env),
     now,
   });
 }
@@ -424,8 +427,21 @@ export function createAppAccess({ env = process.env, adminFactory = createClient
         });
         return reply(403, { entitled: false, session_active: false });
       }
-      return reply(200, { entitled: true, session_active: true,
-        ...(body.profile === true ? { central_profile: await loadCentralProfile(admin, appSession.user_id) } : {}), checked_at: new Date(now()).toISOString(),
+      let trialMode = {};
+      if (trialAppsForEnvironment(env).includes(body.product)) {
+        const paid = await entitlementResolver(admin, appSession.user_id, now(), {
+          ...env, MYOPS_ENABLE_STAGING_TRIAL_ACCESS: 'false', MYOPS_ENABLE_PRODUCTION_TRIAL_ACCESS: 'false',
+        });
+        if (!paid) return reply(503, { entitled: false, error: 'Application access could not be verified.' });
+        if (paid[body.product] !== 'active') {
+          const trial = await loadEligibleTrial(admin, appSession.user_id, now(), env);
+          if (!trial) return reply(403, { entitled: false, session_active: false });
+          trialMode = { access_mode: 'trial', trial: { id: trial.id, expires_at: trial.expires_at, policy_version: trial.policy_version } };
+        } else trialMode = { access_mode: 'paid' };
+      }
+      return reply(200, { entitled: true, session_active: true, ...trialMode,
+        ...(body.profile === true ? { central_profile: await loadCentralProfile(admin, appSession.user_id) } : {}),
+        checked_at: new Date(now()).toISOString(),
         ...(body.product === 'opsflow' && body.sensitive === true ? { onboarding_profile: await loadAppProfile(admin, appSession.user_id) } : {}) });
     } catch {
       return res.status(503).json({ error: 'Application access could not be verified.' });

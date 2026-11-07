@@ -3,6 +3,7 @@ import PropTypes from 'prop-types';
 import { authRequest as request } from './authRequest';
 import { jumpToFounders } from './foundersNav';
 import { ProfileLogo } from './ProfileLogo';
+import { FreeTrial } from './FreeTrial';
 
 const productLabels = { opsp: 'OpsPS', opsfinance: 'OpsFinance', opsflow: 'OpsFlow', opswms: 'OpsWMS', opshr: 'OpsHR' };
 
@@ -64,7 +65,9 @@ export function AuthPortal({ mode, production = false }) {
       </div>
       <div className="account-preview-panel account-form-panel">
         <p role="status" aria-live="polite">{busy ? 'Please wait…' : message}</p>
+        {mode === 'register' && <p><strong>Free 7-Day Trial — RM0.</strong> Verify your email, then activate the OpsHR trial from your account. One user, one company, 30 employee records. No card or auto-renewal.</p>}
         {mode === 'dashboard' && account && <>
+          <FreeTrial />
           <p>Signed in as {account.email}</p>
           <ProfileLogo profile={account.profile} refresh={async () => { const data = await request('account'); setAccount(data); }} />
           {account.profile?.company_name && <p>{account.profile.company_name}</p>}

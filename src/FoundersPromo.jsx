@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import PropTypes from 'prop-types';
 import { authRequest } from './authRequest';
 import { useSession } from './session';
+import { FreeTrial } from './FreeTrial';
 
 const POLL_MS = 3000;
 const POLL_MAX = 10;
@@ -70,6 +71,7 @@ export function FoundersPromo({ production = false }) {
         <p className="section-label">Subscription &amp; Pricing</p>
         <h2 id="founders-title">Choose your MYOPS plan</h2>
         <div className="pricing-cards">
+          <FreeTrial />
           <article className="price-card price-card-featured">
             <h3>Founders 100</h3>
             <p className="price-amount">RM29 <span>one-time</span></p>
