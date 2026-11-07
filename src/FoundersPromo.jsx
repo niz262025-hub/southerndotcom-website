@@ -8,9 +8,7 @@ const POLL_MAX = 10;
 // Display only. Slot counts come from the server and access is re-checked server-side.
 export function FoundersPromo({ production = false }) {
   const session = useSession();
-  const [founders, setFounders] = useState(null);
-  const [message, setMessage] = useState('');
-  const [busy, setBusy] = useState(false);
+  const [, setFounders] = useState(null);
   const [waiting, setWaiting] = useState(false);
   const polls = useRef(0);
 
@@ -32,37 +30,13 @@ export function FoundersPromo({ production = false }) {
 
   if (!session.enabled || session.status === 'loading') return null;
 
-  async function start(plan, product) {
-    if (busy) return;
-    setBusy(true); setMessage('');
-    try {
-      const result = await authRequest('checkout', product ? { plan, product } : { plan });
-      window.location.assign(result.next);
-    } catch (error) {
-      setMessage(error.message);
-      if (error.status === 401) session.refresh(false);
-      loadFounders();
-    } finally { setBusy(false); }
-  }
-
-  const soldOut = founders && founders.available === false && founders.remaining === 0;
-  let action;
-  if (session.signedIn && session.lifetime) {
-    action = <p className="founders-note" role="status">Your Founders 100 lifetime access is active. Open your apps from the MYOPS homepage.</p>;
-  } else if (!session.signedIn) {
-    action = (
-      <div className="founders-actions">
-        <a className="btn btn-primary" href="/register">Register to claim</a>
-        <a className="btn btn-secondary" href="/login">Login</a>
-      </div>
-    );
-  } else if (soldOut) {
-    action = <p className="founders-note">All Founders 100 places are taken. Choose a monthly plan below when subscriptions open.</p>;
-  } else if (founders?.available) {
-    action = <button type="button" className="btn btn-primary" disabled={busy} onClick={() => start('founders_lifetime')}>Claim lifetime access — RM29 once</button>;
-  } else {
-    action = <p className="founders-note">Checkout is not available right now.</p>;
-  }
+  const plans = [
+    { name: 'Starter', price: 'RM9.90', period: '/ month', description: 'Limited-use entry tier for lighter operating needs.', actionLabel: 'Checkout opening soon', featured: false },
+    { name: 'Single', price: 'RM19.90', period: '/ month', description: 'Choose one MYOPS product for a focused rollout.', actionLabel: 'Checkout opening soon', featured: false },
+    { name: 'Duo', price: 'RM29.90', period: '/ month', description: 'Access any two paid MYOPS products in one bundle.', actionLabel: 'Checkout opening soon', featured: false },
+    { name: 'Complete', price: 'RM39.90', period: '/ month', description: 'Unlock the complete MYOPS bundle for your business.', actionLabel: 'Checkout opening soon', featured: true },
+    { name: 'OpsHub', price: 'RM0', period: '/ month', description: 'Seller account is free; GMV commission tiers are 3% / 2% / 1.5%.', actionLabel: null, featured: false },
+  ];
 
   return (
     <section className="content-section founders-promo" id="founders" aria-labelledby="founders-title">
@@ -70,34 +44,23 @@ export function FoundersPromo({ production = false }) {
         <p className="section-label">Subscription &amp; Pricing</p>
         <h2 id="founders-title">Choose your MYOPS plan</h2>
         <div className="pricing-cards">
-          <article className="price-card price-card-featured">
-            <h3>Founders 100</h3>
-            <p className="price-amount">RM29 <span>one-time</span></p>
-            <p>Lifetime access to all current and future MYOPS apps. Limited to the first 100 successfully paying Individual customers.</p>
-            {founders?.available !== undefined && founders.remaining !== undefined && (
-              <p className="founders-count" aria-live="polite">
-                <strong>{founders.remaining}</strong> of {founders.capacity} Founder places remaining
-              </p>
-            )}
-            {action}
-          </article>
-          <article className="price-card">
-            <h3>2 Apps</h3>
-            <p className="price-amount">RM49 <span>/ month</span></p>
-            <p>Choose any two available MYOPS apps. Renewed monthly.</p>
-            <button type="button" className="btn btn-secondary" disabled>Subscriptions opening soon</button>
-          </article>
-          <article className="price-card">
-            <h3>All Apps</h3>
-            <p className="price-amount">RM79 <span>/ month</span></p>
-            <p>Access every available MYOPS app. Renewed monthly.</p>
-            <button type="button" className="btn btn-secondary" disabled>Subscriptions opening soon</button>
-          </article>
+          {plans.map((plan) => (
+            <article key={plan.name} className={`price-card${plan.featured ? ' price-card-featured' : ''}`}>
+              <h3>{plan.name}</h3>
+              <p className="price-amount">{plan.price} <span>{plan.period}</span></p>
+              <p>{plan.description}</p>
+              {plan.actionLabel ? (
+                <button type="button" className="btn btn-secondary" disabled>{plan.actionLabel}</button>
+              ) : (
+                <p className="founders-note">Seller account is free. GMV tiers are 3% / 2% / 1.5%.</p>
+              )}
+            </article>
+          ))}
         </div>
         {waiting && <p role="status">Confirming your payment…</p>}
-        <p role="status" className="founders-error">{message}</p>
+        <p className="founders-note">All paid plans include a 14-day trial and manual monthly renewal.</p>
         <p className="founders-note">Monthly subscriptions are not open for purchase yet.</p>
-        <p className="founders-note">{production ? (founders?.capacity ? 'Live payments are processed by ToyyibPay. Access is granted after payment verification.' : 'Payments are not available yet.') : 'Sandbox payments only: no real money is charged in Preview. Payments are verified server-side before access is granted.'}</p>
+        <p className="founders-note">{production ? 'Payments are not available yet.' : 'Sandbox payments only: no real money is charged in Preview. Payments are verified server-side before access is granted.'}</p>
       </div>
     </section>
   );

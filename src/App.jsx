@@ -797,54 +797,40 @@ function PricingPage() {
       </PageShell>
     );
   }
+  const plans = [
+    { name: 'Starter', price: 'RM9.90', tag: 'Entry', summary: 'Limited-use tier for lighter operational requirements.', cta: 'Talk to Us' },
+    { name: 'Single', price: 'RM19.90', tag: 'Focused', summary: 'Choose one MYOPS product for a targeted rollout.', cta: 'Talk to Us' },
+    { name: 'Duo', price: 'RM29.90', tag: 'Bundle', summary: 'Access any two paid MYOPS products in one plan.', cta: 'Talk to Us' },
+    { name: 'Complete', price: 'RM39.90', tag: 'Full bundle', summary: 'Unlock the complete MYOPS bundle for your business.', cta: 'Talk to Us', highlight: true },
+    { name: 'OpsHub', price: 'RM0', tag: 'Seller', summary: 'Seller access is free. GMV commissions apply at 3% / 2% / 1.5% tiers.', cta: 'Request quote' },
+  ];
+
   return (
     <PageShell pageClass="page-shell-plain">
       <section className="page-hero">
         <div className="container narrow-content">
-          <SectionIntro label="Pricing" title="Simple product access for modern operations" text="MYOPS pricing is structured around product access and business needs. OpsFinance is currently listed at RM29/month/company with a 7-day free trial. Custom development services are quoted separately based on project scope." />
+          <SectionIntro
+            label="Pricing"
+            title="MYOPS product pricing"
+            text="Approved monthly pricing in MYR. All paid plans include a 14-day trial, default manual renewal, and no card-based recurring debit checkout. Custom development services are quoted separately."
+          />
           <div className="pricing-grid">
-            <article className="pricing-card highlight">
-              <span className="pricing-tag">OpsFinance</span>
-              <h3>Accounting &amp; Financial Management</h3>
-              <div className="price-line">
-                <strong>RM29</strong>
-                <span>/month/company</span>
-              </div>
-              <ul>
-                <li>7-day free trial</li>
-                <li>Core accounting and operational visibility</li>
-                <li>Business financial coordination</li>
-              </ul>
-              <a href="/contact" className="btn btn-primary">Talk to Us</a>
-            </article>
-            <article className="pricing-card">
-              <span className="pricing-tag">MYOPS</span>
-              <h3>Product ecosystem</h3>
-              <div className="price-line">
-                <strong>Custom</strong>
-                <span>pricing</span>
-              </div>
-              <ul>
-                <li>Multi-solution access</li>
-                <li>Business coordination and workflows</li>
-                <li>Tailored setup guidance</li>
-              </ul>
-              <a href="/contact" className="btn btn-secondary">Request quote</a>
-            </article>
-            <article className="pricing-card">
-              <span className="pricing-tag">Services</span>
-              <h3>Website &amp; application solutions</h3>
-              <div className="price-line">
-                <strong>Custom</strong>
-                <span>quote</span>
-              </div>
-              <ul>
-                <li>Website design and build</li>
-                <li>Business applications and integration</li>
-                <li>Project scoping and consultation</li>
-              </ul>
-              <a href="/contact" className="btn btn-primary">Get a Quote</a>
-            </article>
+            {plans.map((plan) => (
+              <article key={plan.name} className={`pricing-card${plan.highlight ? ' highlight' : ''}`}>
+                <span className="pricing-tag">{plan.tag}</span>
+                <h3>{plan.name}</h3>
+                <div className="price-line">
+                  <strong>{plan.price}</strong>
+                  <span>/month</span>
+                </div>
+                <ul>
+                  <li>{plan.summary}</li>
+                  {plan.name === 'OpsHub' ? <li>Commission tiers: 3% under RM1,000 GMV, 2% from RM1,000 to RM9,999.99, 1.5% above RM10,000.</li> : <li>14-day trial included on paid plans.</li>}
+                  <li>Manual renewal by default. No unsupported recurring debit claims.</li>
+                </ul>
+                <a href="/contact" className="btn btn-primary">{plan.cta}</a>
+              </article>
+            ))}
           </div>
         </div>
       </section>
