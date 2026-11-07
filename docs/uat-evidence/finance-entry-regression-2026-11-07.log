@@ -1,0 +1,18 @@
+npm warn Unknown env config "http-proxy". This will stop working in the next major version of npm.
+
+> opsfinance@0.1.0 test
+> vitest run --environment jsdom tests/transaction-form.test.tsx tests/transaction-workflow.test.ts tests/dashboard-totals.test.tsx
+
+[33mThe CJS build of Vite's Node API is deprecated. See https://vite.dev/guide/troubleshooting.html#vite-cjs-node-api-deprecated for more details.[39m
+
+ RUN  v2.1.9 /workspace/scratch/88808803d658/uat/finance
+
+ ✓ tests/transaction-workflow.test.ts (7 tests) 13ms
+ ✓ tests/dashboard-totals.test.tsx (2 tests) 136ms
+ ✓ tests/transaction-form.test.tsx (9 tests) 620ms
+
+ Test Files  3 passed (3)
+      Tests  18 passed (18)
+   Start at  13:52:02
+   Duration  1.35s (transform 178ms, setup 0ms, collect 446ms, tests 768ms, environment 1.03s, prepare 206ms)
+
