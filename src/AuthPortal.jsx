@@ -73,7 +73,6 @@ export function AuthPortal({ mode, production = false }) {
           {account.profile?.company_name && <p>{account.profile.company_name}</p>}
           {account.profile && <p>{account.profile.display_name} · {account.profile.account_type === 'business' ? 'Business' : 'Personal'}</p>}
           <p>Open applications from the <a href="/">MYOPS homepage</a>; access is checked by the server on every launch.</p>
-          {account.profile?.account_type === 'business' && <p>Business workspace setup, seats and invitations are not enabled yet.</p>}
           <section id="subscription" aria-labelledby="subscription-title">
             <h2 id="subscription-title">Billing and subscriptions</h2>
             {account.products ? (

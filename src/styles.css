@@ -1172,8 +1172,9 @@ select {
   .home-service-panel { padding: 20px; }
   .home-service-list { grid-template-columns: 1fr; }
 }
-
-
+/* Central profile forms must fit narrow mobile browsers, including long addresses. */
+.account-form-panel form, .account-form-panel label { min-width: 0; }
+.account-form-panel input, .account-form-panel select, .account-form-panel textarea { box-sizing: border-box; max-width: 100%; min-height: 44px; }
 .profile-logo { margin-bottom: 28px; padding-bottom: 24px; border-bottom: 1px solid #cbd3e0; }
 .profile-logo img { display: block; max-width: 100%; object-fit: contain; }
 .profile-logo-actions { display: flex; gap: 12px; flex-wrap: wrap; margin-top: 16px; }

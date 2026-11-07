@@ -194,7 +194,7 @@ const pageMeta = {
     title: 'OpsFlow | MYOPS',
     description: 'OpsFlow helps retailers manage point-of-sale sales, purchases, inventory and daily cash flow.',
     ogTitle: 'OpsFlow | MYOPS',
-    ogDescription: 'Retail POS, purchasing and inventory management for modern retailers.',
+    ogDescription: 'Retail POS, inventory and purchasing management in one MYOPS application.',
   },
   '/solutions/business-website-application-development': {
     title: 'Business Website & Application Development | MYOPS',
@@ -736,7 +736,7 @@ function SolutionPage({ route }) {
       name: 'OpsFlow',
       accent: 'blue',
       summary: 'OpsFlow helps retailers manage POS sales, purchases, inventory and cash flow in one application.',
-      bullets: ['Point-of-sale sales', 'Purchase orders', 'Stock and inventory tracking', 'Retail cash flow and reports'],
+      bullets: ['Retail point of sale', 'Purchase orders and supplier orders', 'Stock and inventory tracking', 'Sales and cash flow reporting'],
       ctaLabel: 'Discuss OpsFlow',
       ctaHref: '/contact',
     },

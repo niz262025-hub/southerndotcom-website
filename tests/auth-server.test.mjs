@@ -286,13 +286,13 @@ function withData({ subscriptions = [], grants = [], failing } = {}) {
 }
 const launchEnv = { MYOPS_APP_URL_OPSP: 'https://app.example.test/opsp' };
 
-test('login and confirmed email callback land on the homepage; recovery goes to password update', async () => {
+test('login opens homepage and confirmed email opens account; recovery goes to password update', async () => {
   const loginResult = await run(login);
   assert.deepEqual(loginResult.data, { next: '/' });
   const callback = await run({ action: 'callback', code: 'c' }, { headers: { cookie: '__Host-myops-pkce=v' },
     client: mock({ exchangeCodeForSession: async () => ({ data: { session, redirectType: 'signup' }, error: null }) }) });
   assert.equal(callback.code, 200);
-  assert.deepEqual(callback.data, { next: '/' });
+  assert.deepEqual(callback.data, { next: '/account' });
   assert.ok(callback.headers['Set-Cookie'].some((c) => c.startsWith('__Host-myops-activity=')));
 });
 test('registration never lands on the homepage as signed in without a confirmed email session', async () => {

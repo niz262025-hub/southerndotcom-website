@@ -478,7 +478,7 @@ export function createAuthHandler({ env = process.env, clientFactory = createCli
         const { data, error } = await client.auth.exchangeCodeForSession(body.code);
         setCookie(VERIFIER, '', 0);
         if (error || !await saveSession(data?.session, appAccess)) return reply(400, { error: 'Invalid or expired link. Start again.' });
-        return reply(200, { next: data.redirectType === 'recovery' ? '/account/update-password' : '/' });
+        return reply(200, { next: data.redirectType === 'recovery' ? '/account/update-password' : '/account' });
       }
       if (action === 'logout') {
         clearAll();

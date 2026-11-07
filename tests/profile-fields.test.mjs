@@ -23,7 +23,6 @@ test('legacy partial updates preserve omitted details and cannot introduce arbit
   assert.deepEqual(profileFields({ companyName: 'New company', access_mode: 'paid' }), { company_name: 'New company' });
 });
 
-
 test('server-enforced complete registration cannot be downgraded by omitting the form version', () => {
   for (const profileVersion of [undefined, '0', '1']) {
     assert.throws(() => profileFields({ accountType: 'personal', profileVersion }, { requireComplete: true }));
