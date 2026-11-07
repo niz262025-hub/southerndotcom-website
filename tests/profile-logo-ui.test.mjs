@@ -16,6 +16,7 @@ test('logo UI previews a chosen image, uploads, removes and uses the MYOPS fallb
  const root=createRoot(document.getElementById('root'));
  try{
  await act(async()=>root.render(createElement(ProfileLogo,{profile:{has_logo:true,logo_url:'https://storage.example.test/logo'},refresh:async()=>{refreshed++;}})));
+ assert.equal(document.querySelector('img').getAttribute('src'),'/images/myops-logo-wordmark.png');
  const input=document.querySelector('input[type=file]');
  const file=new dom.window.File(['image'],'logo.png',{type:'image/png'});Object.defineProperty(input,'files',{value:[file],configurable:true});
  await act(async()=>input.dispatchEvent(new dom.window.Event('change',{bubbles:true})));

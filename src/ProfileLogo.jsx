@@ -3,6 +3,16 @@ import PropTypes from 'prop-types';
 import { authRequest } from './authRequest';
 
 const DEFAULT_LOGO = '/images/myops-logo-wordmark.png';
+const logoUrl = (value) => {
+  try {
+    const url = new URL(value);
+    const project = new URL(import.meta.env?.VITE_SUPABASE_URL);
+    if (url.protocol === 'https:' && url.origin === project.origin
+        && url.pathname.startsWith('/storage/v1/object/sign/myops-profile-logos/')
+        && !url.username && !url.password && !url.hash) return url.href;
+  } catch { /* Use the bundled logo for untrusted or unavailable URLs. */ }
+  return DEFAULT_LOGO;
+};
 export function ProfileLogo({ profile, refresh }) {
   const [file, setFile] = useState(null);
   const [preview, setPreview] = useState('');
@@ -34,9 +44,10 @@ export function ProfileLogo({ profile, refresh }) {
     } catch (error) { setMessage(error.message); }
     finally { setBusy(false); }
   }
+  const image = preview || logoUrl(profile?.logo_url);
   return <section className="profile-logo" aria-labelledby="profile-logo-title">
     <h2 id="profile-logo-title">Company / account logo</h2>
-    <img src={preview || profile?.logo_url || DEFAULT_LOGO} alt="Company or MYOPS logo" width="180" height="72"
+    <img src={image} alt="Company or MYOPS logo" width="180" height="72"
       onError={event => { if (event.currentTarget.getAttribute('src') !== DEFAULT_LOGO) event.currentTarget.src = DEFAULT_LOGO; }} />
     <p>PNG, JPEG or WebP, up to 256 KB. The MYOPS logo is used when no logo is available.</p>
     <label>Choose logo<input type="file" accept="image/png,image/jpeg,image/webp" disabled={busy} onChange={event => {
