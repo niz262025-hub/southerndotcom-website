@@ -87,7 +87,7 @@ test('MYOPS root shows the original landing page before and after login', async 
   try {
     assert.ok(document.querySelector('.landing-shell .hero'));
     assert.equal(document.querySelector('#auth-title'), null);
-    assert.deepEqual(nav(), ['My Account', 'Logout']);
+    assert.deepEqual(nav(), ['My Account', 'Log keluar semua aplikasi']);
   } finally { await signedInPage.cleanup(); }
 });
 
@@ -109,7 +109,7 @@ test('signed-out visitors see Register and Login, and Subscribe on live cards', 
 test('signed-in users see My Account and Logout instead of Register and Login', async () => {
   const { cleanup } = await mount(() => Response.json(signedInState()));
   try {
-    assert.deepEqual(nav(), ['My Account', 'Logout']);
+    assert.deepEqual(nav(), ['My Account', 'Log keluar semua aplikasi']);
     assert.equal(document.querySelector('.nav-auth a').getAttribute('href'), '/account');
     assert.ok(!nav().includes('Register') && !nav().includes('Login'));
   } finally { await cleanup(); }
@@ -158,7 +158,7 @@ test('a passive probe after server-side inactivity logout returns the nav to sig
   let signedIn = true;
   const { calls, cleanup, dom } = await mount(() => Response.json(signedIn ? signedInState() : signedOut));
   try {
-    assert.deepEqual(nav(), ['My Account', 'Logout']);
+    assert.deepEqual(nav(), ['My Account', 'Log keluar semua aplikasi']);
     signedIn = false;
     await act(async () => document.querySelector('#passive').dispatchEvent(new dom.window.MouseEvent('click', { bubbles: true })));
     assert.deepEqual(calls.at(-1), { action: 'session', activity: false });
@@ -167,12 +167,23 @@ test('a passive probe after server-side inactivity logout returns the nav to sig
   } finally { await cleanup(); }
 });
 
-test('network or server failure shows signed-out state, never an unlocked app', async () => {
+test('network or server failure shows a retry state, never an unlocked app', async () => {
   const { cleanup } = await mount(() => { throw new TypeError('Failed to fetch'); });
   try {
-    assert.deepEqual(nav(), ['Register', 'Login']);
+    assert.deepEqual(nav(), ['Retry']);
     assert.equal(document.querySelector('.product-action button'), null);
   } finally { await cleanup(); }
+});
+test('temporary session failure can recover without presenting a confirmed logout',async()=>{
+ let unavailable=false;
+ const {cleanup}=await mount(()=>{if(unavailable)throw new TypeError('Failed to fetch');return Response.json(signedInState());});
+ try{
+  assert.ok(nav().includes('My Account'));
+  unavailable=true;await act(async()=>document.querySelector('#passive').click());
+  assert.deepEqual(nav(),['Retry']);
+  unavailable=false;await act(async()=>document.querySelector('.nav-auth button').click());
+  assert.ok(nav().includes('My Account'));
+ }finally{await cleanup();}
 });
 
 test('outside Preview auth builds no auth controls and no requests are made', async () => {
@@ -200,7 +211,7 @@ test('logout failure stays visible and retryable, including after a signed-out p
     assert.equal(document.querySelector('.nav-auth button').disabled, false);
     signedIn = false;
     await act(async () => click('#passive'));
-    assert.equal(text('.nav-auth button'), 'Logout');
+    assert.equal(text('.nav-auth button'), 'Log keluar semua aplikasi');
     assert.equal(document.querySelector('#opsp button'), null);
     await act(async () => click('.nav-auth button'));
     assert.equal(calls.filter((body) => body.action === 'logout').length, 2);

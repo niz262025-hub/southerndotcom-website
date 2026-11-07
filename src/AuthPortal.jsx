@@ -2,6 +2,8 @@ import { useEffect, useRef, useState } from 'react';
 import PropTypes from 'prop-types';
 import { authRequest as request } from './authRequest';
 import { jumpToFounders } from './foundersNav';
+import { ProfileLogo } from './ProfileLogo';
+import { FreeTrial } from './FreeTrial';
 
 const productLabels = { opsp: 'OpsPS', opsfinance: 'OpsFinance', opsflow: 'OpsFlow', opswms: 'OpsWMS', opshr: 'OpsHR' };
 
@@ -63,12 +65,14 @@ export function AuthPortal({ mode, production = false }) {
       </div>
       <div className="account-preview-panel account-form-panel">
         <p role="status" aria-live="polite">{busy ? 'Please wait…' : message}</p>
+        {mode === 'register' && <p><strong>Free 7-Day Trial — RM0.</strong> Verify your email, then activate the OpsHR trial from your account. One user, one company, 30 employee records. No card or auto-renewal.</p>}
         {mode === 'dashboard' && account && <>
+          <FreeTrial />
           <p>Signed in as {account.email}</p>
+          <ProfileLogo profile={account.profile} refresh={async () => { const data = await request('account'); setAccount(data); }} />
           {account.profile?.company_name && <p>{account.profile.company_name}</p>}
           {account.profile && <p>{account.profile.display_name} · {account.profile.account_type === 'business' ? 'Business' : 'Personal'}</p>}
           <p>Open applications from the <a href="/">MYOPS homepage</a>; access is checked by the server on every launch.</p>
-          {account.profile?.account_type === 'business' && <p>Business workspace setup, seats and invitations are not enabled yet.</p>}
           <section id="subscription" aria-labelledby="subscription-title">
             <h2 id="subscription-title">Billing and subscriptions</h2>
             {account.products ? (
@@ -85,24 +89,32 @@ export function AuthPortal({ mode, production = false }) {
             <p>{production ? 'View subscription availability and pricing on the MYOPS homepage. Access is granted after payment verification.' : 'Preview payments use the ToyyibPay sandbox only. Application access is granted only after the server confirms a verified payment or active subscription.'}</p>
           </section>
           <p>Applications open through your MYOPS login. This site signs you out after 15 minutes of inactivity.</p>
-          <button type="button" className="btn btn-primary" disabled={busy} onClick={logout}>Sign out</button>
+          <button type="button" className="btn btn-primary" disabled={busy} onClick={logout}>Log keluar semua aplikasi</button>
           <p><a href="/forgot-password">Change password</a></p>
         </>}
         {mode === 'callback' && <p><a href="/login">Return to sign in</a></p>}
         {mode !== 'callback' && (mode !== 'dashboard' || account) && (mode !== 'reset' || account) && (
           <form onSubmit={submit} aria-busy={busy}>
             {(mode === 'register' || mode === 'dashboard') && <>
+              <input type="hidden" name="profileVersion" value="1" />
               <h2>{mode === 'dashboard' ? 'Complete your profile' : 'Account details'}</h2>
               {mode === 'dashboard' && <p>Save your name and company here once. Applications use these details when setting up your account; existing application data is preserved.</p>}
               <label>Full name<input name="displayName" autoComplete="name" defaultValue={account?.profile?.display_name || ''} required maxLength={100} disabled={busy} /></label>
-              <label>Company name<input name="companyName" autoComplete="organization" defaultValue={account?.profile?.company_name || ''} maxLength={200} disabled={busy} /></label>
               <label>Account type<select name="accountType" value={accountType} onChange={(e) => setAccountType(e.target.value)} disabled={busy}>
                 <option value="personal">Personal / Individual</option><option value="business">Business</option>
               </select></label>
+              {accountType === 'business' && <>
+                <label>Company name<input name="companyName" autoComplete="organization" defaultValue={account?.profile?.company_name || ''} maxLength={200} required disabled={busy} /></label>
+                <label>SSM registration number<input name="ssmNumber" defaultValue={account?.profile?.ssm_number || ''} maxLength={50} required disabled={busy} /></label>
+                <label>Company email<input name="companyEmail" type="email" autoComplete="email" defaultValue={account?.profile?.company_email || account?.email || ''} maxLength={254} required disabled={busy} /></label>
+                <label>Person in charge<input name="personInCharge" defaultValue={account?.profile?.person_in_charge || ''} maxLength={100} required disabled={busy} /></label>
+              </>}
+              <label>Contact number<input name="contactNumber" type="tel" autoComplete="tel" defaultValue={account?.profile?.contact_number || ''} maxLength={40} required disabled={busy} /></label>
+              <label>{accountType === 'business' ? 'Business address' : 'Address'}<textarea name="address" autoComplete="street-address" defaultValue={account?.profile?.address || ''} maxLength={1000} required disabled={busy} /></label>
             </>}
             {['register', 'login', 'forgot'].includes(mode) && <label>Email address<input name="email" type="email" autoComplete="email" required maxLength={254} disabled={busy} /></label>}
             {['register', 'login', 'reset'].includes(mode) && <label>Password<input name="password" type="password" autoComplete={mode === 'login' ? 'current-password' : 'new-password'} required minLength={mode === 'login' ? 1 : 12} maxLength={128} disabled={busy} /></label>}
-            {mode === 'register' && <p>Use 12–128 characters for your password. Open the confirmation email in this same browser.</p>}
+            {mode === 'register' && <p>Use 12–128 characters for your password. Open the confirmation email in this same browser. You can add an optional company logo from your account after verification.</p>}
             <button className="btn btn-primary" type="submit" disabled={busy}>{busy ? 'Please wait…' : ({ register: 'Register', login: 'Sign in', forgot: 'Send recovery email', reset: 'Save password', dashboard: 'Save profile' })[mode]}</button>
           </form>
         )}
