@@ -1,0 +1,230 @@
+npm warn Unknown env config "http-proxy". This will stop working in the next major version of npm.
+
+> myops@1.0.0 test
+> node --test tests/*.test.mjs
+
+✔ account preview routes exist (0.76435ms)
+✔ login and checkout are not misrepresented as working (0.223846ms)
+✔ all five products are shown, with upcoming apps locked (0.133011ms)
+✔ schema enables RLS on all account and billing tables (0.127282ms)
+✔ session and renewal preferences have explicit fields (0.110556ms)
+myops_sso_login_unavailable rpc upstream
+myops_sso_login_unavailable configuration 
+✔ app requests use Ed25519 signatures and the canonical request binds method, path, nonce and body (4.008081ms)
+✔ launch ticket is 256-bit, delivered only in the registered app URL, while only its SHA-256 hash is stored (1.774099ms)
+✔ redemption revalidates entitlement and returns only an app-scoped opaque user reference (2.931762ms)
+✔ invalid signatures, browser origins, stale timestamps, replayed nonces and rate limits fail closed (2.50531ms)
+✔ wrong-app ticket, revoked entitlement and database failures never grant an app session (2.832082ms)
+✔ entitlement verification is fresh and revoked or idle sessions are denied (2.26586ms)
+✔ current subscription expiry, revocation and Founder lifetime use the central resolver (1.090451ms)
+✔ requests require Preview configuration and do not use a service role in the browser (0.411319ms)
+✔ production app access needs explicit opt-in and accepts only the official MYOPS host (1.103741ms)
+✔ regression S1-B review: only Ed25519 public keys are accepted (5.182529ms)
+✔ regression S1-B review: nested, extra or reordered body fields cannot bypass the signature (1.515291ms)
+✔ regression S1-B review: polling does not extend the session; only asserted activity does (1.652958ms)
+✔ regression S1-B review: a transient lookup failure keeps the session and returns 503 (0.7373ms)
+✔ regression S1-B review: an unconfigured preview stays disabled and revocation fails closed (1.108538ms)
+✔ login-session binding: ticket issuance requires a login id; start/touch/end map to server-side RPCs and fail safely (1.716042ms)
+✔ Finance and OpsPS staging provisioning receive only central labels behind their own readiness gates (3.629422ms)
+✔ OpsFlow receives central labels only after signature, ticket, session and entitlement verification (1.918947ms)
+✔ trial quota requires a signed matching app/session and never touches activity (2.116946ms)
+✔ trial quota endpoint is unavailable in production and rejects expired sessions (0.623368ms)
+✔ central entitlement explicitly identifies existing paid access without granting trial (0.995648ms)
+✔ signed entitlement returns server-owned trial metadata and keeps paid mode distinct (1.215159ms)
+✔ default signed entitlement reads one fresh snapshot and distinguishes trial from paid access (2.569757ms)
+✔ snapshot lookup failures fail closed without revoking a valid session (1.328078ms)
+✔ snapshot retains company trial isolation and never grants Coming Soon applications (1.515801ms)
+✔ central descriptive profile exposes only valid name and company labels (1.777735ms)
+✔ profile lookup uses the verified user id and rejects conflicting identity or lookup failure (1.356581ms)
+✔ registration form submits fields, shows pending state, success and retryable failures (172.241383ms)
+myops_sso_login_unavailable configuration 
+myops_sso_login_unavailable configuration 
+✔ production disabled regardless of configured values (2.462255ms)
+✔ production app launch requires the explicit production app-access switch (0.878332ms)
+✔ exact trusted host, same-origin JSON and POST required (0.258079ms)
+✔ reject wrong project, missing key and service-role/secret key shape (0.286932ms)
+✔ confirmed login saves only HttpOnly secure bounded access cookie, no tokens in JSON (2.263316ms)
+✔ wrong credentials and unconfirmed login cannot save a session (0.314904ms)
+✔ signup never starts a session when confirmation is disabled (0.355765ms)
+✔ registration and recovery use generic messages and fixed callback, not caller redirect (0.262135ms)
+✔ callback requires verifier and invalid code cannot create session (0.355616ms)
+✔ recovery callback redirects only to fixed password page (0.433032ms)
+✔ unauthenticated account, reset and profile operations rejected (0.710159ms)
+✔ account response uses verified identity and descriptive profile metadata (1.26257ms)
+✔ onboarding saves only descriptive metadata through the verified user and grants no role (0.426172ms)
+✔ onboarding rejects unsupported account types and reports upstream save failure (0.479161ms)
+✔ password update uses authenticated upstream, revokes refresh sessions and clears cookie (0.481415ms)
+✔ logout clears browser cookies without echoing credentials (0.698531ms)
+myops_sso_login_unavailable configuration 
+myops_sso_login_unavailable configuration 
+myops_sso_login_unavailable configuration 
+✔ real installed SDK persists PKCE verifier but never refresh/access session to cookie storage (19.103699ms)
+✔ registration errors never masquerade as confirmation success or expose upstream details (1.064042ms)
+✔ missing Preview key stops signup before client initialization (0.117818ms)
+✔ signup diagnostics log only allowlisted codes and numeric HTTP statuses (2.825642ms)
+✔ successful signup and Production rejection produce no signup diagnostics (0.169385ms)
+✔ failed diagnostic sink cannot change signup error response (0.171929ms)
+✔ signup SDK destination is exactly the dedicated staging project (0.122705ms)
+✔ invalid upstream email returns actionable 400 without leaking upstream details (0.194813ms)
+✔ login opens homepage and confirmed email opens account; recovery goes to password update (0.494064ms)
+✔ registration never lands on the homepage as signed in without a confirmed email session (0.267483ms)
+✔ login requires the server session secret (0.094012ms)
+✔ session probe: signed-out visitors get a signed-out state without error (0.116735ms)
+✔ session probe: signed-in users get email and product states, never tokens (1.039865ms)
+✔ 15-minute inactivity is enforced server-side for every protected action (0.885873ms)
+✔ activity just inside the window is accepted and refreshed; passive probes do not refresh (0.546512ms)
+✔ forged, unsigned, missing or future activity cookies are rejected (0.351549ms)
+✔ launch rejects anonymous callers, cross-origin requests and unknown products (0.30566ms)
+✔ launch: no subscription, coming soon, expired and non-active statuses are denied (1.479817ms)
+✔ launch: client-supplied entitlement claims are ignored (0.200522ms)
+✔ launch: active subscription returns only the configured HTTPS destination (1.009098ms)
+✔ production launch uses the central package entitlement and issues an app-specific ticket (0.427152ms)
+✔ launch fails closed when subscription data cannot be read (0.394814ms)
+✔ MYOPS logout and detected inactivity revoke all app sessions for the verified user (0.443417ms)
+✔ resolveProductStates: bundles, organisation grants and catalog state (0.189355ms)
+✔ regression H-1: login stores a server-signed identity that the browser cannot forge (0.411399ms)
+✔ regression H-1: logout with an expired Supabase token still revokes app access (0.502055ms)
+✔ regression H-1: forged, tampered or stale identity cookies never select a user to revoke (0.295254ms)
+✔ regression H-1: inactivity and an expired token revoke app access even without a usable token (0.622046ms)
+✔ regression H-1: a failed app-access revocation fails closed and still clears cookies (0.938833ms)
+✔ M-1: failed logout revocation is never reported as success and queues a signed retry (0.533333ms)
+✔ M-1: retry succeeds after recovery and the pending marker is cleared; repeated logout is idempotent (1.260276ms)
+✔ M-1: stale cookies during an outage do not cause repeated 500s and stay queued (0.379651ms)
+✔ M-1: pending retry runs on any request and blocks sign-in until it succeeds (fail closed) (0.460533ms)
+✔ M-1: forged, wrong-secret, stale or identity-cookie pending markers are ignored and discarded (0.377418ms)
+✔ login binding: sign-in creates a server-side login record and a signed, user-bound cookie (0.562687ms)
+✔ login binding: if the login record cannot be created, sign-in works but launch fails closed (0.381093ms)
+✔ login binding: launch needs a verified login cookie that belongs to the verified user (0.822958ms)
+✔ login binding: user activity is recorded server-side, passive probes are not, and a dead login ends the session (1.48791ms)
+✔ login binding: logout revokes only this login session; password reset revokes all; repeats are safe (0.899324ms)
+✔ login binding: a failed per-login revocation queues a user-wide retry and never reports success (0.438851ms)
+✔ worker: missing authorization is rejected (2.157476ms)
+✔ worker: incorrect authorization is rejected (0.197277ms)
+✔ worker: valid authorization executes and returns safe aggregate metrics (1.265294ms)
+✔ worker: execution timeout fails closed without false success (13.108778ms)
+✔ worker: aborted database operation is reported as a timeout, not a success (25.81453ms)
+✔ worker: repeated authenticated requests are rate limited before queue work (0.922077ms)
+✔ worker: invalid-secret flood is rate limited before database access (0.39871ms)
+✔ worker: rate limit resets when the window expires (0.372721ms)
+✔ worker: database unavailable fails closed (0.30535ms)
+✔ worker: empty queue returns zero counts and success status (0.275324ms)
+✔ worker: pending retry metrics are safe and query-safe (0.459712ms)
+✔ worker: duplicate execution does not mutate the result payload (0.316456ms)
+✔ worker: concurrent executions all succeed with correct authorization (0.411149ms)
+✔ worker: retry cap reached is surfaced without exposing raw queue state (0.193311ms)
+✔ official domain login requires opt-in and exact www host/origin (0.480082ms)
+✔ official-domain recovery callback is fixed and billing/app operations stay disabled (0.381234ms)
+✔ recovery does not report email success for upstream outages or disabled email provider (0.301503ms)
+myops_sandbox_checkout_failed gateway_bill
+myops_sandbox_checkout_failed gateway_transport
+✔ founders status is anonymous, server-authoritative and never invents numbers (4.986264ms)
+✔ checkout requires a live signed-in session, an Individual account and sandbox configuration (5.710143ms)
+✔ checkout creates a sandbox bill for RM29 and returns only the sandbox payment URL (1.600218ms)
+✔ sandbox callback bypass stays server-side and is used only for Preview (3.197332ms)
+✔ checkout failures: gateway error releases the reservation; sold out and duplicates are refused (9.354548ms)
+✔ admin audit is closed to non-admins and when no admins are configured (0.887937ms)
+✔ verified webhook allocates the founder slot; replays are harmless; later failure cannot revoke (2.783118ms)
+✔ webhook rejects bad hashes, missing fields and forged success without gateway confirmation (2.192179ms)
+✔ gateway verification outage returns 502 so the gateway retries; wrong paid amount never grants (2.58513ms)
+✔ payment failure and cancellation need a valid hash and never grant access (1.974461ms)
+✔ single-app payment grants only that app and never a lifetime or bundle (0.84403ms)
+✔ entitlements: a single-app subscription never unlocks other apps (1.217622ms)
+✔ registration provisions the server-owned account type, insert-only, and never for existing-email probes (0.749909ms)
+✔ slot exhaustion: the 101st payer is never given a lifetime (2.257587ms)
+✔ webhook endpoint is Preview-only, POST-only and fails closed without configuration (0.225539ms)
+✔ event keys are stable per callback so duplicates collapse (0.139459ms)
+✔ lifetime entitlement unlocks every live app, including newly launched catalog apps (0.303717ms)
+✔ session reports lifetime and the launch gate follows it server-side, with no frontend trust (1.384874ms)
+✔ isolated staging checkout and callback use the same selected database (0.622316ms)
+✔ signed-out visitors see the promotion with the server slot count and Register/Login (154.339186ms)
+Not implemented: navigation to another Document
+✔ signed-in customers can claim; checkout is requested server-side for the founders plan (36.0415ms)
+✔ sold-out founders never fall back to an obsolete single-app checkout (30.54761ms)
+✔ pricing has exactly Founders 100, 2 Apps and All Apps; monthly purchases remain paused (21.714278ms)
+✔ server refusals are shown to the customer and the count is refreshed (43.837416ms)
+✔ verified lifetime customers see Open App on the card and no purchase buttons (33.407845ms)
+✔ unconfigured checkout shows no invented slot numbers and no purchase button (16.37326ms)
+﹣ proposal is idempotent to re-apply and enables RLS on every new table (4.807004ms) # PostgreSQL binaries not installed
+﹣ sanity: clients cannot execute functions or read payment tables; entitlement is self-read only (0.109605ms) # PostgreSQL binaries not installed
+﹣ free lifetimes are impossible: entitlements require a payment row (0.676048ms) # PostgreSQL binaries not installed
+﹣ unconfirmed users, bad plans and the monthly plan while slots remain are refused (0.085438ms) # PostgreSQL binaries not installed
+﹣ duplicate and concurrent checkout clicks reuse one pending payment and one reservation (1.726808ms) # PostgreSQL binaries not installed
+﹣ failure and cancellation release the reservation and never grant access (0.153011ms) # PostgreSQL binaries not installed
+﹣ abort of a checkout whose gateway bill failed releases the slot (0.074963ms) # PostgreSQL binaries not installed
+﹣ wrong amount and wrong bill never grant; unknown orders are inert (0.652692ms) # PostgreSQL binaries not installed
+﹣ duplicate and concurrent webhooks settle exactly once; later failure cannot revoke (0.314624ms) # PostgreSQL binaries not installed
+﹣ 150 concurrent customers: exactly 100 reservations, 100 distinct slots, nobody beyond 100 (0.253241ms) # PostgreSQL binaries not installed
+﹣ after 100: RM29/month covers exactly ONE app, once per payment, and renewals extend it (0.062063ms) # PostgreSQL binaries not installed
+﹣ duplicate single-app checkouts for the same app reuse one pending payment (0.041233ms) # PostgreSQL binaries not installed
+﹣ single-app needs a live catalog app; coming-soon and unknown apps are refused (0.036435ms) # PostgreSQL binaries not installed
+﹣ proposed plans (RM49 two-app, RM79 all-app, Business tiers) are disabled (0.032328ms) # PostgreSQL binaries not installed
+﹣ eligibility is the server-owned profile: Business and unprovisioned accounts cannot buy (0.196205ms) # PostgreSQL binaries not installed
+﹣ a founder payment confirmed after the places are gone is flagged for refund review, never converted (0.063435ms) # PostgreSQL binaries not installed
+﹣ admin audit returns payments, allocations, entitlements and events, bounded by limit (0.032909ms) # PostgreSQL binaries not installed
+✔ proposal file keeps service_role-only grants and no client write policies (0.935448ms)
+﹣ S1 app-access proposal has RLS and service_role-only functions (0.049474ms) # PostgreSQL binaries not installed
+﹣ S1 tickets are app-bound, expire in 60 seconds, and concurrent redemption consumes once (0.035403ms) # PostgreSQL binaries not installed
+﹣ S1 expired tickets, replayed nonces, rate limits and logout revocation fail closed (0.031267ms) # PostgreSQL binaries not installed
+﹣ S1 idle app sessions are revoked after 15 minutes (0.03998ms) # PostgreSQL binaries not installed
+﹣ regression H-2: validation polling never extends inactivity; asserted activity does (0.032279ms) # PostgreSQL binaries not installed
+﹣ regression H-2: sessions expire at the 12-hour absolute limit even with constant activity (0.030505ms) # PostgreSQL binaries not installed
+﹣ regression review: only Ed25519 SPKI keys can be enrolled; keys rotate with promote (0.028884ms) # PostgreSQL binaries not installed
+﹣ regression review: nonces outlive the full timestamp window and cleanup enforces retention (0.028563ms) # PostgreSQL binaries not installed
+✔ S1 SQL proposal retains pinned search_path and has no client write policies (0.859764ms)
+﹣ login sessions: ticket issuance requires a live, owned login session (0.048644ms) # PostgreSQL binaries not installed
+﹣ login sessions: 15-minute idle and 12-hour absolute limits are derived from stored timestamps (0.218289ms) # PostgreSQL binaries not installed
+﹣ login sessions: touch is throttled to 30 seconds and never revives dead sessions (0.044607ms) # PostgreSQL binaries not installed
+﹣ login sessions: ending one is idempotent and revokes only its own tickets and app sessions (0.051017ms) # PostgreSQL binaries not installed
+﹣ login sessions: redeem and validate fail closed when the parent login is gone or expired (0.034152ms) # PostgreSQL binaries not installed
+﹣ login sessions: app polling and asserted activity never extend the MYOPS login (0.063535ms) # PostgreSQL binaries not installed
+﹣ login sessions: concurrent redeem and logout never leave a usable app session (0.030276ms) # PostgreSQL binaries not installed
+﹣ login sessions: at most 10 concurrent logins per user, oldest swept (0.028132ms) # PostgreSQL binaries not installed
+﹣ login sessions: sweep expires logins, cascades to apps, retries the outbox and is idempotent (0.029394ms) # PostgreSQL binaries not installed
+﹣ login sessions: clients cannot reach tables or functions and the proposal stays unapplied-safe (0.02674ms) # PostgreSQL binaries not installed
+✔ rollback safety: 0002 rollback revokes stale, revoked and evicted login-bound sessions before dropping the binding (0.444619ms)
+✔ rollback safety: 0001 rollback blocks live app access and only succeeds once it is clean (0.143095ms)
+✔ concurrency safety: applying the 0002 rollback twice does not resurrect any app sessions (0.091458ms)
+﹣ login sessions: rollback restores the 0001 behaviour and the proposal re-applies cleanly (0.065439ms) # PostgreSQL binaries not installed
+✔ MYOPS root shows the original landing page before and after login (306.503695ms)
+✔ signed-out visitors see Register and Login, and Subscribe on live cards (39.04509ms)
+✔ signed-in users see My Account and Logout instead of Register and Login (24.709355ms)
+✔ signed-in subscribe links open the founders offer section instead of doing nothing (27.317821ms)
+✔ product cards reflect Active, No subscription and Coming Soon states from the server (21.944884ms)
+✔ Open App asks the server and shows the denial; frontend state never unlocks access (20.959883ms)
+✔ a passive probe after server-side inactivity logout returns the nav to signed-out (18.890769ms)
+✔ network or server failure shows signed-out state, never an unlocked app (16.066167ms)
+✔ outside Preview auth builds no auth controls and no requests are made (10.999103ms)
+✔ logout failure stays visible and retryable, including after a signed-out probe (39.479252ms)
+✔ platform admin requires the exact server allowlisted identity (0.769779ms)
+✔ admin access needs no paid subscription and preserves coming-soon locks (0.345099ms)
+✔ ordinary accounts remain denied without valid subscription (0.183096ms)
+✔ revoking server admin configuration removes complimentary access (0.117236ms)
+✔ individual and company contacts are normalized and authority fields excluded (2.558381ms)
+✔ new forms require all approved contact fields and reject malformed or oversized values (0.812232ms)
+✔ legacy partial updates preserve omitted details and cannot introduce arbitrary metadata (0.539171ms)
+✔ isolated staging requires all server flags and never changes production (0.773885ms)
+✔ server credentials accept supported formats without treating payloads as authenticated identities (1.360708ms)
+✔ SSO SQL replay, ticket audience/replay, session revocation and client ACLs (2180.356621ms)
+✔ central catalog contains four options and free trial never renews or requires a card (1.824355ms)
+✔ trial feature contracts match app-specific evaluation limits and fail closed for unavailable apps (0.266221ms)
+✔ trial is invalid at exact expiry even if the persisted status remains active (1.27563ms)
+✔ two-app plan requires exactly two distinct available apps (0.226421ms)
+✔ trial grants only certified app and never grants production or implicit access (2.441354ms)
+✔ loader binds verified user and rechecks company ownership and single active member (0.869819ms)
+✔ activation binds user/login/company to server identity and retry retains original trial (2.588846ms)
+✔ no trial starts for paid access, missing login, forged identity or multi-company (0.459672ms)
+✔ status is passive, expired trial cannot restart, production and wrong project are disabled (0.705572ms)
+✔ central trial: exact 168h, one use, no billing/grants, RLS and passive login validity (2402.921008ms)
+✔ MYOPS account activates trial through central API and shows expiry/open app without payment fields (178.59599ms)
+✔ lifetime customers see paid access without trial limits or trial-status requests (36.163243ms)
+✔ trial adapter binds quota to verified identity and stable operation, returns only bounded metadata (1.476603ms)
+✔ invalid identities, premium and unknown apps never call database (0.260182ms)
+✔ expiry, exhausted limits, upstream failure and malformed response all fail closed (0.374704ms)
+ℹ tests 207
+ℹ suites 0
+ℹ pass 171
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 36
+ℹ todo 0
+ℹ duration_ms 3044.492572

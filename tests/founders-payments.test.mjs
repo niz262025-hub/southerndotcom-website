@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
 import { createAuthHandler, signActivity, signLogin, resolveProductStates } from '../server/auth.js';
 import { createCallbackHandler } from '../server/toyyibpay-callback.js';
-import { founderEventKey } from '../server/payments.js';
+import { createPayments, paymentGateway, founderEventKey } from '../server/payments.js';
 
 const origin = 'https://trusted-preview.vercel.app';
 const SECRET = 'toyyib-sandbox-secret';
@@ -145,6 +145,27 @@ test('checkout creates a sandbox bill for RM29 and returns only the sandbox paym
   assert.equal(create.body.billExternalReferenceNo, order);
   assert.equal(create.body.billCallbackUrl, `${origin}/api/toyyibpay-callback`);
   assert.equal(state.payments.get(order).gateway_bill_code, 'abc123XY');
+});
+
+test('sandbox callback bypass stays server-side and is used only for Preview', async () => {
+  const bypass = 'test-only-bypass+with/special=characters';
+  for (const environment of ['preview', 'development']) {
+    const state = ledger();
+    const g = gateway();
+    const payments = createPayments({
+      env: { ...env, VERCEL_ENV: environment, MYOPS_SANDBOX_CALLBACK_BYPASS_SECRET: bypass },
+      project: env.VITE_SUPABASE_URL, adminFactory: () => state.client, transport: g.transport,
+    });
+    const result = await payments.checkout({ userId: 'user-a', plan: 'founders_lifetime', origin });
+    assert.equal(result.status, 200);
+    const callback = new URL(g.requests[0].body.billCallbackUrl);
+    assert.equal(callback.origin, origin);
+    assert.equal(callback.pathname, '/api/toyyibpay-callback');
+    assert.equal(callback.searchParams.get('x-vercel-protection-bypass'), environment === 'preview' ? bypass : null);
+    assert.equal(g.requests[0].body.billReturnUrl, `${origin}/?payment=return`);
+    assert.equal(JSON.stringify(result).includes(bypass), false);
+    assert.equal(JSON.stringify(result).includes('x-vercel-protection-bypass'), false);
+  }
 });
 
 test('checkout failures: gateway error releases the reservation; sold out and duplicates are refused', async () => {
@@ -295,7 +316,7 @@ test('slot exhaustion: the 101st payer is never given a lifetime', async () => {
   assert.equal(next.res.code, 409);
 });
 
-test('webhook endpoint is Preview-only, POST-only and fails closed without configuration', async () => {
+test('webhook endpoint requires Preview or explicitly enabled live configuration and POST', async () => {
   const state = ledger();
   assert.equal((await hook({}, { ledgerState: state, extraEnv: { VERCEL_ENV: 'production' } })).code, 404);
   assert.equal((await hook({}, { ledgerState: state, method: 'GET' })).code, 405);
@@ -360,4 +381,63 @@ test('isolated staging checkout and callback use the same selected database', as
   assert.equal(result.data.status, 'settled');
   assert.ok(projects.length >= 2);
   assert.ok(projects.every(project => project === selected));
+});
+
+const liveEnv = { ...env, VERCEL_ENV: 'production', MYOPS_ENVIRONMENT: 'production',
+  MYOPS_ENABLE_LIVE_PAYMENTS: 'true', TOYYIBPAY_LIVE_SECRET_KEY: 'live-fixture-only',
+  TOYYIBPAY_LIVE_CATEGORY_CODE: 'livecat1', MYOPS_SANDBOX_CALLBACK_BYPASS_SECRET: 'never-export' };
+
+test('live gateway needs explicit production enablement and never falls back to sandbox keys', () => {
+  const project = env.VITE_SUPABASE_URL;
+  assert.equal(paymentGateway({ ...liveEnv, MYOPS_ENABLE_LIVE_PAYMENTS: '' }, project), null);
+  assert.equal(paymentGateway({ ...liveEnv, MYOPS_ENVIRONMENT: 'staging' }, project), null);
+  assert.equal(paymentGateway(liveEnv, 'https://wengxxiqwtosirealghx.supabase.co'), null);
+  assert.equal(paymentGateway(liveEnv, project).host, 'https://toyyibpay.com');
+  assert.equal(paymentGateway({ ...liveEnv, TOYYIBPAY_LIVE_SECRET_KEY: '' }, project).secret, '');
+  assert.equal(paymentGateway({ ...liveEnv, VERCEL_ENV: 'preview' }, project).host, 'https://dev.toyyibpay.com');
+});
+
+test('live checkout refuses unmigrated ledger before contacting ToyyibPay', async () => {
+  const state = ledger(); const g = gateway();
+  const payments = createPayments({ env: liveEnv, project: env.VITE_SUPABASE_URL,
+    adminFactory: () => state.client, transport: g.transport });
+  const result = await payments.checkout({ userId: 'user-a', plan: 'founders_lifetime', origin: 'https://www.myops.com.my' });
+  assert.equal(result.status, 503);
+  assert.equal(g.requests.length, 0);
+  assert.equal([...state.payments.values()][0].status, 'failed');
+});
+
+test('live bill and callback use live credentials with independent confirmation and idempotent settlement', async () => {
+  const state = ledger(); const original = state.client.rpc;
+  state.client.rpc = async (name, args) => {
+    const result = await original(name, args);
+    if (name === 'myops_create_payment') {
+      result.data.gateway = 'toyyibpay_live';
+      state.payments.get(result.data.order_ref).gateway = 'toyyibpay_live';
+    }
+    return result;
+  };
+  const g = gateway();
+  const payments = createPayments({ env: liveEnv, project: env.VITE_SUPABASE_URL,
+    adminFactory: () => state.client, transport: g.transport });
+  const result = await payments.checkout({ userId: 'user-a', plan: 'founders_lifetime', origin: 'https://www.myops.com.my' });
+  assert.deepEqual(result, { status: 200, body: { next: 'https://toyyibpay.com/abc123XY' } });
+  assert.equal(g.requests[0].url, 'https://toyyibpay.com/index.php/api/createBill');
+  assert.equal(g.requests[0].body.userSecretKey, liveEnv.TOYYIBPAY_LIVE_SECRET_KEY);
+  assert.equal(g.requests[0].body.categoryCode, liveEnv.TOYYIBPAY_LIVE_CATEGORY_CODE);
+  assert.equal(g.requests[0].body.billCallbackUrl, 'https://www.myops.com.my/api/toyyibpay-callback');
+  assert.equal(g.requests[0].body.billEmail, '');
+  const order = [...state.payments.keys()][0];
+  const fields = callbackFields(order, { hash: createHash('md5').update(`${liveEnv.TOYYIBPAY_LIVE_SECRET_KEY}1${order}TP1ok`).digest('hex') });
+  const verified = gateway({ paid: [paidRow(order)] });
+  assert.equal((await hook(fields, { ledgerState: state, transport: verified.transport, extraEnv: liveEnv })).code, 200);
+  assert.equal(verified.requests[0].url, 'https://toyyibpay.com/index.php/api/getBillTransactions');
+  assert.equal((await hook(fields, { ledgerState: state, transport: verified.transport, extraEnv: liveEnv })).code, 200);
+  assert.equal(state.alloc.size, 1);
+  assert.equal((await hook({ ...fields, hash: undefined }, { ledgerState: state, transport: verified.transport, extraEnv: liveEnv })).code, 400);
+  state.payments.get(order).gateway = 'toyyibpay_sandbox';
+  const before = verified.requests.length;
+  assert.equal((await hook(fields, { ledgerState: state, transport: verified.transport, extraEnv: liveEnv })).code, 400);
+  assert.equal(verified.requests.length, before);
+  assert.equal((await hook(callbackFields(order), { ledgerState: state, transport: verified.transport, extraEnv: liveEnv })).code, 400);
 });
