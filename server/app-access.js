@@ -103,7 +103,8 @@ function entitlementRows(client, table, columns, userId) {
   return query;
 }
 
-export async function loadCurrentEntitlements(client, userId, now, env = {}) {
+// This snapshot belongs to one request only. Never retain it across session checks.
+async function loadEntitlementSnapshot(client, userId, now, env = {}) {
   const [catalog, personalSubs, memberships, grants, lifetime] = await Promise.all([
     entitlementRows(client, 'myops_products', 'slug,launch_status', userId),
     entitlementRows(client, 'myops_subscriptions', 'personal_user_id,organization_id,product_slug,is_complete_bundle,status,current_period_end', userId),
@@ -122,8 +123,7 @@ export async function loadCurrentEntitlements(client, userId, now, env = {}) {
   }
   const subscriptions = [...(personalSubs.data || []), ...(orgSubs.data || [])];
   const trial = await loadEligibleTrial(client,userId,now,env);
-  return resolveProductStates({
-    trial, trialApps:trialAppsForEnvironment(env),
+  const inputs = {
     userId,
     catalog: catalog.data || [],
     subscriptions,
@@ -131,7 +131,16 @@ export async function loadCurrentEntitlements(client, userId, now, env = {}) {
     lifetime: lifetime.data || [],
     platformAdmin: isPlatformAdmin(userId, env),
     now,
-  });
+  };
+  return {
+    products: resolveProductStates({ ...inputs, trial, trialApps: trialAppsForEnvironment(env) }),
+    paidProducts: resolveProductStates(inputs),
+    trial,
+  };
+}
+
+export async function loadCurrentEntitlements(client, userId, now, env = {}) {
+  return (await loadEntitlementSnapshot(client, userId, now, env))?.products ?? null;
 }
 
 function requestContext(req, res, env, now) {
@@ -411,7 +420,10 @@ export function createAppAccess({ env = process.env, adminFactory = createClient
       if (!appSession?.active || typeof appSession.user_id !== 'string') {
         return reply(403, { entitled: false, session_active: false });
       }
-      const products = await entitlementResolver(admin, appSession.user_id, now(), env);
+      const snapshot = entitlementResolver === loadCurrentEntitlements
+        ? await loadEntitlementSnapshot(admin, appSession.user_id, now(), env) : null;
+      const products = entitlementResolver === loadCurrentEntitlements
+        ? snapshot?.products : await entitlementResolver(admin, appSession.user_id, now(), env);
       // Unknown state (lookup failed): deny this request but keep the session for a later retry.
       if (!products) return reply(503, { entitled: false, error: 'Application access could not be verified.' });
       const entitled = products[body.product] === 'active';
@@ -423,10 +435,11 @@ export function createAppAccess({ env = process.env, adminFactory = createClient
       }
       let mode = { access_mode:'paid' };
       if(trialAppsForEnvironment(env).includes(body.product)) {
-        const paid = await entitlementResolver(admin,appSession.user_id,now(),{...env,MYOPS_ENABLE_STAGING_TRIAL_ACCESS:'false'});
+        const paid = snapshot ? snapshot.paidProducts
+          : await entitlementResolver(admin,appSession.user_id,now(),{...env,MYOPS_ENABLE_STAGING_TRIAL_ACCESS:'false'});
         if(!paid) return reply(503,{entitled:false,error:'Application access could not be verified.'});
         if(paid[body.product]!=='active') {
-          const trial = await loadEligibleTrial(admin,appSession.user_id,now(),env);
+          const trial = snapshot ? snapshot.trial : await loadEligibleTrial(admin,appSession.user_id,now(),env);
           if(!trial) return reply(403,{entitled:false,session_active:false});
           mode={access_mode:'trial',trial:{id:trial.id,expires_at:trial.expires_at,policy_version:trial.policy_version}};
         }

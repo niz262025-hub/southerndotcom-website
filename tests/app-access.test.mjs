@@ -416,3 +416,83 @@ test('signed entitlement returns server-owned trial metadata and keeps paid mode
  assert.deepEqual(result.body.trial,{id:loginSessionId,expires_at:trial.expires_at,policy_version:1});
  assert.equal(JSON.stringify(result.body).includes(userId),false);
 });
+
+
+function snapshotFixture() {
+  const { admin, calls } = make({ product: 'opsflow' });
+  const reads = [];
+  const trial = { id: loginSessionId, user_id: userId, organization_id: null,
+    policy_version: 1, status: 'active', started_at: new Date(NOW - 1000).toISOString(),
+    expires_at: new Date(NOW + 604799000).toISOString() };
+  const tables = {
+    myops_products: [{ slug: 'opsflow', launch_status: 'live' }, { slug: 'opswms', launch_status: 'coming_soon' }],
+    myops_subscriptions: [], myops_memberships: [], myops_app_grants: [],
+    myops_lifetime_entitlements: [], myops_trials: [trial],
+  };
+  const state = { errorTable: null };
+  admin.from = (table) => {
+    const filters = [];
+    const result = () => {
+      reads.push(table);
+      return { data: (tables[table] || []).filter(row => filters.every(filter => filter(row))),
+        error: state.errorTable === table ? { message: 'fixture failure' } : null };
+    };
+    const query = {
+      select() { return query; },
+      eq(key, value) { filters.push(row => row[key] === value); return query; },
+      in(key, values) { filters.push(row => values.includes(row[key])); return query; },
+      maybeSingle() { const response = result(); return Promise.resolve({ ...response, data: response.data[0] || null }); },
+      then(resolve, reject) { return Promise.resolve(result()).then(resolve, reject); },
+    };
+    return query;
+  };
+  const env = { ...baseEnv, MYOPS_USE_ISOLATED_STAGING: 'true',
+    VITE_SUPABASE_URL: 'https://wengxxiqwtosirealghx.supabase.co',
+    MYOPS_ENABLE_STAGING_TRIAL_ACCESS: 'true', MYOPS_TRIAL_READY_APPS: 'opsflow' };
+  const handler = createAppAccess({ env, adminFactory: () => admin, now: () => NOW });
+  const request = () => signedRequest({ path: '/api/app/entitlement', body: { session_id: sessionId, product: 'opsflow' } });
+  return { handler, request, tables, reads, calls, state, trial };
+}
+
+test('default signed entitlement reads one fresh snapshot and distinguishes trial from paid access', async () => {
+  const f = snapshotFixture();
+  const trialResult = await call(f.handler.entitlement, f.request());
+  assert.equal(trialResult.statusCode, 200);
+  assert.equal(trialResult.body.access_mode, 'trial');
+  assert.deepEqual(trialResult.body.trial, { id: f.trial.id, expires_at: f.trial.expires_at, policy_version: 1 });
+  for (const table of Object.keys(f.tables)) assert.equal(f.reads.filter(name => name === table).length, 1, table);
+  f.tables.myops_subscriptions.push({ personal_user_id: userId, product_slug: 'opsflow', status: 'active', current_period_end: null });
+  const paidResult = await call(f.handler.entitlement, f.request());
+  assert.equal(paidResult.statusCode, 200);
+  assert.equal(paidResult.body.access_mode, 'paid');
+  assert.equal(paidResult.body.trial, undefined);
+  for (const table of Object.keys(f.tables)) assert.equal(f.reads.filter(name => name === table).length, 2, table);
+  f.tables.myops_subscriptions = [];
+  f.trial.status = 'expired';
+  const expiredResult = await call(f.handler.entitlement, f.request());
+  assert.equal(expiredResult.statusCode, 403);
+  assert.ok(f.calls.some(([name]) => name === 'myops_revoke_app_session'));
+});
+
+test('snapshot lookup failures fail closed without revoking a valid session', async () => {
+  for (const table of ['myops_subscriptions', 'myops_trials']) {
+    const f = snapshotFixture();
+    f.state.errorTable = table;
+    const result = await call(f.handler.entitlement, f.request());
+    assert.equal(result.statusCode, 503, table);
+    assert.equal(result.body.entitled, table === 'myops_trials' ? undefined : false);
+    assert.equal(f.calls.some(([name]) => name === 'myops_revoke_app_session'), false);
+  }
+});
+
+test('snapshot retains company trial isolation and never grants Coming Soon applications', async () => {
+  const f = snapshotFixture();
+  f.trial.organization_id = loginSessionId;
+  f.tables.myops_organizations = [{ id: loginSessionId, owner_user_id: userId }];
+  f.tables.myops_memberships = [{ organization_id: loginSessionId, user_id: userId, role: 'admin', status: 'active' },
+    { organization_id: loginSessionId, user_id: sessionId, role: 'member', status: 'active' }];
+  assert.equal((await call(f.handler.entitlement, f.request())).statusCode, 403);
+  f.trial.organization_id = null;
+  f.tables.myops_products[0].launch_status = 'coming_soon';
+  assert.equal((await call(f.handler.entitlement, f.request())).statusCode, 403);
+});
