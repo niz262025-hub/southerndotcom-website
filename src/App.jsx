@@ -37,12 +37,12 @@ const products = [
   {
     slug: 'opsflow',
     name: 'OpsFlow',
-    tag: ['Workflow &', 'Business Automation'],
+    tag: ['Retail POS &', 'Inventory Management'],
     icon: 'FL',
     accent: 'blue',
     art: 'opsflow',
     href: '/solutions/opsflow',
-    summary: 'Automate processes and handoffs to move faster.',
+    summary: 'Manage retail sales, purchases, stock and cash flow.',
   },
   {
     slug: 'opsp',
@@ -190,9 +190,9 @@ const pageMeta = {
   },
   '/solutions/opsflow': {
     title: 'OpsFlow | MYOPS',
-    description: 'OpsFlow automates workflow execution so teams can reduce operational friction and improve speed.',
+    description: 'OpsFlow helps retailers manage point-of-sale transactions, purchases, inventory and daily cash flow.',
     ogTitle: 'OpsFlow | MYOPS',
-    ogDescription: 'Workflow automation and operational coordination for modern teams.',
+    ogDescription: 'Retail POS, inventory and purchasing in one MYOPS application.',
   },
   '/solutions/business-website-application-development': {
     title: 'Business Website & Application Development | MYOPS',
@@ -723,8 +723,8 @@ function SolutionPage({ route }) {
     opsflow: {
       name: 'OpsFlow',
       accent: 'blue',
-      summary: 'OpsFlow helps teams automate handoffs, operational follow-up and recurring work so execution stays organised.',
-      bullets: ['Workflow automation', 'Task coordination', 'Operational handoff visibility', 'Process consistency across teams'],
+      summary: 'OpsFlow helps retailers manage sales, purchases, inventory and cash flow in one application.',
+      bullets: ['Retail point of sale', 'Purchases and supplier orders', 'Stock and inventory tracking', 'Sales and cash flow reporting'],
       ctaLabel: 'Discuss OpsFlow',
       ctaHref: '/contact',
     },
