@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import PropTypes from 'prop-types';
 import { authRequest as request } from './authRequest';
 import { jumpToFounders } from './foundersNav';
+import { ProfileLogo } from './ProfileLogo';
 import { FreeTrial } from './FreeTrial';
 
 const productLabels = { opsp: 'OpsPS', opsfinance: 'OpsFinance', opsflow: 'OpsFlow', opswms: 'OpsWMS', opshr: 'OpsHR' };
@@ -68,6 +69,7 @@ export function AuthPortal({ mode, production = false }) {
         {mode === 'dashboard' && account && <>
           <FreeTrial />
           <p>Signed in as {account.email}</p>
+          <ProfileLogo profile={account.profile} refresh={async () => { const data = await request('account'); setAccount(data); }} />
           {account.profile?.company_name && <p>{account.profile.company_name}</p>}
           {account.profile && <p>{account.profile.display_name} · {account.profile.account_type === 'business' ? 'Business' : 'Personal'}</p>}
           <p>Open applications from the <a href="/">MYOPS homepage</a>; access is checked by the server on every launch.</p>
@@ -113,7 +115,7 @@ export function AuthPortal({ mode, production = false }) {
             </>}
             {['register', 'login', 'forgot'].includes(mode) && <label>Email address<input name="email" type="email" autoComplete="email" required maxLength={254} disabled={busy} /></label>}
             {['register', 'login', 'reset'].includes(mode) && <label>Password<input name="password" type="password" autoComplete={mode === 'login' ? 'current-password' : 'new-password'} required minLength={mode === 'login' ? 1 : 12} maxLength={128} disabled={busy} /></label>}
-            {mode === 'register' && <p>Use 12–128 characters for your password. Open the confirmation email in this same browser.</p>}
+            {mode === 'register' && <p>Use 12–128 characters for your password. Open the confirmation email in this same browser. You can add an optional company logo from your account after verification.</p>}
             <button className="btn btn-primary" type="submit" disabled={busy}>{busy ? 'Please wait…' : ({ register: 'Register', login: 'Sign in', forgot: 'Send recovery email', reset: 'Save password', dashboard: 'Save profile' })[mode]}</button>
           </form>
         )}

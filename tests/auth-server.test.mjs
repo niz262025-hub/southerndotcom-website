@@ -1041,3 +1041,25 @@ test('central account returns bounded contact metadata without exposing authorit
   assert.equal(result.code, 200);
   assert.deepEqual(result.data.profile, metadata);
 });
+
+test('logo writes need a verified live session and cannot accept an object path supplied by the browser',async()=>{
+ const invalid={action:'profile-logo',operation:'remove'};
+ assert.equal((await run(invalid)).code,401);
+ assert.equal((await run({...invalid,path:'victim/file.png'},{headers:{cookie:signedIn()}})).code,400);
+ const bad=await run({action:'profile-logo',operation:'upload',contentType:'image/svg+xml',encoded:'AAAA'},{headers:{cookie:signedIn()}});
+ assert.equal(bad.code,400);
+});
+test('logo upload and account readback keep the verified owner and expose only a short-lived URL',async()=>{
+ const metadata={display_name:'Owner',account_type:'personal'};
+ const calls=[];
+ const client=mock({getUser:async()=>({data:{user:{...user,user_metadata:metadata}},error:null})});
+ client.storage={from:()=>({upload:async(path)=>{calls.push(path);return {error:null};},remove:async()=>({error:null}),createSignedUrl:async(path,ttl)=>{assert.equal(path,metadata.logo_path);assert.equal(ttl,300);return {data:{signedUrl:'https://storage.example.test/signed'},error:null};}})};
+ const transport=async(_url,request)=>{Object.assign(metadata,JSON.parse(request.body).data);return Response.json({id:user.id});};
+ const headers={cookie:signedIn()};
+ const result=await run({action:'profile-logo',operation:'upload',contentType:'image/png',encoded:'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+aA1sAAAAASUVORK5CYII='},{headers,client,transport});
+ assert.equal(result.code,200);assert.ok(calls[0].startsWith(user.id+'/'));
+ const saved=await run({action:'account'},{headers,client});assert.equal(saved.code,200);assert.equal(saved.data.profile.logo_url,'https://storage.example.test/signed');assert.equal(saved.data.profile.has_logo,true);
+ assert.equal((await run({action:'profile-logo',operation:'remove'},{headers,client,transport})).code,200);
+ assert.equal(metadata.logo_path,null);
+ const removed=await run({action:'account'},{headers,client});assert.equal(removed.data.profile.has_logo,undefined);
+});

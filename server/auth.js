@@ -1,6 +1,7 @@
 import { createHmac, timingSafeEqual } from 'node:crypto';
 import { createClient } from '@supabase/supabase-js';
 import { profileFields, descriptiveProfile } from './profile-fields.js';
+import { changeProfileLogo, decodeLogo, ownedLogoPath, profileLogoUrl } from './profile-logo.js';
 import { createAppAccess } from './app-access.js';
 import { createPayments, paymentGateway } from './payments.js';
 import { PRODUCT_SLUGS, hasLifetime, resolveProductStates, isPlatformAdmin } from './entitlements.js';
@@ -321,7 +322,7 @@ export function createAuthHandler({ env = process.env, clientFactory = createCli
     };
     try {
       const body = typeof req.body === 'string' ? JSON.parse(req.body) : req.body;
-      if (!body || JSON.stringify(body).length > 12000) return reply(400, { error: 'Invalid request.' });
+      if (!body || Array.isArray(body) || JSON.stringify(body).length > (body.action === 'profile-logo' ? 360000 : 12000)) return reply(400, { error: 'Invalid request.' });
       const { action } = body;
       const productionAppAccessEnabled = production
         && env.MYOPS_ENVIRONMENT === 'production'
@@ -329,7 +330,7 @@ export function createAuthHandler({ env = process.env, clientFactory = createCli
       const liveGateway = paymentGateway(env, PROJECT);
       const productionPaymentsEnabled = production && Boolean(liveGateway?.secret
         && /^[A-Za-z0-9]{4,40}$/.test(liveGateway.category || ''));
-      const productionAccountActions = ['register', 'login', 'forgot', 'callback', 'logout', 'session', 'account', 'reset', 'profile', 'founders'];
+      const productionAccountActions = ['register', 'login', 'forgot', 'callback', 'logout', 'session', 'account', 'reset', 'profile', 'profile-logo', 'founders'];
       if (production && !productionAccountActions.includes(action)
           && !(action === 'admin_audit' && env.MYOPS_ENABLE_PLATFORM_ADMIN === 'true')
           && !(action === 'launch' && productionAppAccessEnabled)
@@ -498,7 +499,7 @@ export function createAuthHandler({ env = process.env, clientFactory = createCli
         return runRevocationWorker({ env, headers: req.headers, body, appAccess, reply });
       }
       if (action === 'founders') return reply(200, await payments.founders());
-      if (!['account', 'reset', 'profile', 'session', 'launch', 'checkout', 'admin_audit','trial_start','trial_status'].includes(action)) return reply(400, { error: 'Unknown operation.' });
+      if (!['account', 'reset', 'profile', 'profile-logo', 'session', 'launch', 'checkout', 'admin_audit', 'trial_start', 'trial_status'].includes(action)) return reply(400, { error: 'Unknown operation.' });
       let active = saved[SESSION] && activityValid(secret, saved[ACTIVITY], now());
       const { data: identity, error: identityError } = saved[SESSION]
         ? await client.auth.getUser(saved[SESSION]) : { data: {}, error: true };
@@ -588,6 +589,29 @@ export function createAuthHandler({ env = process.env, clientFactory = createCli
         if (!revoked || signOut[0].status === 'rejected' || signOut[0].value?.error) throw new Error('password_reset_revoke_failed');
         return reply(200, { next: '/login' });
       }
+      if (action === 'profile-logo') {
+        if (!['upload', 'remove'].includes(body.operation)
+            || Object.keys(body).some(key => !['action', 'operation', 'contentType', 'encoded'].includes(key))) {
+          return reply(400, { error: 'Invalid logo request.' });
+        }
+        if (body.operation === 'upload') {
+          try { decodeLogo(body.contentType, body.encoded); }
+          catch (error) { return reply(400, { error: error.message }); }
+        }
+        try {
+          const result = await changeProfileLogo({ client, user: identity.user, operation: body.operation,
+            contentType: body.contentType, encoded: body.encoded,
+            saveMetadata: async data => {
+              const updated = await transport(`${PROJECT}/auth/v1/user`, {
+                method: 'PUT', headers: { 'Content-Type': 'application/json', apikey: env.VITE_SUPABASE_PUBLISHABLE_KEY,
+                  Authorization: `Bearer ${saved[SESSION]}` }, body: JSON.stringify({ data }),
+              });
+              if (!updated.ok || (await updated.json())?.id !== identity.user.id) throw new Error('Logo profile update failed.');
+            },
+          });
+          return reply(200, result);
+        } catch { return reply(503, { error: 'Logo could not be updated. Please retry.' }); }
+      }
       if (action === 'profile') {
         if (!['personal', 'business'].includes(body.accountType) || typeof body.displayName !== 'string'
             || body.displayName.trim().length < 1 || body.displayName.length > 120) return reply(400, { error: 'Invalid profile.' });
@@ -608,7 +632,12 @@ export function createAuthHandler({ env = process.env, clientFactory = createCli
       }
       // Auth metadata is user-editable and descriptive only; it never grants access.
       const entitlements = await loadEntitlements(client, identity.user.id, now(), env);
-      return reply(200, { email: identity.user.email, profile: profileFrom(identity.user), products: entitlements?.products ?? null, lifetime: entitlements?.lifetime ?? false, ...(isPlatformAdmin(identity.user.id, env) ? { platformAdmin: true } : {}) });
+      const profile = profileFrom(identity.user);
+      if (profile && ownedLogoPath(identity.user.user_metadata?.logo_path, identity.user.id)) {
+        profile.has_logo = true;
+        profile.logo_url = await profileLogoUrl(client, identity.user);
+      }
+      return reply(200, { email: identity.user.email, profile, products: entitlements?.products ?? null, lifetime: entitlements?.lifetime ?? false, ...(isPlatformAdmin(identity.user.id, env) ? { platformAdmin: true } : {}) });
     } catch {
       // Never log SDK errors, credentials, request bodies, cookies or callback codes.
       return reply(500, { error: 'Authentication request failed. Please try again.' });
