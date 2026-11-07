@@ -27,7 +27,7 @@ async function mount(respond) {
     createElement(FoundersPromo), createElement('article', { id: 'opsp' }, createElement(ProductAction, { product: { slug: 'opsp' } }))))));
   return { calls, cleanup: async () => { await act(async () => root.unmount()); Object.assign(globalThis, originals); dom.window.close(); } };
 }
-const buttons = () => [...document.querySelectorAll('#founders a, #founders button:not([disabled])')].map((node) => node.textContent);
+const buttons = () => [...document.querySelectorAll('#founders a, #founders button:not([disabled])')].filter(node=>!node.closest('#free-trial')).map((node) => node.textContent);
 const founders = (remaining) => ({ capacity: 100, allocated: 100 - remaining, remaining, available: remaining > 0 });
 
 test('signed-out visitors see the promotion with the server slot count and Register/Login', async () => {
@@ -62,12 +62,12 @@ test('sold-out founders never fall back to an obsolete single-app checkout', asy
   } finally { await cleanup(); }
 });
 
-test('pricing has exactly Founders 100, 2 Apps and All Apps; monthly purchases remain paused', async () => {
+test('pricing includes the free trial and paid plans; monthly purchases remain paused', async () => {
   const { cleanup, calls } = await mount((body) => Response.json(body.action === 'founders' ? founders(5) : { signedIn: false }));
   try {
     const cards = [...document.querySelectorAll('.pricing-cards .price-card')];
-    assert.deepEqual(cards.map((card) => card.querySelector('h3').textContent), ['Founders 100', '2 Apps', 'All Apps']);
-    assert.deepEqual(cards.map((card) => card.querySelector('.price-amount').textContent), ['RM29 one-time', 'RM49 / month', 'RM79 / month']);
+    assert.deepEqual(cards.map((card) => card.querySelector('h3').textContent), ['Free 7-Day Trial · Percubaan Percuma 7 Hari', 'Founders 100', '2 Apps', 'All Apps']);
+    assert.deepEqual(cards.map((card) => card.querySelector('.price-amount').textContent), ['RM0 / 7 hari', 'RM29 one-time', 'RM49 / month', 'RM79 / month']);
     assert.doesNotMatch(document.querySelector('#founders').textContent, /Single App|Business Basic|Business Pro|Enterprise|pending owner approval/);
     const monthly = [...document.querySelectorAll('.pricing-cards button')];
     assert.equal(monthly.length, 2);
