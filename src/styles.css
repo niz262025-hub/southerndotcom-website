@@ -1175,4 +1175,9 @@ select {
 /* Central profile forms must fit narrow mobile browsers, including long addresses. */
 .account-form-panel form, .account-form-panel label { min-width: 0; }
 .account-form-panel input, .account-form-panel select, .account-form-panel textarea { box-sizing: border-box; max-width: 100%; min-height: 44px; }
-.account-form-panel textarea { width: 100%; min-height: 96px; padding: 12px; font: inherit; color: #142347; background: #fff; border: 1px solid #b9bdc6; border-radius: 10px; resize: vertical; }
+.profile-logo { margin-bottom: 28px; padding-bottom: 24px; border-bottom: 1px solid #cbd3e0; }
+.profile-logo img { display: block; max-width: 100%; object-fit: contain; }
+.profile-logo-actions { display: flex; gap: 12px; flex-wrap: wrap; margin-top: 16px; }
+.profile-logo-actions button { min-height: 44px; border: 1px solid #cbd3e0; border-radius: 10px; background: #fff5ef; color: #071b49; padding: 10px 16px; font: inherit; cursor: pointer; }
+.account-form-panel select, .account-form-panel textarea { box-sizing: border-box; min-width: 0; width: 100%; padding: 13px 14px; border: 1px solid #cbd3e0; border-radius: 10px; background: #f4f6fa; color: #071b49; font: inherit; }
+.account-form-panel textarea { min-height: 110px; resize: vertical; }

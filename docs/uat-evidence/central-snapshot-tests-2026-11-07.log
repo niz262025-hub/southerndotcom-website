@@ -9,7 +9,7 @@ npm warn Unknown env config "http-proxy". This will stop working in the next maj
 ✔ schema enables RLS on all account and billing tables (0.127282ms)
 ✔ session and renewal preferences have explicit fields (0.110556ms)
 myops_sso_login_unavailable rpc upstream
-myops_sso_login_unavailable configuration 
+myops_sso_login_unavailable configuration
 ✔ app requests use Ed25519 signatures and the canonical request binds method, path, nonce and body (4.008081ms)
 ✔ launch ticket is 256-bit, delivered only in the registered app URL, while only its SHA-256 hash is stored (1.774099ms)
 ✔ redemption revalidates entitlement and returns only an app-scoped opaque user reference (2.931762ms)
@@ -37,8 +37,8 @@ myops_sso_login_unavailable configuration
 ✔ central descriptive profile exposes only valid name and company labels (1.777735ms)
 ✔ profile lookup uses the verified user id and rejects conflicting identity or lookup failure (1.356581ms)
 ✔ registration form submits fields, shows pending state, success and retryable failures (172.241383ms)
-myops_sso_login_unavailable configuration 
-myops_sso_login_unavailable configuration 
+myops_sso_login_unavailable configuration
+myops_sso_login_unavailable configuration
 ✔ production disabled regardless of configured values (2.462255ms)
 ✔ production app launch requires the explicit production app-access switch (0.878332ms)
 ✔ exact trusted host, same-origin JSON and POST required (0.258079ms)
@@ -55,9 +55,9 @@ myops_sso_login_unavailable configuration
 ✔ onboarding rejects unsupported account types and reports upstream save failure (0.479161ms)
 ✔ password update uses authenticated upstream, revokes refresh sessions and clears cookie (0.481415ms)
 ✔ logout clears browser cookies without echoing credentials (0.698531ms)
-myops_sso_login_unavailable configuration 
-myops_sso_login_unavailable configuration 
-myops_sso_login_unavailable configuration 
+myops_sso_login_unavailable configuration
+myops_sso_login_unavailable configuration
+myops_sso_login_unavailable configuration
 ✔ real installed SDK persists PKCE verifier but never refresh/access session to cookie storage (19.103699ms)
 ✔ registration errors never masquerade as confirmation success or expose upstream details (1.064042ms)
 ✔ missing Preview key stops signup before client initialization (0.117818ms)

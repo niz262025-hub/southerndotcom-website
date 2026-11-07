@@ -379,6 +379,32 @@ test('OpsFlow receives central labels only after signature, ticket, session and 
   const retry=await call(handler.entitlement,signedRequest({path:'/api/app/entitlement',body:{session_id:sessionId,product:'opsflow',activity:true,sensitive:true}}));
   assert.equal(retry.statusCode,200);assert.deepEqual(retry.body.onboarding_profile,result.body.onboarding_profile);
 });
+test('durable login liveness is a read-only, user-bound lookup and fails closed on outage', async () => {
+  for (const expected of [true, false, null]) {
+    const calls = [];
+    const handler = createAppAccess({ env: baseEnv, now: () => NOW, adminFactory: () => ({ rpc: async (name, args) => {
+      calls.push([name, args]); return expected === null ? { error: { code: 'outage' } } : { data: expected, error: null };
+    } }) });
+    assert.equal(await handler.loginLive(userId, loginSessionId), expected);
+    assert.deepEqual(calls, [['myops_login_live', { p_id: loginSessionId, p_user_id: userId }]]);
+  }
+});
+
+test('central profile is released only on signed, active entitled sessions and never trusts body identity', async () => {
+ const f = make();
+ let reads=0;
+ f.admin.auth={admin:{getUserById:async id=>{reads++;assert.equal(id,userId);return {data:{user:{id,user_metadata:{display_name:'Owner',account_type:'personal',contact_number:'+60123456789',role:'admin',organization_id:'victim'},updated_at:'2026-11-07T00:00:00Z'}}};}}};
+ const body={session_id:sessionId,product:'opsp',profile:true};
+ const result=await call(f.handler.entitlement,signedRequest({path:'/api/app/entitlement',body}));
+ assert.equal(result.statusCode,200);assert.equal(reads,1);
+ assert.deepEqual(result.body.central_profile,{display_name:'Owner',account_type:'personal',contact_number:'+60123456789',logo_url:null,updated_at:'2026-11-07T00:00:00Z'});
+ const denied=make({entitlement:'none'});denied.admin.auth={admin:{getUserById:()=>assert.fail('denied session cannot load a profile')}};
+ assert.equal((await call(denied.handler.entitlement,signedRequest({path:'/api/app/entitlement',body}))).statusCode,403);
+ assert.equal((await call(f.handler.entitlement,signedRequest({path:'/api/app/entitlement',body:{...body,user_id:'victim'}}))).statusCode,400);
+ const tampered=signedRequest({path:'/api/app/entitlement',body:{...body,profile:false}});tampered.body.profile=true;
+ assert.equal((await call(f.handler.entitlement,tampered)).statusCode,401);
+ });
+
 test('trial quota requires a signed matching app/session and never touches activity',async()=>{
  const {handler,admin,calls}=make();
  admin.from=table=>{assert.equal(table,'myops_app_sessions');const q={select:()=>q,eq:()=>q,maybeSingle:async()=>({data:{user_id:userId,login_session_id:loginSessionId},error:null})};return q;};

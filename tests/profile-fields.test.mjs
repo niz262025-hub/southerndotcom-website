@@ -22,3 +22,10 @@ test('new forms require all approved contact fields and reject malformed or over
 test('legacy partial updates preserve omitted details and cannot introduce arbitrary metadata', () => {
   assert.deepEqual(profileFields({ companyName: 'New company', access_mode: 'paid' }), { company_name: 'New company' });
 });
+test('server-enforced complete registration cannot be downgraded by omitting the form version', () => {
+  for (const profileVersion of [undefined, '0', '1']) {
+    assert.throws(() => profileFields({ accountType: 'personal', profileVersion }, { requireComplete: true }));
+  }
+  for (const contactNumber of ['-----', '12345', '+1234567890123456']) assert.throws(() => profileFields({ ...person, contactNumber }));
+  assert.throws(() => profileFields({ ...company, ssmNumber: '<script>' }));
+});

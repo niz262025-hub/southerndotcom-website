@@ -9,7 +9,6 @@ const { SessionProvider, ProductAction } = await importSrc('session.jsx');
 const { FoundersPromo } = await importSrc('FoundersPromo.jsx');
 
 const states = { opsp: 'none', opsfinance: 'none', opsflow: 'none', opswms: 'coming_soon', opshr: 'coming_soon' };
-const active = { ...states, opsp: 'active', opsfinance: 'active', opsflow: 'active' };
 const signedIn = (extra) => ({ signedIn: true, email: 'u@example.test', products: states, lifetime: false, ...extra });
 
 async function mount(respond) {
@@ -27,24 +26,32 @@ async function mount(respond) {
     createElement(FoundersPromo), createElement('article', { id: 'opsp' }, createElement(ProductAction, { product: { slug: 'opsp' } }))))));
   return { calls, cleanup: async () => { await act(async () => root.unmount()); Object.assign(globalThis, originals); dom.window.close(); } };
 }
-const buttons = () => [...document.querySelectorAll('#founders a, #founders button:not([disabled])')].map((node) => node.textContent);
+const buttons = () => [...document.querySelectorAll('#founders a, #founders button:not([disabled])')]
+  .filter((node) => !node.closest('#free-trial'))
+  .map((node) => node.textContent);
 const founders = (remaining) => ({ capacity: 100, allocated: 100 - remaining, remaining, available: remaining > 0 });
 
-test('public pricing shows the approved MYOPS plans and OpsHub fee structure', async () => {
+test('public pricing shows the approved MYOPS plans, OpsHub fees, and free trial', async () => {
   const { cleanup } = await mount((body) => Response.json(body.action === 'founders' ? founders(63) : { signedIn: false }));
   try {
     const cards = [...document.querySelectorAll('.pricing-cards .price-card')];
-    assert.deepEqual(cards.map((card) => card.querySelector('h3').textContent), ['Starter', 'Single', 'Duo', 'Complete', 'OpsHub']);
-    assert.deepEqual(cards.map((card) => card.querySelector('.price-amount').textContent), ['RM9.90 / month', 'RM19.90 / month', 'RM29.90 / month', 'RM39.90 / month', 'RM0 / month']);
+    assert.deepEqual(cards.map((card) => card.querySelector('h3').textContent), [
+      'Free 7-Day Trial · Percubaan Percuma 7 Hari', 'Starter', 'Single', 'Duo', 'Complete', 'OpsHub',
+    ]);
+    assert.deepEqual(cards.map((card) => card.querySelector('.price-amount').textContent), [
+      'RM0 / 7 hari', 'RM9.90 / month', 'RM19.90 / month', 'RM29.90 / month', 'RM39.90 / month', 'RM0 / month',
+    ]);
     assert.match(document.querySelector('#founders').textContent, /Choose your MYOPS plan/);
     assert.match(document.querySelector('#founders').textContent, /14-day trial/);
+    assert.match(document.querySelector('#founders').textContent, /manual monthly renewal/);
     assert.match(document.querySelector('#founders').textContent, /3% \/ 2% \/ 1\.5%/);
-    assert.deepEqual([...document.querySelectorAll('.pricing-cards button')].map((button) => button.textContent), ['Checkout opening soon', 'Checkout opening soon', 'Checkout opening soon', 'Checkout opening soon']);
-    assert.ok([...document.querySelectorAll('.pricing-cards button')].every((button) => button.disabled));
+    const monthly = [...document.querySelectorAll('.pricing-cards button')].filter((button) => !button.closest('#free-trial'));
+    assert.deepEqual(monthly.map((button) => button.textContent), ['Checkout opening soon', 'Checkout opening soon', 'Checkout opening soon', 'Checkout opening soon']);
+    assert.ok(monthly.every((button) => button.disabled));
   } finally { await cleanup(); }
 });
 
-test('signed-in visitors still see pricing cards without a lifetime claim CTA', async () => {
+test('signed-in visitors see current plans without obsolete Founders checkout controls', async () => {
   const { cleanup } = await mount((body) => Response.json(body.action === 'founders' ? founders(5) : signedIn()));
   try {
     assert.deepEqual(buttons(), []);
@@ -58,6 +65,5 @@ test('OpsHub pricing note makes the commission tiers explicit', async () => {
   try {
     assert.match(document.querySelector('#founders').textContent, /Seller account is free/);
     assert.match(document.querySelector('#founders').textContent, /3% \/ 2% \/ 1\.5%/);
-    assert.doesNotMatch(document.querySelector('#founders').textContent, /Founders 100 places are taken/i);
   } finally { await cleanup(); }
 });

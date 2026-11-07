@@ -30,6 +30,12 @@ test('live ledger proposal preserves sandbox orders, returns gateway and retains
     assert.equal(created.gateway, 'toyyibpay_live');
     assert.equal(created.amount_cents, 2900);
     assert.equal((await create(other, 'MYOPS-duplicate001')).gateway, 'toyyibpay_live');
+    await one("select myops_attach_bill('MYOPS-liveorder001','livebill01') value");
+    const settle = () => one("select myops_settle_payment('MYOPS-liveorder001','livebill01','LIVETXN01',2900,'succeeded','liveevent01') value");
+    assert.equal((await settle()).status, 'settled');
+    assert.equal((await settle()).status, 'already_settled');
+    assert.equal(await one('select count(*)::int value from myops_founder_allocations'), 1);
+    assert.equal(await one('select count(*)::int value from myops_lifetime_entitlements where user_id=$1 and status=\'active\'', [other]), 1);
     for (const role of ['anon','authenticated']) {
       assert.equal(await one("select has_function_privilege($1,'public.myops_create_payment(uuid,text,text,text,integer)','EXECUTE') value", [role]), false);
     }
