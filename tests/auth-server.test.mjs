@@ -34,6 +34,7 @@ async function run(body, options = {}) {
     transport: options.transport, now: () => NOW, diagnostic: options.diagnostic || (() => {}) })(req, res);
   return { ...res, headers };
 }
+const registrationDetails = { contactNumber: '+60123456789', address: 'Johor Bahru' };
 const login = { action: 'login', email: user.email, password: 'staging-password' };
 
 test('production disabled regardless of configured values', async () => {
@@ -78,7 +79,7 @@ test('wrong credentials and unconfirmed login cannot save a session', async () =
   }
 });
 test('signup never starts a session when confirmation is disabled', async () => {
-  const result = await run({ ...login, action: 'register', accountType: 'business', displayName: 'Test' },
+  const result = await run({ ...login, action: 'register', ...registrationDetails, accountType: 'business', displayName: 'Test', companyName: 'Test Company', ssmNumber: '202303050959', companyEmail: 'office@example.test', personInCharge: 'Owner' },
     { client: mock({ signUp: async () => ({ data: { session }, error: null }) }) });
   assert.equal(result.code, 503);
   assert.equal(result.headers['Set-Cookie'], undefined);
@@ -168,14 +169,14 @@ test('logout clears browser cookies without echoing credentials', async () => {
 test('real installed SDK persists PKCE verifier but never refresh/access session to cookie storage', async () => {
   const factory = (url, key, options) => createClient(url, key, { ...options,
     global: { fetch: async () => new Response(JSON.stringify({ id: 'fixture', email: user.email }), { status: 200, headers: { 'Content-Type': 'application/json' } }) } });
-  const result = await run({ ...login, action: 'register', accountType: 'personal', displayName: 'Test' }, { factory });
+  const result = await run({ ...login, action: 'register', ...registrationDetails, accountType: 'personal', displayName: 'Test' }, { factory });
   assert.equal(result.code, 200);
   assert.ok(result.headers['Set-Cookie'].some((c) => c.startsWith('__Host-myops-pkce=')));
   assert.ok(result.headers['Set-Cookie'].every((c) => !c.startsWith('__Host-myops-access=')));
 });
 
 test('registration errors never masquerade as confirmation success or expose upstream details', async () => {
-  const body = { ...login, action: 'register', accountType: 'personal', displayName: 'Test' };
+  const body = { ...login, action: 'register', ...registrationDetails, accountType: 'personal', displayName: 'Test' };
   for (const [code, status] of [['weak_password', 400], ['signup_disabled', 503], ['email_provider_disabled', 503], ['unexpected_failure', 502]]) {
     const result = await run(body, { client: mock({ signUp: async () => ({ data: {}, error: { code, message: 'private upstream detail' } }) }) });
     assert.equal(result.code, status);
@@ -193,7 +194,7 @@ test('missing Preview key stops signup before client initialization', async () =
 
 
 test('signup diagnostics log only allowlisted codes and numeric HTTP statuses', async () => {
-  const body = { ...login, action: 'register', accountType: 'personal', displayName: 'Test' };
+  const body = { ...login, action: 'register', ...registrationDetails, accountType: 'personal', displayName: 'Test' };
   for (const [code, status, expectedCode, expectedStatus] of [
     ['unexpected_failure', 500, 'unexpected_failure', 500],
     ['email_address_not_authorized', 403, 'email_address_not_authorized', 403],
@@ -214,13 +215,13 @@ test('signup diagnostics log only allowlisted codes and numeric HTTP statuses', 
 test('successful signup and Production rejection produce no signup diagnostics', async () => {
   const entries = [];
   const diagnostic = (entry) => entries.push(entry);
-  const body = { ...login, action: 'register', accountType: 'personal', displayName: 'Test' };
+  const body = { ...login, action: 'register', ...registrationDetails, accountType: 'personal', displayName: 'Test' };
   assert.equal((await run(body, { diagnostic })).code, 200);
   assert.equal((await run(body, { diagnostic, env: { VERCEL_ENV: 'production' } })).code, 404);
   assert.deepEqual(entries, []);
 });
 test('failed diagnostic sink cannot change signup error response', async () => {
-  const result = await run({ ...login, action: 'register', accountType: 'personal', displayName: 'Test' }, {
+  const result = await run({ ...login, action: 'register', ...registrationDetails, accountType: 'personal', displayName: 'Test' }, {
     diagnostic: () => { throw new Error('sink unavailable'); },
     client: mock({ signUp: async () => ({ data: {}, error: { code: 'unexpected_failure', status: 500 } }) }),
   });
@@ -228,7 +229,7 @@ test('failed diagnostic sink cannot change signup error response', async () => {
 });
 test('signup SDK destination is exactly the dedicated staging project', async () => {
   let destination;
-  const result = await run({ ...login, action: 'register', accountType: 'personal', displayName: 'Test' }, {
+  const result = await run({ ...login, action: 'register', ...registrationDetails, accountType: 'personal', displayName: 'Test' }, {
     factory: (url) => { destination = url; return mock(); },
   });
   assert.equal(result.code, 200);
@@ -238,7 +239,7 @@ test('signup SDK destination is exactly the dedicated staging project', async ()
 
 test('invalid upstream email returns actionable 400 without leaking upstream details', async () => {
   const entries = [];
-  const result = await run({ ...login, action: 'register', accountType: 'personal', displayName: 'Test' }, {
+  const result = await run({ ...login, action: 'register', ...registrationDetails, accountType: 'personal', displayName: 'Test' }, {
     diagnostic: (entry) => entries.push(entry),
     client: mock({ signUp: async () => ({ data: {}, error: {
       code: 'email_address_invalid', status: 400, message: 'private upstream detail',
@@ -995,4 +996,33 @@ test('durable activity fallback requires a signed login belonging to a verified 
     }) });
     assert.equal(result.data.signedIn, false);
   }
+});
+
+
+test('registration validates company/contact details before signUp even without a form version', async () => {
+  const register = { ...login, ...registrationDetails, action: 'register', accountType: 'business', displayName: 'Owner',
+    companyName: 'Company', ssmNumber: '202303050959', companyEmail: 'office@example.test', personInCharge: 'Owner' };
+  for (const missing of ['companyName', 'ssmNumber', 'companyEmail', 'personInCharge', 'contactNumber', 'address']) {
+    const invalid = { ...register }; delete invalid[missing];
+    const result = await run(invalid, { client: mock({ signUp: () => assert.fail('invalid profile must not reach Auth') }) });
+    assert.equal(result.code, 400, missing);
+  }
+  let sent;
+  assert.equal((await run({ ...register, role: 'admin', organization_id: 'victim', subscription: 'active' }, {
+    client: mock({ signUp: async input => { sent = input; return { data: { session: null }, error: null }; } }),
+  })).code, 200);
+  assert.deepEqual(sent.options.data, { display_name: 'Owner', account_type: 'business', company_name: 'Company',
+    ssm_number: '202303050959', company_email: 'office@example.test', person_in_charge: 'Owner',
+    contact_number: '+60123456789', address: 'Johor Bahru' });
+});
+
+test('central account returns bounded contact metadata without exposing authority claims', async () => {
+  const metadata = { display_name: 'Owner', account_type: 'business', company_name: 'Company',
+    ssm_number: '202303050959', company_email: 'office@example.test', contact_number: '+60123456789',
+    address: 'Johor Bahru', person_in_charge: 'Owner' };
+  const result = await run({ action: 'account' }, { headers: { cookie: signedIn() },
+    client: mock({ getUser: async () => ({ data: { user: { ...user, user_metadata: { ...metadata, role: 'admin', organization_id: 'victim' } } }, error: null }) }),
+    appAccessFactory: () => ({ loginLive: async () => true }) });
+  assert.equal(result.code, 200);
+  assert.deepEqual(result.data.profile, metadata);
 });

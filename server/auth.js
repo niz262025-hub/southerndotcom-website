@@ -1,5 +1,6 @@
 import { createHmac, timingSafeEqual } from 'node:crypto';
 import { createClient } from '@supabase/supabase-js';
+import { profileFields, descriptiveProfile } from './profile-fields.js';
 import { createAppAccess } from './app-access.js';
 import { createPayments, paymentGateway } from './payments.js';
 import { PRODUCT_SLUGS, hasLifetime, resolveProductStates, isPlatformAdmin } from './entitlements.js';
@@ -229,7 +230,7 @@ function profileFrom(user) {
   if (typeof displayName !== 'string' || !displayName.trim()
       || !['personal', 'business'].includes(accountType)) return null;
   return { display_name: displayName.trim(), account_type: accountType,
-    ...(typeof metadata.company_name === 'string' && metadata.company_name.trim() ? { company_name: metadata.company_name.trim() } : {}) };
+    ...descriptiveProfile(metadata) };
 }
 
 // Explicit allowlist: never log arbitrary upstream strings, messages or error objects.
@@ -405,10 +406,13 @@ export function createAuthHandler({ env = process.env, clientFactory = createCli
             || typeof body.displayName !== 'string' || body.displayName.trim().length < 1 || body.displayName.length > 120) {
           return reply(400, { error: 'Enter a name, valid email and 12–128 character password.' });
         }
+        let details;
+        try { details = profileFields(body, { requireComplete: true }); }
+        catch (error) { return reply(400, { error: error.message }); }
         // Metadata is descriptive only. Never trust it for roles or authorization.
         const { data, error } = await client.auth.signUp({ email: body.email, password: body.password,
           options: { emailRedirectTo: callback, data: { display_name: body.displayName.trim(), account_type: body.accountType,
-            ...(body.companyName !== undefined ? { company_name: body.companyName.trim() } : {}) } } });
+            ...details } } });
         if (!error && data?.user?.id && data.user.identities?.length > 0) {
           await payments.provisionProfile({ userId: data.user.id, displayName: body.displayName.trim(), accountType: body.accountType });
         }
@@ -569,12 +573,15 @@ export function createAuthHandler({ env = process.env, clientFactory = createCli
       if (action === 'profile') {
         if (!['personal', 'business'].includes(body.accountType) || typeof body.displayName !== 'string'
             || body.displayName.trim().length < 1 || body.displayName.length > 120) return reply(400, { error: 'Invalid profile.' });
+        let details;
+        try { details = profileFields(body); }
+        catch (error) { return reply(400, { error: error.message }); }
         const updated = await transport(`${PROJECT}/auth/v1/user`, {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json', apikey: env.VITE_SUPABASE_PUBLISHABLE_KEY,
             Authorization: `Bearer ${saved[SESSION]}` },
           body: JSON.stringify({ data: { display_name: body.displayName.trim(), account_type: body.accountType,
-            ...(body.companyName !== undefined ? { company_name: body.companyName.trim() } : {}) } }),
+            ...details } }),
         });
         if (!updated.ok) return reply(503, { error: 'Profile could not be saved. Try again later.' });
         const updatedUser = await updated.json();
