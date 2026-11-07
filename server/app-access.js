@@ -1,4 +1,7 @@
+import { loadEligibleTrial, trialAppsForEnvironment } from './trial-access.js';
+import { consumeVerifiedTrialQuota } from './trial-quota.js';
 import { loadAppProfile } from './app-profile.js';
+import { loadCentralProfile } from './central-profile.js';
 import { createHash, createHmac, createPublicKey, randomBytes, verify } from 'node:crypto';
 import { createClient } from '@supabase/supabase-js';
 import { resolveProductStates, isPlatformAdmin } from './entitlements.js';
@@ -17,6 +20,12 @@ const APP_MAX_SESSION_MS = 12 * 60 * 60 * 1000;
 const USER_ID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 export const hashTicket = (ticket) => createHash('sha256').update(ticket).digest('hex');
+function receivesCentralLabels(product,env) {
+  if(product==='opsflow')return true;
+  if(env.VERCEL_ENV!=='preview'||env.MYOPS_ENVIRONMENT!=='staging')return false;
+  return (product==='opsfinance'&&env.MYOPS_FINANCE_PROVISIONING_READY==='true')
+    ||(product==='opsp'&&env.MYOPS_OPSPS_PROVISIONING_READY==='true');
+}
 
 // Deterministic JSON: sorted keys at every depth, so no nested field can change unsigned.
 export function canonicalJson(value) {
@@ -95,7 +104,8 @@ function entitlementRows(client, table, columns, userId) {
   return query;
 }
 
-export async function loadCurrentEntitlements(client, userId, now, env = {}) {
+// This snapshot belongs to one request only. Never retain it across session checks.
+async function loadEntitlementSnapshot(client, userId, now, env = {}) {
   const [catalog, personalSubs, memberships, grants, lifetime] = await Promise.all([
     entitlementRows(client, 'myops_products', 'slug,launch_status', userId),
     entitlementRows(client, 'myops_subscriptions', 'personal_user_id,organization_id,product_slug,is_complete_bundle,status,current_period_end', userId),
@@ -113,15 +123,26 @@ export async function loadCurrentEntitlements(client, userId, now, env = {}) {
     if (orgSubs.error) return null;
   }
   const subscriptions = [...(personalSubs.data || []), ...(orgSubs.data || [])];
-  return resolveProductStates({
+  const trial = await loadEligibleTrial(client,userId,now,env);
+  const inputs = {
     userId,
     catalog: catalog.data || [],
     subscriptions,
     grants: grants.data || [],
     lifetime: lifetime.data || [],
     platformAdmin: isPlatformAdmin(userId, env),
+    trial, trialApps: trialAppsForEnvironment(env),
     now,
-  });
+  };
+  return {
+    products: resolveProductStates({ ...inputs, trial, trialApps: trialAppsForEnvironment(env) }),
+    paidProducts: resolveProductStates({ ...inputs, trial: null, trialApps: [] }),
+    trial,
+  };
+}
+
+export async function loadCurrentEntitlements(client, userId, now, env = {}) {
+  return (await loadEntitlementSnapshot(client, userId, now, env))?.products ?? null;
 }
 
 function requestContext(req, res, env, now) {
@@ -215,6 +236,17 @@ export function createAppAccess({ env = process.env, adminFactory = createClient
     } catch (error) {
       return unavailable('rpc', error.code);
     }
+  }
+
+  // Read only: satellite activity already updates this same bound durable login.
+  async function loginLive(userId, loginSessionId) {
+    if (!configured(env) || !USER_ID.test(String(userId)) || !USER_ID.test(String(loginSessionId))) return false;
+    const admin = client();
+    if (!admin) return null;
+    try {
+      const live = await rpc(admin, 'myops_login_live', { p_id: loginSessionId, p_user_id: userId });
+      return typeof live === 'boolean' ? live : null;
+    } catch { return null; }
   }
 
   // Records MYOPS user activity (throttled to 30 s in SQL). false = login no longer live; null = unknown.
@@ -372,7 +404,7 @@ export function createAppAccess({ env = process.env, adminFactory = createClient
         session_id: redeemed.session_id,
         user_ref: userRef(env.MYOPS_APP_USER_REF_SECRET, appId, redeemed.user_id),
         product: clientData.product_slug,
-        ...(clientData.product_slug === 'opsflow' ? { onboarding_profile: await loadAppProfile(admin, redeemed.user_id) } : {}),
+        ...(receivesCentralLabels(clientData.product_slug,env) ? { onboarding_profile: await loadAppProfile(admin, redeemed.user_id) } : {}),
         idle_seconds: APP_IDLE_MS / 1000,
         max_session_seconds: APP_MAX_SESSION_MS / 1000,
       });
@@ -387,10 +419,11 @@ export function createAppAccess({ env = process.env, adminFactory = createClient
       auth = await authenticate(req, res, 'entitlement');
       if (!auth || typeof auth.statusCode === 'number') return auth;
       const { admin, appId, clientData, body, reply } = auth;
-      if (Object.keys(body).some((key) => !['session_id', 'product', 'sensitive', 'activity'].includes(key))
+      if (Object.keys(body).some((key) => !['session_id', 'product', 'sensitive', 'activity', 'profile'].includes(key))
           || !SESSION_ID.test(body.session_id || '') || body.product !== clientData.product_slug
           || (body.sensitive !== undefined && typeof body.sensitive !== 'boolean')
           || (body.activity !== undefined && typeof body.activity !== 'boolean')
+          || (body.profile !== undefined && typeof body.profile !== 'boolean')
           || (body.sensitive === true && body.activity !== true)) {
         return reply(400, { error: 'Invalid request.' });
       }
@@ -401,7 +434,10 @@ export function createAppAccess({ env = process.env, adminFactory = createClient
       if (!appSession?.active || typeof appSession.user_id !== 'string') {
         return reply(403, { entitled: false, session_active: false });
       }
-      const products = await entitlementResolver(admin, appSession.user_id, now(), env);
+      const snapshot = entitlementResolver === loadCurrentEntitlements
+        ? await loadEntitlementSnapshot(admin, appSession.user_id, now(), env) : null;
+      const products = entitlementResolver === loadCurrentEntitlements
+        ? snapshot?.products : await entitlementResolver(admin, appSession.user_id, now(), env);
       // Unknown state (lookup failed): deny this request but keep the session for a later retry.
       if (!products) return reply(503, { entitled: false, error: 'Application access could not be verified.' });
       const entitled = products[body.product] === 'active';
@@ -411,12 +447,44 @@ export function createAppAccess({ env = process.env, adminFactory = createClient
         });
         return reply(403, { entitled: false, session_active: false });
       }
-      return reply(200, { entitled: true, session_active: true, checked_at: new Date(now()).toISOString(),
+      let mode = { access_mode:'paid' };
+      if(trialAppsForEnvironment(env).includes(body.product)) {
+        const paid = snapshot ? snapshot.paidProducts
+          : await entitlementResolver(admin,appSession.user_id,now(),{...env,MYOPS_ENABLE_STAGING_TRIAL_ACCESS:'false'});
+        if(!paid) return reply(503,{entitled:false,error:'Application access could not be verified.'});
+        if(paid[body.product]!=='active') {
+          const trial = snapshot ? snapshot.trial : await loadEligibleTrial(admin,appSession.user_id,now(),env);
+          if(!trial) return reply(403,{entitled:false,session_active:false});
+          mode={access_mode:'trial',trial:{id:trial.id,expires_at:trial.expires_at,policy_version:trial.policy_version}};
+        }
+      }
+      return reply(200, { entitled: true, session_active: true, ...mode, checked_at: new Date(now()).toISOString(),
+        ...(body.profile === true ? { central_profile: await loadCentralProfile(admin, appSession.user_id) } : {}),
         ...(body.product === 'opsflow' && body.sensitive === true ? { onboarding_profile: await loadAppProfile(admin, appSession.user_id) } : {}) });
     } catch {
       return res.status(503).json({ error: 'Application access could not be verified.' });
     }
   }
 
-  return { issueTicket, startLogin, touchLogin, processRevocations, queueRevocation, pendingRevocations, revokeUserSessions, redeem, entitlement };
+  async function trialQuota(req, res) {
+    // Trial integration remains staging-only until all apps enforce the contract.
+    if (env.VERCEL_ENV !== 'preview' || env.MYOPS_ENVIRONMENT !== 'staging') return res.status(404).json({ error: 'Not available.' });
+    try {
+      const auth = await authenticate(req, res, 'trial-quota');
+      if (!auth || typeof auth.statusCode === 'number') return auth;
+      const { admin, appId, clientData, body, reply } = auth;
+      if (Object.keys(body).length !== 4 || Object.keys(body).some(key => !['session_id','product','feature','operation_id'].includes(key))
+          || !SESSION_ID.test(body.session_id || '') || !SESSION_ID.test(body.operation_id || '')
+          || body.product !== clientData.product_slug || typeof body.feature !== 'string' || body.feature.length > 64) return reply(400, { error: 'Invalid request.' });
+      const session = await rpc(admin, 'myops_validate_app_session', { p_session_id: body.session_id, p_app_id: appId, p_product_slug: body.product, p_touch: false });
+      if (!session?.active || !USER_ID.test(session.user_id || '')) return reply(403, { allowed: false });
+      const bound = await admin.from('myops_app_sessions').select('user_id,login_session_id').eq('id',body.session_id).eq('app_id',appId).eq('product_slug',body.product).maybeSingle();
+      if (bound.error) return reply(503, { allowed:false });
+      if (!bound.data || bound.data.user_id !== session.user_id) return reply(403, { allowed:false });
+      const result = await consumeVerifiedTrialQuota(admin, { active:true, userId:session.user_id, loginSessionId:bound.data.login_session_id, product:body.product },body.feature,body.operation_id);
+      return reply(result.allowed ? 200 : result.reason === 'unavailable' ? 503 : 403,result);
+    } catch { return res.status(503).json({ allowed:false }); }
+  }
+
+  return { issueTicket, startLogin, touchLogin, loginLive, processRevocations, queueRevocation, pendingRevocations, revokeUserSessions, redeem, entitlement, trialQuota };
 }

@@ -37,12 +37,12 @@ const products = [
   {
     slug: 'opsflow',
     name: 'OpsFlow',
-    tag: ['Workflow &', 'Business Automation'],
+    tag: ['Retail POS &', 'Inventory Management'],
     icon: 'FL',
     accent: 'blue',
     art: 'opsflow',
     href: '/solutions/opsflow',
-    summary: 'Automate processes and handoffs to move faster.',
+    summary: 'Manage retail sales, purchases, stock and cash flow.',
   },
   {
     slug: 'opsp',
@@ -61,8 +61,9 @@ const products = [
     icon: 'HR',
     accent: 'orange',
     art: 'opshr',
-    comingSoon: true,
-    summary: 'Manage employee records, attendance and leave.',
+    href: '/solutions/opshr',
+    badgeFormat: 'svg',
+    summary: 'Employee records with MYOPS access. Live UAT; other HR modules are in development.',
   },
   {
     slug: 'opswms',
@@ -146,6 +147,7 @@ const routes = {
   '/solutions/opsp': SolutionPage,
   '/solutions/opsfinance': SolutionPage,
   '/solutions/opsflow': SolutionPage,
+  '/solutions/opshr': SolutionPage,
   '/solutions/business-website-application-development': BusinessWebsiteDevelopmentPage,
   '/services/web-and-business-applications': BusinessWebsiteDevelopmentPage,
   '/pricing': PricingPage,
@@ -190,9 +192,9 @@ const pageMeta = {
   },
   '/solutions/opsflow': {
     title: 'OpsFlow | MYOPS',
-    description: 'OpsFlow automates workflow execution so teams can reduce operational friction and improve speed.',
+    description: 'OpsFlow helps retailers manage point-of-sale transactions, purchases, inventory and daily cash flow.',
     ogTitle: 'OpsFlow | MYOPS',
-    ogDescription: 'Workflow automation and operational coordination for modern teams.',
+    ogDescription: 'Retail POS, inventory and purchasing in one MYOPS application.',
   },
   '/solutions/business-website-application-development': {
     title: 'Business Website & Application Development | MYOPS',
@@ -507,7 +509,7 @@ function LandingPage() {
                     height="248"
                   />
                 </div>
-                <img className="product-badge" src={`/images/${product.art}-card-badge.${product.comingSoon ? 'svg' : 'png'}`} alt="" width="88" height="88" />
+                <img className="product-badge" src={`/images/${product.art}-card-badge.${product.badgeFormat || (product.comingSoon ? 'svg' : 'png')}`} alt="" width="88" height="88" />
                 <h3>{product.name}</h3>
                 <p className="product-tagline">
                   {product.tag.map((line) => (
@@ -521,9 +523,7 @@ function LandingPage() {
                   <span className="coming-soon-label">Coming Soon</span>
                 ) : (
                   <>
-                    <a href={product.href} className="card-link" aria-label={product.name}>
-                      <span aria-hidden="true">→</span>
-                    </a>
+                    <ProductAction product={product} arrow />
                     <ProductAction product={product} />
                   </>
                 )}
@@ -706,6 +706,14 @@ function SolutionPage({ route }) {
   const product = products.find((item) => item.href === route || item.slug === route.replace('/solutions/', '')) || products[0];
 
   const solutionMeta = {
+    opshr: {
+      name: 'OpsHR',
+      accent: 'orange',
+      summary: 'Employee management is available for Live UAT through your MYOPS account. Attendance, leave, payroll, documents and reports are in development.',
+      bullets: ['Create and update employee profiles', 'Department, designation and employment status', 'Central MYOPS login and subscription access', 'Personal and company data isolation'],
+      ctaLabel: 'Open MYOPS Account',
+      ctaHref: '/account',
+    },
     opsp: {
       name: 'OpsPS',
       accent: 'pink',
@@ -725,8 +733,8 @@ function SolutionPage({ route }) {
     opsflow: {
       name: 'OpsFlow',
       accent: 'blue',
-      summary: 'OpsFlow helps teams automate handoffs, operational follow-up and recurring work so execution stays organised.',
-      bullets: ['Workflow automation', 'Task coordination', 'Operational handoff visibility', 'Process consistency across teams'],
+      summary: 'OpsFlow helps retailers manage sales, purchases, inventory and cash flow in one application.',
+      bullets: ['Retail point of sale', 'Purchases and supplier orders', 'Stock and inventory tracking', 'Sales and cash flow reporting'],
       ctaLabel: 'Discuss OpsFlow',
       ctaHref: '/contact',
     },
@@ -779,6 +787,7 @@ const routePageMap = {
   '/solutions/opsp': () => <SolutionPage route="/solutions/opsp" />,
   '/solutions/opsfinance': () => <SolutionPage route="/solutions/opsfinance" />,
   '/solutions/opsflow': () => <SolutionPage route="/solutions/opsflow" />,
+  '/solutions/opshr': () => <SolutionPage route="/solutions/opshr" />,
   '/solutions/business-website-application-development': () => <BusinessWebsiteDevelopmentPage />,
   '/services/web-and-business-applications': () => <BusinessWebsiteDevelopmentPage />,
 };
@@ -1017,6 +1026,7 @@ export default function App() {
     pathname === '/solutions/opsp' ||
     pathname === '/solutions/opsfinance' ||
     pathname === '/solutions/opsflow' ||
+    pathname === '/solutions/opshr' ||
     pathname === '/solutions/business-website-application-development' ||
     pathname === '/services/web-and-business-applications'
   ) {

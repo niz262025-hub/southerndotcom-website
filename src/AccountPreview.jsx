@@ -4,7 +4,7 @@ import PropTypes from 'prop-types';
 const catalog = [
   { name: 'OpsPS', description: 'Personal shopper operations', art: 'opsps', status: 'preview' },
   { name: 'OpsFinance', description: 'Accounting & financial management', art: 'opsfinance', status: 'preview' },
-  { name: 'OpsFlow', description: 'Workflow & business automation', art: 'opsflow', status: 'preview' },
+  { name: 'OpsFlow', description: 'Retail POS & inventory management', art: 'opsflow', status: 'preview' },
   { name: 'OpsWMS', description: 'Warehouse management', art: 'opswms', status: 'coming_soon' },
   { name: 'OpsHR', description: 'Human resources management', art: 'opshr', status: 'coming_soon' },
 ];

@@ -288,7 +288,7 @@ test('registration provisions the server-owned account type, insert-only, and ne
   const run = async (identities, accountType) => {
     const res = { setHeader() {}, status(code) { this.code = code; return this; }, json(data) { this.data = data; return this; } };
     const req = { method: 'POST', headers: { host: 'trusted-preview.vercel.app', origin, 'content-type': 'application/json' },
-      body: { action: 'register', email: 'a@example.com', password: 'p'.repeat(14), accountType, displayName: 'Name' } };
+      body: { action: 'register', email: 'a@example.com', password: 'p'.repeat(14), accountType, displayName: 'Name', contactNumber: '+60123456789', address: 'Johor Bahru', ...(accountType === 'business' ? { companyName: 'Company', ssmNumber: '202303050959', companyEmail: 'office@example.test', personInCharge: 'Name' } : {}) } };
     await createAuthHandler({ env, clientFactory: (url, key) => (key.startsWith('sb_secret_') ? state.client : signUp(identities)), now: () => NOW })(req, res);
     return res;
   };
@@ -441,8 +441,6 @@ test('live bill and callback use live credentials with independent confirmation 
   assert.equal(verified.requests.length, before);
   assert.equal((await hook(callbackFields(order), { ledgerState: state, transport: verified.transport, extraEnv: liveEnv })).code, 400);
 });
-
-
 test('production auth checkout is gated and passes only live configuration to payment transport', async () => {
   const state = ledger(); const original = state.client.rpc;
   state.client.rpc = async (name, args) => {

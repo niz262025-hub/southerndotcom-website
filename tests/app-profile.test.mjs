@@ -13,3 +13,10 @@ test('profile lookup uses the verified user id and rejects conflicting identity 
   admin.auth.admin.getUserById=async()=>({error:new Error('outage')});
   await assert.rejects(loadAppProfile(admin,'verified-user'));
 });
+
+
+test('individual launch labels use the registered name without inventing company membership', () => {
+  assert.deepEqual(appProfileFromMetadata({ display_name: ' Person ', account_type: 'personal', role: 'admin', organization_id: 'victim' }),
+    { display_name: 'Person', company_name: 'Person' });
+  assert.equal(appProfileFromMetadata({ display_name: 'Person', account_type: 'business' }), null);
+});

@@ -169,7 +169,7 @@ test('entitlement verification is fresh and revoked or idle sessions are denied'
   const accepted = await call(active.handler.entitlement,
     signedRequest({ path: '/api/app/entitlement', body, nonce: 'nonce-second-1234567890' }));
   assert.equal(accepted.statusCode, 200);
-  assert.deepEqual(accepted.body, { entitled: true, session_active: true, checked_at: new Date(NOW).toISOString() });
+  assert.deepEqual(accepted.body, { entitled: true, session_active: true, access_mode: 'paid', checked_at: new Date(NOW).toISOString() });
   assert.ok(active.calls.some(([name]) => name === 'myops_validate_app_session'));
 
   const idle = make({ sessionActive: false });
@@ -349,6 +349,21 @@ test('login-session binding: ticket issuance requires a login id; start/touch/en
   assert.equal(await notStaging.touchLogin(userId, loginSessionId), null);
 });
 
+test('Finance and OpsPS staging provisioning receive only central labels behind their own readiness gates', async () => {
+  for(const product of ['opsfinance','opsp']) for(const ready of [false,true]) {
+    const flag=product==='opsfinance'?'MYOPS_FINANCE_PROVISIONING_READY':'MYOPS_OPSPS_PROVISIONING_READY';
+    const {handler,admin}=make({product,env:{...baseEnv,[flag]:String(ready)}});
+    let lookups=0;
+    admin.auth={admin:{getUserById:async id=>{lookups++;return {data:{user:{id,user_metadata:{display_name:'Central owner',company_name:'Registered company',role:'admin'}}}};}}};
+    const body={ticket:Buffer.alloc(32,9).toString('base64url')};
+    const invalid=await call(handler.redeem,signedRequest({path:'/api/app/redeem',body,headers:{'x-myops-signature':'invalid'}}));
+    assert.equal(invalid.statusCode,401);assert.equal(lookups,0);
+    const result=await call(handler.redeem,signedRequest({path:'/api/app/redeem',body}));
+    assert.equal(result.statusCode,200);
+    assert.deepEqual(result.body.onboarding_profile,ready?{display_name:'Central owner',company_name:'Registered company'}:undefined);
+  }
+});
+
 test('OpsFlow receives central labels only after signature, ticket, session and entitlement verification', async () => {
   const {handler,admin}=make({product:'opsflow'});
   let lookups=0;
@@ -363,4 +378,146 @@ test('OpsFlow receives central labels only after signature, ticket, session and 
   assert.equal(passive.statusCode,200);assert.equal(passive.body.onboarding_profile,undefined);assert.equal(lookups,1);
   const retry=await call(handler.entitlement,signedRequest({path:'/api/app/entitlement',body:{session_id:sessionId,product:'opsflow',activity:true,sensitive:true}}));
   assert.equal(retry.statusCode,200);assert.deepEqual(retry.body.onboarding_profile,result.body.onboarding_profile);
+});
+test('durable login liveness is a read-only, user-bound lookup and fails closed on outage', async () => {
+  for (const expected of [true, false, null]) {
+    const calls = [];
+    const handler = createAppAccess({ env: baseEnv, now: () => NOW, adminFactory: () => ({ rpc: async (name, args) => {
+      calls.push([name, args]); return expected === null ? { error: { code: 'outage' } } : { data: expected, error: null };
+    } }) });
+    assert.equal(await handler.loginLive(userId, loginSessionId), expected);
+    assert.deepEqual(calls, [['myops_login_live', { p_id: loginSessionId, p_user_id: userId }]]);
+  }
+});
+
+test('central profile is released only on signed, active entitled sessions and never trusts body identity', async () => {
+ const f = make();
+ let reads=0;
+ f.admin.auth={admin:{getUserById:async id=>{reads++;assert.equal(id,userId);return {data:{user:{id,user_metadata:{display_name:'Owner',account_type:'personal',contact_number:'+60123456789',role:'admin',organization_id:'victim'},updated_at:'2026-11-07T00:00:00Z'}}};}}};
+ const body={session_id:sessionId,product:'opsp',profile:true};
+ const result=await call(f.handler.entitlement,signedRequest({path:'/api/app/entitlement',body}));
+ assert.equal(result.statusCode,200);assert.equal(reads,1);
+ assert.deepEqual(result.body.central_profile,{display_name:'Owner',account_type:'personal',contact_number:'+60123456789',logo_url:null,updated_at:'2026-11-07T00:00:00Z'});
+ const denied=make({entitlement:'none'});denied.admin.auth={admin:{getUserById:()=>assert.fail('denied session cannot load a profile')}};
+ assert.equal((await call(denied.handler.entitlement,signedRequest({path:'/api/app/entitlement',body}))).statusCode,403);
+ assert.equal((await call(f.handler.entitlement,signedRequest({path:'/api/app/entitlement',body:{...body,user_id:'victim'}}))).statusCode,400);
+ const tampered=signedRequest({path:'/api/app/entitlement',body:{...body,profile:false}});tampered.body.profile=true;
+ assert.equal((await call(f.handler.entitlement,tampered)).statusCode,401);
+ });
+
+test('trial quota requires a signed matching app/session and never touches activity',async()=>{
+ const {handler,admin,calls}=make();
+ admin.from=table=>{assert.equal(table,'myops_app_sessions');const q={select:()=>q,eq:()=>q,maybeSingle:async()=>({data:{user_id:userId,login_session_id:loginSessionId},error:null})};return q;};
+ const original=admin.rpc;admin.rpc=async(name,args)=>name==='myops_consume_trial_quota'?{data:{allowed:true,used:1,limit:2,replayed:false}}:original(name,args);
+ const body={session_id:sessionId,product:'opsp',feature:'projects',operation_id:loginSessionId};
+ const result=await call(handler.trialQuota,signedRequest({path:'/api/app/trial-quota',body}));
+ assert.equal(result.statusCode,200);assert.equal(result.body.allowed,true);
+ assert.equal(calls.find(c=>c[0]==='myops_validate_app_session')[1].p_touch,false);
+ const wrong=await call(handler.trialQuota,signedRequest({path:'/api/app/entitlement',body}));assert.equal(wrong.statusCode,401);
+ const extra=await call(handler.trialQuota,signedRequest({path:'/api/app/trial-quota',body:{...body,user_id:userId}}));assert.equal(extra.statusCode,400);
+});
+test('trial quota endpoint is unavailable in production and rejects expired sessions',async()=>{
+ const body={session_id:sessionId,product:'opsp',feature:'projects',operation_id:loginSessionId};
+ const denied=await call(make({sessionActive:false}).handler.trialQuota,signedRequest({path:'/api/app/trial-quota',body}));assert.equal(denied.statusCode,403);
+ const prod=await call(make({env:{...baseEnv,VERCEL_ENV:'production'}}).handler.trialQuota,{headers:{},body});assert.equal(prod.statusCode,404);
+});
+
+ test('central entitlement explicitly identifies existing paid access without granting trial',async()=>{
+ const {handler}=make();
+ const result=await call(handler.entitlement,signedRequest({path:'/api/app/entitlement',body:{session_id:sessionId,product:'opsp'}}));
+ assert.equal(result.statusCode,200);assert.equal(result.body.access_mode,'paid');
+ const denied=await call(make({entitlement:'none'}).handler.entitlement,signedRequest({path:'/api/app/entitlement',body:{session_id:sessionId,product:'opsp'}}));
+ assert.equal(denied.statusCode,403);assert.equal(denied.body.access_mode,undefined);
+ });
+test('signed entitlement returns server-owned trial metadata and keeps paid mode distinct',async()=>{
+ const {admin}=make({product:'opsflow'});
+ const trial={id:loginSessionId,user_id:userId,organization_id:null,policy_version:1,status:'active',started_at:new Date(NOW-1000).toISOString(),expires_at:new Date(NOW-1000+604800000).toISOString()};
+ admin.from=()=>{const q={select:()=>q,eq:()=>q,maybeSingle:async()=>({data:trial,error:null})};return q;};
+ const env={...baseEnv,MYOPS_USE_ISOLATED_STAGING:'true',VITE_SUPABASE_URL:'https://wengxxiqwtosirealghx.supabase.co',MYOPS_ENABLE_STAGING_TRIAL_ACCESS:'true',MYOPS_TRIAL_READY_APPS:'opsflow'};
+ const handler=createAppAccess({env,adminFactory:()=>admin,now:()=>NOW,entitlementResolver:async(c,u,n,e)=>({opsflow:e.MYOPS_ENABLE_STAGING_TRIAL_ACCESS==='true'?'active':'none'})});
+ const body={session_id:sessionId,product:'opsflow'};
+ const result=await call(handler.entitlement,signedRequest({path:'/api/app/entitlement',body}));
+ assert.equal(result.statusCode,200);assert.equal(result.body.access_mode,'trial');
+ assert.deepEqual(result.body.trial,{id:loginSessionId,expires_at:trial.expires_at,policy_version:1});
+ assert.equal(JSON.stringify(result.body).includes(userId),false);
+});
+
+
+function snapshotFixture() {
+  const { admin, calls } = make({ product: 'opsflow' });
+  const reads = [];
+  const trial = { id: loginSessionId, user_id: userId, organization_id: null,
+    policy_version: 1, status: 'active', started_at: new Date(NOW - 1000).toISOString(),
+    expires_at: new Date(NOW + 604799000).toISOString() };
+  const tables = {
+    myops_products: [{ slug: 'opsflow', launch_status: 'live' }, { slug: 'opswms', launch_status: 'coming_soon' }],
+    myops_subscriptions: [], myops_memberships: [], myops_app_grants: [],
+    myops_lifetime_entitlements: [], myops_trials: [trial],
+  };
+  const state = { errorTable: null };
+  admin.from = (table) => {
+    const filters = [];
+    const result = () => {
+      reads.push(table);
+      return { data: (tables[table] || []).filter(row => filters.every(filter => filter(row))),
+        error: state.errorTable === table ? { message: 'fixture failure' } : null };
+    };
+    const query = {
+      select() { return query; },
+      eq(key, value) { filters.push(row => row[key] === value); return query; },
+      in(key, values) { filters.push(row => values.includes(row[key])); return query; },
+      maybeSingle() { const response = result(); return Promise.resolve({ ...response, data: response.data[0] || null }); },
+      then(resolve, reject) { return Promise.resolve(result()).then(resolve, reject); },
+    };
+    return query;
+  };
+  const env = { ...baseEnv, MYOPS_USE_ISOLATED_STAGING: 'true',
+    VITE_SUPABASE_URL: 'https://wengxxiqwtosirealghx.supabase.co',
+    MYOPS_ENABLE_STAGING_TRIAL_ACCESS: 'true', MYOPS_TRIAL_READY_APPS: 'opsflow' };
+  const handler = createAppAccess({ env, adminFactory: () => admin, now: () => NOW });
+  const request = () => signedRequest({ path: '/api/app/entitlement', body: { session_id: sessionId, product: 'opsflow' } });
+  return { handler, request, tables, reads, calls, state, trial };
+}
+
+test('default signed entitlement reads one fresh snapshot and distinguishes trial from paid access', async () => {
+  const f = snapshotFixture();
+  const trialResult = await call(f.handler.entitlement, f.request());
+  assert.equal(trialResult.statusCode, 200);
+  assert.equal(trialResult.body.access_mode, 'trial');
+  assert.deepEqual(trialResult.body.trial, { id: f.trial.id, expires_at: f.trial.expires_at, policy_version: 1 });
+  for (const table of Object.keys(f.tables)) assert.equal(f.reads.filter(name => name === table).length, 1, table);
+  f.tables.myops_subscriptions.push({ personal_user_id: userId, product_slug: 'opsflow', status: 'active', current_period_end: null });
+  const paidResult = await call(f.handler.entitlement, f.request());
+  assert.equal(paidResult.statusCode, 200);
+  assert.equal(paidResult.body.access_mode, 'paid');
+  assert.equal(paidResult.body.trial, undefined);
+  for (const table of Object.keys(f.tables)) assert.equal(f.reads.filter(name => name === table).length, 2, table);
+  f.tables.myops_subscriptions = [];
+  f.trial.status = 'expired';
+  const expiredResult = await call(f.handler.entitlement, f.request());
+  assert.equal(expiredResult.statusCode, 403);
+  assert.ok(f.calls.some(([name]) => name === 'myops_revoke_app_session'));
+});
+
+test('snapshot lookup failures fail closed without revoking a valid session', async () => {
+  for (const table of ['myops_subscriptions', 'myops_trials']) {
+    const f = snapshotFixture();
+    f.state.errorTable = table;
+    const result = await call(f.handler.entitlement, f.request());
+    assert.equal(result.statusCode, 503, table);
+    assert.equal(result.body.entitled, table === 'myops_trials' ? undefined : false);
+    assert.equal(f.calls.some(([name]) => name === 'myops_revoke_app_session'), false);
+  }
+});
+
+test('snapshot retains company trial isolation and never grants Coming Soon applications', async () => {
+  const f = snapshotFixture();
+  f.trial.organization_id = loginSessionId;
+  f.tables.myops_organizations = [{ id: loginSessionId, owner_user_id: userId }];
+  f.tables.myops_memberships = [{ organization_id: loginSessionId, user_id: userId, role: 'admin', status: 'active' },
+    { organization_id: loginSessionId, user_id: sessionId, role: 'member', status: 'active' }];
+  assert.equal((await call(f.handler.entitlement, f.request())).statusCode, 403);
+  f.trial.organization_id = null;
+  f.tables.myops_products[0].launch_status = 'coming_soon';
+  assert.equal((await call(f.handler.entitlement, f.request())).statusCode, 403);
 });
