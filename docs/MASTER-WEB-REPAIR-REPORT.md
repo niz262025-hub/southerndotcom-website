@@ -5,6 +5,16 @@ Date: 7 November 2026, Malaysia. Release recommendation: **NOT READY**.
 This is an interim implementation report. Four development PRs and preview builds exist. The nine-item programme and OpsHR V1 are not complete. No production promotion, database mutation, paid service, APK, native iOS build or app-store configuration was performed in this work.
 
 
+## Latest Finance speed continuation — 7 November 2026
+
+Finance now calculates all dashboard account balances from one invocation-local, tenant-scoped posted-journal snapshot. A synthetic 200-account/10,000-journal CPU fixture measured 641.040ms before and 13.882ms after, with identical complete displayed-balance hash. These are in-memory computations, not SQL-query or website-load timings. Existing statement/date-filter APIs and fresh SSO/trial guards are retained.
+
+Current full checks: release candidate 326 PASS / 1 database SKIP; isolated staging 312 PASS / 1 database SKIP; both TypeScript checks passed. Source 83f4562133d28347efaa9b1122b9a56ab4ff34db (PR implementation) and 7d01eeaa52f894bef5fb99afbda92e3e939d1d11 (UAT) have READY preview builds. No production promotion, schema migration, paid infrastructure or customer-data write occurred.
+
+Actual signed-in before/after dashboard and route timings remain **BLOCKED**: a fresh central UAT /account still returned to /login. Therefore Item 004 and the <2s dashboard / <1s transition targets are not PASS. Earlier authenticated UI evidence below applies to its recorded source, not acceptance of the latest speed candidate.
+
+Evidence, full logs, benchmark, build URLs and rollback: https://github.com/niz262025-hub/OpsFinance/blob/fix/myops-web-master-repair/docs/DASHBOARD-BALANCE-PERFORMANCE-2026-11-07.md
+
 ## Latest continuation — 7 November 2026
 
 Finance Quick Actions and safer transaction entry are now in PR 37 and a READY isolated preview. Portal copy now identifies OpsFlow as retail POS without changing the homepage design. Current targeted checks: 18 Finance regressions and 168 portal tests passed; 36 portal tests skipped. Desktop browser confirmed current Finance SSO, summary preservation and invalid-entry guidance. Slow preview route transitions, real mobile acceptance and remaining feature work are still open. See [the current UAT report](./UAT-RERUN-2026-11-07.md) for exact sources, limits and deployment IDs. OpsPS credential renewal remains deferred because the owner cannot control the remote browser from a phone.
@@ -71,7 +81,7 @@ FAIL means a known requirement is still unmet. BLOCKED means the specified accep
 | 001 Central registration/profile | FAIL | New fields and validation implemented; logo upload/update/removal and live profile synchronization to all apps incomplete. No claim of tenant provisioning. |
 | 002 Finance dashboard | FAIL | Shell, greeting, clock and responsive header implemented. Quick Actions are implemented and limited desktop summary/form UAT passed. Approved illustration, logo, upcoming payments, receivables and full workflow/mobile acceptance remain incomplete. |
 | 003 Four languages | FAIL | Full English/BM/Simplified Chinese/Tamil translation and central preference propagation not implemented in this batch. |
-| 004 Performance | BLOCKED | P&L CPU improvement measured below. No agreed end-to-end network/device baseline and no authenticated dashboard/transition timing. Targets are not claimed. |
+| 004 Performance | BLOCKED | P&L, access-check scheduling and dashboard-balance CPU improvements have controlled evidence. Latest balance fixture 641.040ms → 13.882ms with identical results; actual signed-in dashboard/transition and real-device timing remain unverified. |
 | 005 Navigation/logout | FAIL | Finance groups and web layouts improved. Current app exit still returns to portal rather than completing global sign-out; centralized signed revocation and one top-right control across all apps remain pending. |
 | 006 Verification/auto-login | BLOCKED | Server callback tests pass with `/account` redirect. Real inbox delivery, one-use expiry and full browser confirmation/session UAT not completed. |
 | 007 Mobile responsiveness | BLOCKED | Four PRs include web layout changes. Real 320/360/390/768px Android/iPhone/tablet acceptance and authenticated financial pages not verified; OpsHR audit/fixes pending. |
