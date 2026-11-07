@@ -37,7 +37,7 @@ The expiring central preview transport authorization was renewed only on Finance
 
 These recovery counts describe the existing staging branches. They are not added to the earlier 698-test count, and the staging branches must still be reconciled with the exact final release candidates before production approval. In particular, neither a healthy API nor the signed-out redirect tests prove successful SSO launch, subscription/trial activation, email confirmation, tenant isolation or global logout.
 
-Current next gate: repair the OpsPS staging Edge Function transport, then retest its signed launch and continue the remaining business, mobile and security scenarios. The secure form reported submitted but did not produce a verifiable session; do not treat submission as PASS. No database mutation or production promotion was performed during this recovery.
+Current next gate: repair the OpsPS staging Edge Function transport, then retest its signed launch and continue the remaining business, mobile and security scenarios. At that earlier recovery point, secure-form submission alone was not accepted as a session PASS; the later authenticated checks are documented above. No database mutation or production promotion was performed during this recovery.
 
 ## Source and deployment inventory
 
@@ -80,7 +80,7 @@ FAIL means a known requirement is still unmet. BLOCKED means the specified accep
 | OpsHR V1 | FAIL | Existing protected UAT is largely synthetic UI; persistence and central authorization are not complete. Module acceptance below. |
 | OpsWMS Coming Soon | PASS (catalog only) | Read-only SQL confirms `opswms=coming_soon`; no release or product-state change. Full direct-access UAT remains to be executed. |
 
-## Test evidence
+## Initial test evidence — see latest UAT report for current checks
 
 | Scope | Automated results | Build/type validation | Browser evidence |
 | --- | --- | --- | --- |
