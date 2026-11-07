@@ -789,6 +789,7 @@ const routePageMap = {
   '/solutions/opsp': () => <SolutionPage route="/solutions/opsp" />,
   '/solutions/opsfinance': () => <SolutionPage route="/solutions/opsfinance" />,
   '/solutions/opsflow': () => <SolutionPage route="/solutions/opsflow" />,
+  '/solutions/opshr': () => <SolutionPage route="/solutions/opshr" />,
   '/solutions/business-website-application-development': () => <BusinessWebsiteDevelopmentPage />,
   '/services/web-and-business-applications': () => <BusinessWebsiteDevelopmentPage />,
 };
