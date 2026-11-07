@@ -5,7 +5,11 @@ Date: 7 November 2026, Malaysia. Release recommendation: **NOT READY**.
 This is an interim implementation report. Four development PRs and preview builds exist. The nine-item programme and OpsHR V1 are not complete. No production promotion, database mutation, paid service, APK, native iOS build or app-store configuration was performed in this work.
 
 
-## Latest recovery update — 7 November 2026
+## Latest rerun status — 7 November 2026
+
+See [UAT-RERUN-2026-11-07.md](./UAT-RERUN-2026-11-07.md) for the latest results: 688 automated passes, 37 skips and zero failures across four worktrees. Finance staging dashboard totals/recent amounts corrected in commit `81c1860f2c36b8ba7e050b7e56167b28e3ba1137`; preview deployment `dpl_DRYKVWLk9UTrpRcSsHoCJen5H3Fy` is READY. A prior owner-completed MYOPS → Finance launch succeeded without a second login. The fresh authenticated rerun is BLOCKED after the secure login request timed out; the current account page returns to central login. Full programme and production release remain incomplete.
+
+## Earlier recovery update — 7 November 2026
 
 The Central/Finance staging database APIs are operational. A missing project in the connected Management API is not proof the database is unavailable: direct publishable-key health checks returned HTTP 200 for both existing isolated projects. Management access remains unavailable, so schema administration through that connector is still blocked.
 
