@@ -7,7 +7,7 @@ This is an interim implementation report. Four development PRs and preview build
 
 ## Latest rerun status — 7 November 2026
 
-See [UAT-RERUN-2026-11-07.md](./UAT-RERUN-2026-11-07.md) for the latest results: 688 automated passes, 37 skips and zero failures across four worktrees. Finance staging dashboard totals/recent amounts corrected in commit `81c1860f2c36b8ba7e050b7e56167b28e3ba1137`; preview deployment `dpl_DRYKVWLk9UTrpRcSsHoCJen5H3Fy` is READY. A prior owner-completed MYOPS → Finance launch succeeded without a second login. The fresh authenticated rerun is BLOCKED after the secure login request timed out; the current account page returns to central login. Full programme and production release remain incomplete.
+See [UAT-RERUN-2026-11-07.md](./UAT-RERUN-2026-11-07.md) for the latest results: 688 automated passes, 37 skips and zero failures across four worktrees. Finance staging dashboard totals/recent amounts corrected in commit `81c1860f2c36b8ba7e050b7e56167b28e3ba1137`; preview deployment `dpl_DRYKVWLk9UTrpRcSsHoCJen5H3Fy` is READY. Fresh owner-completed login and MYOPS → Finance SSO passed. Corrected recent journal amounts, dashboard/P&L reconciliation (RM125 revenue, RM40 expenses, RM85 profit), and selected bank/cash ledgers (RM45/RM40) passed in browser. OpsFlow SSO was recovered and verified, including RM42.40 dashboard/Finance agreement. OpsPS still fails with Edge Function Staging redirect rejected; repair is blocked at staging secret configuration. Full programme and production release remain incomplete.
 
 ## Earlier recovery update — 7 November 2026
 
@@ -33,7 +33,7 @@ The expiring central preview transport authorization was renewed only on Finance
 
 These recovery counts describe the existing staging branches. They are not added to the earlier 698-test count, and the staging branches must still be reconciled with the exact final release candidates before production approval. In particular, neither a healthy API nor the signed-out redirect tests prove successful SSO launch, subscription/trial activation, email confirmation, tenant isolation or global logout.
 
-Current next gate: complete manual sign-in in the existing central UAT browser and verify a positive signed-in signal, then test entitled application launch and session handling. The secure form reported submitted but did not produce a verifiable session; do not treat submission as PASS. No database mutation or production promotion was performed during this recovery.
+Current next gate: repair the OpsPS staging Edge Function transport, then retest its signed launch and continue the remaining business, mobile and security scenarios. The secure form reported submitted but did not produce a verifiable session; do not treat submission as PASS. No database mutation or production promotion was performed during this recovery.
 
 ## Source and deployment inventory
 
