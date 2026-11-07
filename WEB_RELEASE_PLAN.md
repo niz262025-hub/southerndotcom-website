@@ -2,7 +2,7 @@
 
 ## Owner direction
 
-Phase 1: MYOPS Central, OpsFinance, OpsPS Web and OpsFlow Web. MYOPS is the sole login and package authority for these apps. Android is Phase 2. OpsHR and OpsWMS remain Coming Soon.
+Phase 1 target: six web apps — MYOPS Central, OpsFinance, OpsPS Web, OpsFlow Web, OpsWMS and OpsHR. MYOPS is the sole login and package authority for these apps. Android is Phase 2. The owner's latest instruction adds OpsWMS and OpsHR to active development scope; they must remain unavailable in the public catalog until functional acceptance passes. Do not mark them live merely because scope changed.
 
 OpsHub is a separate standalone website with its own seller/customer accounts. Do not add MYOPS SSO or package gating to OpsHub. ToyyibPay remains deferred.
 
@@ -23,3 +23,18 @@ OpsHub is a separate standalone website with its own seller/customer accounts. D
 5. Promote only passing web releases; record deployed SHA, URL and rollback target. Do not claim overall completion from CI or a READY deployment alone.
 
 This is an execution record, not evidence that all apps are production-ready. Previous release tracker snapshots remain historical and are superseded on scope by this document.
+
+## Six-app scope expansion
+
+Latest owner instruction: complete MYOPS, OpsFinance, OpsPS, OpsFlow, OpsWMS and OpsHR for web. OpsHub remains an independent website and is excluded from central SSO/package integration.
+
+GitHub inventory and local source search found no accessible OpsWMS or OpsHR implementation repository. Prior materials describe modules/designs only. These two products require new implementation; no completion percentage or full six-app 24-hour delivery guarantee is asserted.
+
+| Product | Initial implementation scope from prior product requirements | Required acceptance evidence |
+|---|---|---|
+| OpsWMS | SKU/inventory, inbound receiving, bin/pallet locations, transfers, outbound pick/dispatch, barcode input, cycle counts and reports | MYOPS entitlement, role and tenant isolation; persisted receiving/transfer/dispatch; stock conservation, no double-posting, count adjustment audit and export |
+| OpsHR | Employee records, roles, attendance, leave request/approval and reports; payroll/performance remain planned modules | MYOPS entitlement and tenant isolation; employee/manager access; persisted attendance; leave balance and approval audit; restricted employee data |
+
+Payroll statutory calculation must use an explicitly selected jurisdiction and verified current rules before being called production-ready. Do not infer Malaysia or Singapore payroll from the owner's residence or employment alone.
+
+Work order: MYOPS/Finance integration → OpsPS Web → OpsFlow Web → OpsWMS → OpsHR. Shared release gates remain authenticated login, package denial, logout/expiry, tenant A/B and real persisted workflows. All six must pass their own gates before an all-app go-live claim.

@@ -9,7 +9,6 @@ const { SessionProvider, ProductAction } = await importSrc('session.jsx');
 const { FoundersPromo } = await importSrc('FoundersPromo.jsx');
 
 const states = { opsp: 'none', opsfinance: 'none', opsflow: 'none', opswms: 'coming_soon', opshr: 'coming_soon' };
-const active = { ...states, opsp: 'active', opsfinance: 'active', opsflow: 'active' };
 const signedIn = (extra) => ({ signedIn: true, email: 'u@example.test', products: states, lifetime: false, ...extra });
 
 async function mount(respond) {
@@ -27,83 +26,44 @@ async function mount(respond) {
     createElement(FoundersPromo), createElement('article', { id: 'opsp' }, createElement(ProductAction, { product: { slug: 'opsp' } }))))));
   return { calls, cleanup: async () => { await act(async () => root.unmount()); Object.assign(globalThis, originals); dom.window.close(); } };
 }
-const buttons = () => [...document.querySelectorAll('#founders a, #founders button:not([disabled])')].filter(node=>!node.closest('#free-trial')).map((node) => node.textContent);
+const buttons = () => [...document.querySelectorAll('#founders a, #founders button:not([disabled])')]
+  .filter((node) => !node.closest('#free-trial'))
+  .map((node) => node.textContent);
 const founders = (remaining) => ({ capacity: 100, allocated: 100 - remaining, remaining, available: remaining > 0 });
 
-test('signed-out visitors see the promotion with the server slot count and Register/Login', async () => {
+test('public pricing shows the approved MYOPS plans, OpsHub fees, and free trial', async () => {
   const { cleanup } = await mount((body) => Response.json(body.action === 'founders' ? founders(63) : { signedIn: false }));
   try {
-    assert.match(document.querySelector('#founders').textContent, /Choose your MYOPS plan/);
-    assert.equal(document.querySelector('.founders-count strong').textContent, '63');
-    assert.match(document.querySelector('.founders-count').textContent, /of 100/);
-    assert.deepEqual(buttons().slice(0, 2), ['Register to claim', 'Login']);
-    assert.match(document.querySelector('#founders').textContent, /Sandbox/);
-  } finally { await cleanup(); }
-});
-
-test('signed-in customers can claim; checkout is requested server-side for the founders plan', async () => {
-  const { cleanup, calls } = await mount((body) => Response.json(body.action === 'founders' ? founders(5) : signedIn()));
-  try {
-    assert.equal(buttons()[0], 'Claim lifetime access — RM29 once');
-    assert.equal(document.querySelector('#opsp a').getAttribute('href'), '/#founders');
-    await act(async () => { document.querySelector('#founders button').click(); });
-    assert.deepEqual(calls.find((c) => c.action === 'checkout'), { action: 'checkout', plan: 'founders_lifetime' });
-  } finally { await cleanup(); }
-});
-
-test('sold-out founders never fall back to an obsolete single-app checkout', async () => {
-  const { cleanup, calls } = await mount((body) => Response.json(body.action === 'founders' ? founders(0) : signedIn()));
-  try {
-    assert.equal(document.querySelector('.founders-count strong').textContent, '0');
-    assert.match(document.querySelector('#founders').textContent, /All Founders 100 places are taken/);
-    assert.equal(document.querySelector('#founders select'), null);
-    assert.deepEqual(buttons(), []);
-    assert.equal(calls.filter((c) => c.action === 'checkout').length, 0);
-  } finally { await cleanup(); }
-});
-
-test('pricing includes the free trial and paid plans; monthly purchases remain paused', async () => {
-  const { cleanup, calls } = await mount((body) => Response.json(body.action === 'founders' ? founders(5) : { signedIn: false }));
-  try {
     const cards = [...document.querySelectorAll('.pricing-cards .price-card')];
-    assert.deepEqual(cards.map((card) => card.querySelector('h3').textContent), ['Free 7-Day Trial · Percubaan Percuma 7 Hari', 'Founders 100', '2 Apps', 'All Apps']);
-    assert.deepEqual(cards.map((card) => card.querySelector('.price-amount').textContent), ['RM0 / 7 hari', 'RM29 one-time', 'RM49 / month', 'RM79 / month']);
-    assert.doesNotMatch(document.querySelector('#founders').textContent, /Single App|Business Basic|Business Pro|Enterprise|pending owner approval/);
-    const monthly = [...document.querySelectorAll('.pricing-cards button')];
-    assert.equal(monthly.length, 2);
+    assert.deepEqual(cards.map((card) => card.querySelector('h3').textContent), [
+      'Free 7-Day Trial · Percubaan Percuma 7 Hari', 'Starter', 'Single', 'Duo', 'Complete', 'OpsHub',
+    ]);
+    assert.deepEqual(cards.map((card) => card.querySelector('.price-amount').textContent), [
+      'RM0 / 7 hari', 'RM9.90 / month', 'RM19.90 / month', 'RM29.90 / month', 'RM39.90 / month', 'RM0 / month',
+    ]);
+    assert.match(document.querySelector('#founders').textContent, /Choose your MYOPS plan/);
+    assert.match(document.querySelector('#founders').textContent, /14-day trial/);
+    assert.match(document.querySelector('#founders').textContent, /manual monthly renewal/);
+    assert.match(document.querySelector('#founders').textContent, /3% \/ 2% \/ 1\.5%/);
+    const monthly = [...document.querySelectorAll('.pricing-cards button')].filter((button) => !button.closest('#free-trial'));
+    assert.deepEqual(monthly.map((button) => button.textContent), ['Checkout opening soon', 'Checkout opening soon', 'Checkout opening soon', 'Checkout opening soon']);
     assert.ok(monthly.every((button) => button.disabled));
-    monthly.forEach((button) => button.click());
-    assert.equal(calls.filter((c) => c.action === 'checkout').length, 0);
   } finally { await cleanup(); }
 });
 
-test('server refusals are shown to the customer and the count is refreshed', async () => {
-  const { cleanup, calls } = await mount((body) => {
-    if (body.action === 'founders') return Response.json(founders(5));
-    if (body.action === 'checkout') return Response.json({ error: 'All Founders 100 places are taken.' }, { status: 409 });
-    return Response.json(signedIn());
-  });
+test('signed-in visitors see current plans without obsolete Founders checkout controls', async () => {
+  const { cleanup } = await mount((body) => Response.json(body.action === 'founders' ? founders(5) : signedIn()));
   try {
-    await act(async () => { document.querySelector('#founders button').click(); });
-    assert.equal(document.querySelector('.founders-error').textContent, 'All Founders 100 places are taken.');
-    assert.equal(calls.filter((c) => c.action === 'founders').length, 2);
-  } finally { await cleanup(); }
-});
-
-test('verified lifetime customers see Open App on the card and no purchase buttons', async () => {
-  const { cleanup } = await mount((body) => Response.json(body.action === 'founders' ? founders(5) : signedIn({ lifetime: true, products: active })));
-  try {
-    assert.match(document.querySelector('#founders').textContent, /lifetime access is active/);
     assert.deepEqual(buttons(), []);
-    assert.equal(document.querySelector('#opsp button').textContent, 'Open App');
+    assert.match(document.querySelector('#founders').textContent, /Starter/);
+    assert.doesNotMatch(document.querySelector('#founders').textContent, /Claim lifetime access|Founders 100/);
   } finally { await cleanup(); }
 });
 
-test('unconfigured checkout shows no invented slot numbers and no purchase button', async () => {
-  const { cleanup } = await mount((body) => Response.json(body.action === 'founders' ? { available: false } : signedIn()));
+test('OpsHub pricing note makes the commission tiers explicit', async () => {
+  const { cleanup } = await mount((body) => Response.json(body.action === 'founders' ? founders(1) : { signedIn: false }));
   try {
-    assert.equal(document.querySelector('.founders-count'), null);
-    assert.deepEqual(buttons(), []);
-    assert.match(document.querySelector('#founders').textContent, /not available right now/);
+    assert.match(document.querySelector('#founders').textContent, /Seller account is free/);
+    assert.match(document.querySelector('#founders').textContent, /3% \/ 2% \/ 1\.5%/);
   } finally { await cleanup(); }
 });
