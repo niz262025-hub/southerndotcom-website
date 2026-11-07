@@ -61,6 +61,7 @@ export function FoundersPromo({ production = false }) {
         </div>
         {waiting && <p role="status">Confirming your payment…</p>}
         <p className="founders-note">All paid plans include a 14-day trial and manual monthly renewal.</p>
+        <p className="founders-note">Monthly subscriptions are not open for purchase yet.</p>
         <p className="founders-note">{production ? 'Payments are not available yet.' : 'Sandbox payments only: no real money is charged in Preview. Payments are verified server-side before access is granted.'}</p>
       </div>
     </section>
