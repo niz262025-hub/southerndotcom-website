@@ -13,19 +13,22 @@ const SessionContext = createContext({ ...SignedOut, enabled: false, refresh: as
 export function SessionProvider({ enabled, children }) {
   const [state, setState] = useState(enabled ? { status: 'loading', signedIn: false, products: null, lifetime: false } : SignedOut);
   const lastActivity = useRef(0);
+  const refreshSequence = useRef(0);
   const logoutPending = useRef(false);
   const [logoutBusy, setLogoutBusy] = useState(false);
   const [logoutError, setLogoutError] = useState('');
 
   const refresh = useCallback(async (activity = true) => {
     if (!enabled) return;
+    const sequence = ++refreshSequence.current;
     try {
       const result = await authRequest('session', { activity });
+      if (sequence !== refreshSequence.current) return;
       setState(result.signedIn
         ? { status: 'ready', signedIn: true, email: result.email, products: result.products, lifetime: Boolean(result.lifetime), platformAdmin: result.platformAdmin === true }
         : SignedOut);
     } catch {
-      setState(SignedOut);
+      if (sequence === refreshSequence.current) setState(previous => ({ ...previous, status: 'unavailable', products: null }));
     }
   }, [enabled]);
 
@@ -78,6 +81,7 @@ export function useSession() {
 export function AuthNav() {
   const session = useSession();
   if (!session.enabled || session.status === 'loading') return null;
+  if (session.status === 'unavailable') return <div className="nav-auth" role="status">Session check unavailable. <button className="btn btn-secondary" onClick={() => session.refresh(false)}>Retry</button></div>;
   if (session.signedIn || session.logoutError) {
     return (
       <div className="nav-auth">
@@ -102,6 +106,7 @@ export function ProductAction({ product }) {
   const [busy, setBusy] = useState(false);
   if (!session.enabled) return null;
   if (product.comingSoon) return null;
+  if (session.status === 'unavailable') return <p role="status">Access verification is temporarily unavailable. Please retry.</p>;
 
   const state = session.signedIn ? session.products?.[product.slug] : 'none';
   async function open() {

@@ -167,12 +167,23 @@ test('a passive probe after server-side inactivity logout returns the nav to sig
   } finally { await cleanup(); }
 });
 
-test('network or server failure shows signed-out state, never an unlocked app', async () => {
+test('network or server failure shows a retry state, never an unlocked app', async () => {
   const { cleanup } = await mount(() => { throw new TypeError('Failed to fetch'); });
   try {
-    assert.deepEqual(nav(), ['Register', 'Login']);
+    assert.deepEqual(nav(), ['Retry']);
     assert.equal(document.querySelector('.product-action button'), null);
   } finally { await cleanup(); }
+});
+test('temporary session failure can recover without presenting a confirmed logout',async()=>{
+ let unavailable=false;
+ const {cleanup}=await mount(()=>{if(unavailable)throw new TypeError('Failed to fetch');return Response.json(signedInState());});
+ try{
+  assert.ok(nav().includes('My Account'));
+  unavailable=true;await act(async()=>document.querySelector('#passive').click());
+  assert.deepEqual(nav(),['Retry']);
+  unavailable=false;await act(async()=>document.querySelector('.nav-auth button').click());
+  assert.ok(nav().includes('My Account'));
+ }finally{await cleanup();}
 });
 
 test('outside Preview auth builds no auth controls and no requests are made', async () => {
