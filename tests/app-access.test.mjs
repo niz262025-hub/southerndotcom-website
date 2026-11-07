@@ -375,3 +375,18 @@ test('durable login liveness is a read-only, user-bound lookup and fails closed 
     assert.deepEqual(calls, [['myops_login_live', { p_id: loginSessionId, p_user_id: userId }]]);
   }
 });
+
+test('central profile is released only on signed, active entitled sessions and never trusts body identity', async () => {
+ const f = make();
+ let reads=0;
+ f.admin.auth={admin:{getUserById:async id=>{reads++;assert.equal(id,userId);return {data:{user:{id,user_metadata:{display_name:'Owner',account_type:'personal',contact_number:'+60123456789',role:'admin',organization_id:'victim'},updated_at:'2026-11-07T00:00:00Z'}}};}}};
+ const body={session_id:sessionId,product:'opsp',profile:true};
+ const result=await call(f.handler.entitlement,signedRequest({path:'/api/app/entitlement',body}));
+ assert.equal(result.statusCode,200);assert.equal(reads,1);
+ assert.deepEqual(result.body.central_profile,{display_name:'Owner',account_type:'personal',contact_number:'+60123456789',logo_url:null,updated_at:'2026-11-07T00:00:00Z'});
+ const denied=make({entitlement:'none'});denied.admin.auth={admin:{getUserById:()=>assert.fail('denied session cannot load a profile')}};
+ assert.equal((await call(denied.handler.entitlement,signedRequest({path:'/api/app/entitlement',body}))).statusCode,403);
+ assert.equal((await call(f.handler.entitlement,signedRequest({path:'/api/app/entitlement',body:{...body,user_id:'victim'}}))).statusCode,400);
+ const tampered=signedRequest({path:'/api/app/entitlement',body:{...body,profile:false}});tampered.body.profile=true;
+ assert.equal((await call(f.handler.entitlement,tampered)).statusCode,401);
+});

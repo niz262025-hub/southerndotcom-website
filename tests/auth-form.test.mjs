@@ -48,3 +48,33 @@ test('registration form submits fields, shows pending state, success and retryab
     dom.window.close();
   }
 });
+
+test('company registration exposes required SSM, PIC and contact fields while personal registration stays simple', async () => {
+  const dom = new JSDOM('<div id="root"></div>', { url: 'https://trusted-preview.vercel.app/register' });
+  const originals = Object.fromEntries(['window', 'document', 'FormData', 'fetch', 'IS_REACT_ACT_ENVIRONMENT'].map(key => [key, globalThis[key]]));
+  Object.assign(globalThis, { window: dom.window, document: dom.window.document, FormData: dom.window.FormData, IS_REACT_ACT_ENVIRONMENT: true });
+  const root = createRoot(document.getElementById('root'));
+  try {
+    await act(async () => root.render(createElement(AuthPortal, { mode: 'register' })));
+    assert.equal(document.querySelector('[name=ssmNumber]'), null);
+    const select = document.querySelector('[name=accountType]');
+    await act(async () => { select.value = 'business'; select.dispatchEvent(new dom.window.Event('change', { bubbles: true })); });
+    for (const name of ['companyName', 'ssmNumber', 'companyEmail', 'personInCharge', 'contactNumber', 'address']) {
+      assert.equal(document.querySelector(`[name=${name}]`).required, true, name);
+    }
+    for (const [name, value] of Object.entries({ displayName: 'Owner', companyName: 'Company', ssmNumber: '202303050959', companyEmail: 'office@example.test', personInCharge: 'Owner', contactNumber: '+60123456789', address: 'Johor Bahru', email: 'owner@example.test', password: 'long-test-password' })) {
+      document.querySelector(`[name=${name}]`).value = value;
+    }
+    let sent;
+    globalThis.fetch = async (_url, init) => { sent = JSON.parse(init.body); return Response.json({ message: 'Check your email.' }); };
+    await act(async () => document.querySelector('form').dispatchEvent(new dom.window.Event('submit', { bubbles: true, cancelable: true })));
+    assert.equal(sent.accountType, 'business');
+    assert.equal(sent.ssmNumber, '202303050959');
+    assert.equal(sent.companyEmail, 'office@example.test');
+    assert.equal(sent.personInCharge, 'Owner');
+  } finally {
+    await act(async () => root.unmount());
+    Object.assign(globalThis, originals);
+    dom.window.close();
+  }
+});

@@ -1,9 +1,13 @@
 import { createHmac, timingSafeEqual } from 'node:crypto';
 import { createClient } from '@supabase/supabase-js';
-import { createAppAccess } from './app-access.js';
 import { profileFields, descriptiveProfile } from './profile-fields.js';
+import { changeProfileLogo, decodeLogo, ownedLogoPath, profileLogoUrl } from './profile-logo.js';
+import { createAppAccess } from './app-access.js';
 import { createPayments, paymentGateway } from './payments.js';
 import { PRODUCT_SLUGS, hasLifetime, resolveProductStates, isPlatformAdmin } from './entitlements.js';
+import { loadEligibleTrial, trialAppsForEnvironment } from './trial-access.js';
+import { trialAction } from './trial-activation.js';
+import { serverServiceKey } from './service-key.js';
 
 const SESSION = '__Host-myops-access';
 const VERIFIER = '__Host-myops-pkce';
@@ -212,8 +216,10 @@ async function loadEntitlements(client, userId, now, env = {}) {
   if (catalog.error || subscriptions.error || grants.error) return null;
   // A failed lifetime read fails closed (no lifetime), e.g. before the Phase 3 SQL is approved.
   const rows = lifetime.error ? [] : lifetime.data || [];
+  const trialKey = trialAppsForEnvironment(env).length ? serverServiceKey(env.MYOPS_SERVICE_ROLE_KEY,projectForEnvironment(env)) : null;
+  const trial = trialKey ? await loadEligibleTrial(createClient(projectForEnvironment(env),trialKey,{auth:{persistSession:false,autoRefreshToken:false}}),userId,now,env) : null;
   return {
-    products: resolveProductStates({ userId, catalog: catalog.data || [], subscriptions: subscriptions.data || [], grants: grants.data || [], lifetime: rows, platformAdmin: isPlatformAdmin(userId, env), now }),
+    products: resolveProductStates({ userId, catalog: catalog.data || [], subscriptions: subscriptions.data || [], grants: grants.data || [], lifetime: rows, platformAdmin: isPlatformAdmin(userId, env), trial, trialApps:trialAppsForEnvironment(env), now }),
     lifetime: hasLifetime(userId, rows),
   };
 }
@@ -316,7 +322,7 @@ export function createAuthHandler({ env = process.env, clientFactory = createCli
     };
     try {
       const body = typeof req.body === 'string' ? JSON.parse(req.body) : req.body;
-      if (!body || JSON.stringify(body).length > 12000) return reply(400, { error: 'Invalid request.' });
+      if (!body || Array.isArray(body) || JSON.stringify(body).length > (body.action === 'profile-logo' ? 360000 : 12000)) return reply(400, { error: 'Invalid request.' });
       const { action } = body;
       const productionAppAccessEnabled = production
         && env.MYOPS_ENVIRONMENT === 'production'
@@ -324,10 +330,11 @@ export function createAuthHandler({ env = process.env, clientFactory = createCli
       const liveGateway = paymentGateway(env, PROJECT);
       const productionPaymentsEnabled = production && Boolean(liveGateway?.secret
         && /^[A-Za-z0-9]{4,40}$/.test(liveGateway.category || ''));
-      const productionAccountActions = ['register', 'login', 'forgot', 'callback', 'logout', 'session', 'account', 'reset', 'profile', 'founders'];
+      const productionAccountActions = ['register', 'login', 'forgot', 'callback', 'logout', 'session', 'account', 'reset', 'profile', 'profile-logo', 'founders'];
       if (production && !productionAccountActions.includes(action)
           && !(action === 'admin_audit' && env.MYOPS_ENABLE_PLATFORM_ADMIN === 'true')
           && !(action === 'launch' && productionAppAccessEnabled)
+          && !(['trial_start','trial_status'].includes(action) && trialAppsForEnvironment(env).length)
           && !(action === 'checkout' && productionPaymentsEnabled)) {
         return reply(404, { error: 'This feature is not enabled.' });
       }
@@ -407,7 +414,7 @@ export function createAuthHandler({ env = process.env, clientFactory = createCli
           return reply(400, { error: 'Enter a name, valid email and 12–128 character password.' });
         }
         let details;
-        try { details = profileFields(body); }
+        try { details = profileFields(body, { requireComplete: true }); }
         catch (error) { return reply(400, { error: error.message }); }
         // Metadata is descriptive only. Never trust it for roles or authorization.
         const { data, error } = await client.auth.signUp({ email: body.email, password: body.password,
@@ -492,10 +499,13 @@ export function createAuthHandler({ env = process.env, clientFactory = createCli
         return runRevocationWorker({ env, headers: req.headers, body, appAccess, reply });
       }
       if (action === 'founders') return reply(200, await payments.founders());
-      if (!['account', 'reset', 'profile', 'session', 'launch', 'checkout', 'admin_audit'].includes(action)) return reply(400, { error: 'Unknown operation.' });
+      if (!['account', 'reset', 'profile', 'profile-logo', 'session', 'launch', 'checkout', 'admin_audit', 'trial_start', 'trial_status'].includes(action)) return reply(400, { error: 'Unknown operation.' });
       let active = saved[SESSION] && activityValid(secret, saved[ACTIVITY], now());
       const { data: identity, error: identityError } = saved[SESSION]
         ? await client.auth.getUser(saved[SESSION]) : { data: {}, error: true };
+      if (saved[SESSION] && identityError && (identityError.name === 'AuthRetryableFetchError' || identityError.status >= 500 || identityError.status === 429)) {
+        return reply(503, { error: 'Session validation is temporarily unavailable. Please retry.' });
+      }
       const login = verifiedLogin(secret, saved[LOGIN], now());
       const loginSessionId = login && login.userId === identity.user?.id ? login.loginSessionId : null;
       if (!active && !identityError && identity.user?.email_confirmed_at && loginSessionId && appAccess.loginLive) {
@@ -509,7 +519,9 @@ export function createAuthHandler({ env = process.env, clientFactory = createCli
       if (!active || identityError || !identity.user?.email_confirmed_at) {
         const expired = Boolean(saved[SESSION] || saved[IDENTITY]);
         const knownUser = identity.user?.id;
-        clearAll();
+        // A delayed anonymous probe must never erase cookies from a newer login.
+        // Requests with actual expired/invalid session state still clear and revoke it.
+        if (expired || saved[ACTIVITY] || saved[LOGIN]) clearAll();
         // MYOPS session ended (inactivity or expired/invalid token): app access ends with it.
         // A failed revocation stays queued (signed pending marker); it must not turn into repeated errors here.
         await settleRevocation('inactivity', knownUser, cookieIdentity());
@@ -518,7 +530,7 @@ export function createAuthHandler({ env = process.env, clientFactory = createCli
       }
       // Passive probes must not extend the inactivity window.
       // Only genuine user activity is recorded server-side (30 s throttle); app polling never is.
-      if (!(action === 'session' && body.activity === false)) {
+      if (!(action === 'session' && body.activity === false) && action !== 'trial_status') {
         touch();
         if (loginSessionId && await appAccess.touchLogin(identity.user.id, loginSessionId) === false) {
           // The durable record says this login is over (expired, swept or revoked elsewhere).
@@ -531,6 +543,13 @@ export function createAuthHandler({ env = process.env, clientFactory = createCli
       if (action === 'session') {
         const entitlements = await loadEntitlements(client, identity.user.id, now(), env);
         return reply(200, { signedIn: true, email: identity.user.email, products: entitlements?.products ?? null, lifetime: entitlements?.lifetime ?? false, ...(isPlatformAdmin(identity.user.id, env) ? { platformAdmin: true } : {}) });
+      }
+      if(action==='trial_start'||action==='trial_status') {
+        if(!trialAppsForEnvironment(env).length) return reply(404,{error:'Trial is not enabled.'});
+        const trialKey=serverServiceKey(env.MYOPS_SERVICE_ROLE_KEY,PROJECT);
+        if(!trialKey) return reply(503,{error:'Trial service is unavailable.'});
+        const result=await trialAction({client:clientFactory(PROJECT,trialKey,{auth:{persistSession:false,autoRefreshToken:false}}),userId:identity.user.id,loginSessionId,action,body,env,now:now()});
+        return reply(result.status,result.body);
       }
       if (action === 'checkout') {
         // Eligibility (Individual-only) is decided inside the database from the server-owned
@@ -570,6 +589,29 @@ export function createAuthHandler({ env = process.env, clientFactory = createCli
         if (!revoked || signOut[0].status === 'rejected' || signOut[0].value?.error) throw new Error('password_reset_revoke_failed');
         return reply(200, { next: '/login' });
       }
+      if (action === 'profile-logo') {
+        if (!['upload', 'remove'].includes(body.operation)
+            || Object.keys(body).some(key => !['action', 'operation', 'contentType', 'encoded'].includes(key))) {
+          return reply(400, { error: 'Invalid logo request.' });
+        }
+        if (body.operation === 'upload') {
+          try { decodeLogo(body.contentType, body.encoded); }
+          catch (error) { return reply(400, { error: error.message }); }
+        }
+        try {
+          const result = await changeProfileLogo({ client, user: identity.user, operation: body.operation,
+            contentType: body.contentType, encoded: body.encoded,
+            saveMetadata: async data => {
+              const updated = await transport(`${PROJECT}/auth/v1/user`, {
+                method: 'PUT', headers: { 'Content-Type': 'application/json', apikey: env.VITE_SUPABASE_PUBLISHABLE_KEY,
+                  Authorization: `Bearer ${saved[SESSION]}` }, body: JSON.stringify({ data }),
+              });
+              if (!updated.ok || (await updated.json())?.id !== identity.user.id) throw new Error('Logo profile update failed.');
+            },
+          });
+          return reply(200, result);
+        } catch { return reply(503, { error: 'Logo could not be updated. Please retry.' }); }
+      }
       if (action === 'profile') {
         if (!['personal', 'business'].includes(body.accountType) || typeof body.displayName !== 'string'
             || body.displayName.trim().length < 1 || body.displayName.length > 120) return reply(400, { error: 'Invalid profile.' });
@@ -590,7 +632,12 @@ export function createAuthHandler({ env = process.env, clientFactory = createCli
       }
       // Auth metadata is user-editable and descriptive only; it never grants access.
       const entitlements = await loadEntitlements(client, identity.user.id, now(), env);
-      return reply(200, { email: identity.user.email, profile: profileFrom(identity.user), products: entitlements?.products ?? null, lifetime: entitlements?.lifetime ?? false, ...(isPlatformAdmin(identity.user.id, env) ? { platformAdmin: true } : {}) });
+      const profile = profileFrom(identity.user);
+      if (profile && ownedLogoPath(identity.user.user_metadata?.logo_path, identity.user.id)) {
+        profile.has_logo = true;
+        profile.logo_url = await profileLogoUrl(client, identity.user);
+      }
+      return reply(200, { email: identity.user.email, profile, products: entitlements?.products ?? null, lifetime: entitlements?.lifetime ?? false, ...(isPlatformAdmin(identity.user.id, env) ? { platformAdmin: true } : {}) });
     } catch {
       // Never log SDK errors, credentials, request bodies, cookies or callback codes.
       return reply(500, { error: 'Authentication request failed. Please try again.' });
