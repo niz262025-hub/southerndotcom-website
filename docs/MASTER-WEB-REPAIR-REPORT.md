@@ -120,7 +120,7 @@ This is about 92% lower CPU time for that fixture; it is not a site-loading benc
 - Central `myops_profiles` has only user/name/account type/created timestamp, and organizations lack company-contact/logo fields. This batch uses existing descriptive Auth metadata; no tenant/role changes or schema migration were applied.
 - Production catalog is `opsfinance`, `opsflow`, `opsp` live; `opshr` and `opswms` Coming Soon. No product state changed.
 - OpsHR staging has 11 private `opshr_stage` tables with RLS enabled. RLS metadata alone does not prove correct tenant access.
-- The central staging project is not visible through the connected Management APIs, but its Auth/Data API health has now been verified. See the latest recovery update above; the remaining immediate gate is secure UAT account sign-in.
+- The central staging project is not visible through the connected Management APIs, but its Auth/Data API health has now been verified. See the latest recovery update above; owner-completed sign-in now passed. Finance dashboard/P&L/selected-ledger checks and renewed OpsFlow SSO passed; OpsPS still fails at Edge Function preview transport. See docs/UAT-RERUN-2026-11-07.md for the current evidence and approval blocker.
 - OpsHR has no active central app client/verified launch-to-tenant contract in the inspected work. Employee persistence, attendance/leave approval, payroll/payslips, private documents and reports need implementation, not just a release switch.
 
 ## OpsHR acceptance backlog
