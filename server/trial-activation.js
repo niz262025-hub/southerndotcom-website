@@ -6,7 +6,7 @@ export async function trialAction({client,userId,loginSessionId,action,body,env,
  if(!apps.length) return {status:404,body:{error:'Trial is not enabled.'}};
  const allowed=action==='trial_start'?['action','confirm']:['action'];
  if(Object.keys(body).some(key=>!allowed.includes(key))||(action==='trial_start'&&body.confirm!==true)) return {status:400,body:{error:'Confirm trial activation.'}};
- const paid=await loadCurrentEntitlements(client,userId,now,{...env,MYOPS_ENABLE_STAGING_TRIAL_ACCESS:'false',MYOPS_ENABLE_PRODUCTION_TRIAL_ACCESS:'false'});
+ const paid=await loadCurrentEntitlements(client,userId,now,{...env,MYOPS_ENABLE_STAGING_TRIAL_ACCESS:'false'});
  if(!paid) return {status:503,body:{error:'Access status is unavailable.'}};
  const paidActive=Object.values(paid).includes('active');
  const current=await client.rpc('myops_trial_state',{p_user_id:userId});

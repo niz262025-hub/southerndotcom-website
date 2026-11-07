@@ -1,4 +1,4 @@
--- Central MYOPS trial foundation. No app grant, billing or payment is created.
+-- Central MYOPS staging foundation only. No app grant, billing or payment is created.
 -- Activation is not exposed until application-side server limits are certified.
 BEGIN;
 CREATE TABLE public.myops_trials (

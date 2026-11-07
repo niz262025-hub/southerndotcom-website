@@ -8,7 +8,6 @@ export const SUBSCRIPTION_OPTIONS = Object.freeze([
   Object.freeze({ id:'all_apps_monthly', name:'All Apps', amountCents:7900, billingCycle:'monthly', allAvailableApps:true }),
 ]);
 const POLICY = Object.freeze({
-  opshr:Object.freeze({ employees:30, users:1, companies:1, payroll:false, exportPdf:false, exportExcel:false }),
   opsfinance:Object.freeze({ transactions:30, users:1, companies:1, bankStatements:2, invoiceReceiptDocuments:5, reconciliation:'preview', profitAndLoss:'preview', balanceSheet:'preview', exportPdf:false, exportExcel:false }),
   opsflow:Object.freeze({ transactions:30, users:1, companies:1, workflows:2, automation:false, advancedApproval:false }),
   opsp:Object.freeze({ transactions:30, users:1, companies:1, projects:2, advancedReporting:false, exportPdf:false, exportExcel:false, multiUser:false }),

@@ -441,8 +441,6 @@ test('live bill and callback use live credentials with independent confirmation 
   assert.equal(verified.requests.length, before);
   assert.equal((await hook(callbackFields(order), { ledgerState: state, transport: verified.transport, extraEnv: liveEnv })).code, 400);
 });
-
-
 test('production auth checkout is gated and passes only live configuration to payment transport', async () => {
   const state = ledger(); const original = state.client.rpc;
   state.client.rpc = async (name, args) => {

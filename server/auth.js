@@ -1,3 +1,6 @@
+import { trialAction } from './trial-activation.js';
+import { serverServiceKey } from './service-key.js';
+import { loadEligibleTrial, trialAppsForEnvironment } from './trial-access.js';
 import { createHmac, timingSafeEqual } from 'node:crypto';
 import { createClient } from '@supabase/supabase-js';
 import { profileFields, descriptiveProfile } from './profile-fields.js';
@@ -5,9 +8,6 @@ import { changeProfileLogo, decodeLogo, ownedLogoPath, profileLogoUrl } from './
 import { createAppAccess } from './app-access.js';
 import { createPayments, paymentGateway } from './payments.js';
 import { PRODUCT_SLUGS, hasLifetime, resolveProductStates, isPlatformAdmin } from './entitlements.js';
-import { loadEligibleTrial, trialAppsForEnvironment } from './trial-access.js';
-import { trialAction } from './trial-activation.js';
-import { serverServiceKey } from './service-key.js';
 
 const SESSION = '__Host-myops-access';
 const VERIFIER = '__Host-myops-pkce';
@@ -216,8 +216,10 @@ async function loadEntitlements(client, userId, now, env = {}) {
   if (catalog.error || subscriptions.error || grants.error) return null;
   // A failed lifetime read fails closed (no lifetime), e.g. before the Phase 3 SQL is approved.
   const rows = lifetime.error ? [] : lifetime.data || [];
-  const trialKey = trialAppsForEnvironment(env).length ? serverServiceKey(env.MYOPS_SERVICE_ROLE_KEY,projectForEnvironment(env)) : null;
-  const trial = trialKey ? await loadEligibleTrial(createClient(projectForEnvironment(env),trialKey,{auth:{persistSession:false,autoRefreshToken:false}}),userId,now,env) : null;
+  // Company membership must be checked server-side: browser RLS hides other members.
+  const trialProject=projectForEnvironment(env);
+  const trialKey=trialAppsForEnvironment(env).length ? serverServiceKey(env.MYOPS_SERVICE_ROLE_KEY,trialProject) : null;
+  const trial=trialKey ? await loadEligibleTrial(createClient(trialProject,trialKey,{auth:{persistSession:false,autoRefreshToken:false}}),userId,now,env) : null;
   return {
     products: resolveProductStates({ userId, catalog: catalog.data || [], subscriptions: subscriptions.data || [], grants: grants.data || [], lifetime: rows, platformAdmin: isPlatformAdmin(userId, env), trial, trialApps:trialAppsForEnvironment(env), now }),
     lifetime: hasLifetime(userId, rows),
@@ -499,7 +501,7 @@ export function createAuthHandler({ env = process.env, clientFactory = createCli
         return runRevocationWorker({ env, headers: req.headers, body, appAccess, reply });
       }
       if (action === 'founders') return reply(200, await payments.founders());
-      if (!['account', 'reset', 'profile', 'profile-logo', 'session', 'launch', 'checkout', 'admin_audit', 'trial_start', 'trial_status'].includes(action)) return reply(400, { error: 'Unknown operation.' });
+      if (!['account', 'reset', 'profile', 'profile-logo', 'session', 'launch', 'checkout', 'payment_reconcile', 'admin_audit', 'trial_start', 'trial_status'].includes(action)) return reply(400, { error: 'Unknown operation.' });
       let active = saved[SESSION] && activityValid(secret, saved[ACTIVITY], now());
       const { data: identity, error: identityError } = saved[SESSION]
         ? await client.auth.getUser(saved[SESSION]) : { data: {}, error: true };
@@ -545,10 +547,14 @@ export function createAuthHandler({ env = process.env, clientFactory = createCli
         return reply(200, { signedIn: true, email: identity.user.email, products: entitlements?.products ?? null, lifetime: entitlements?.lifetime ?? false, ...(isPlatformAdmin(identity.user.id, env) ? { platformAdmin: true } : {}) });
       }
       if(action==='trial_start'||action==='trial_status') {
-        if(!trialAppsForEnvironment(env).length) return reply(404,{error:'Trial is not enabled.'});
+        if(PROJECT!=='https://wengxxiqwtosirealghx.supabase.co'||!trialAppsForEnvironment(env).length) return reply(404,{error:'Trial is not enabled.'});
         const trialKey=serverServiceKey(env.MYOPS_SERVICE_ROLE_KEY,PROJECT);
         if(!trialKey) return reply(503,{error:'Trial service is unavailable.'});
         const result=await trialAction({client:clientFactory(PROJECT,trialKey,{auth:{persistSession:false,autoRefreshToken:false}}),userId:identity.user.id,loginSessionId,action,body,env,now:now()});
+        return reply(result.status,result.body);
+      }
+      if (action === 'payment_reconcile') {
+        const result = await payments.reconcile({userId:identity.user.id});
         return reply(result.status,result.body);
       }
       if (action === 'checkout') {
@@ -637,7 +643,7 @@ export function createAuthHandler({ env = process.env, clientFactory = createCli
         profile.has_logo = true;
         profile.logo_url = await profileLogoUrl(client, identity.user);
       }
-      return reply(200, { email: identity.user.email, profile, products: entitlements?.products ?? null, lifetime: entitlements?.lifetime ?? false, ...(isPlatformAdmin(identity.user.id, env) ? { platformAdmin: true } : {}) });
+      return reply(200, { email: identity.user.email, profile, ...(trialAppsForEnvironment(env).length ? { trialAvailable: true } : {}), products: entitlements?.products ?? null, lifetime: entitlements?.lifetime ?? false, ...(isPlatformAdmin(identity.user.id, env) ? { platformAdmin: true } : {}) });
     } catch {
       // Never log SDK errors, credentials, request bodies, cookies or callback codes.
       return reply(500, { error: 'Authentication request failed. Please try again.' });

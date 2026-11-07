@@ -1,9 +1,6 @@
-import { projectForEnvironment, STAGING_PROJECT, PRODUCTION_PROJECT } from './project.js';
+import { projectForEnvironment, STAGING_PROJECT } from './project.js';
 import { effectiveTrialState } from './subscription-plans.js';
 export function trialAppsForEnvironment(env={}) {
- if(env.VERCEL_ENV==='production'&&env.MYOPS_ENVIRONMENT==='production'&&env.MYOPS_ENABLE_PRODUCTION_TRIAL_ACCESS==='true'&&projectForEnvironment(env)===PRODUCTION_PROJECT&&env.VITE_SUPABASE_URL===PRODUCTION_PROJECT) {
-   return String(env.MYOPS_TRIAL_READY_APPS||'').split(',').map(x=>x.trim()).includes('opshr') ? ['opshr'] : [];
- }
  if(projectForEnvironment(env)!==STAGING_PROJECT||env.VITE_SUPABASE_URL!==STAGING_PROJECT||env.VERCEL_ENV!=='preview'||env.MYOPS_ENVIRONMENT!=='staging'||env.MYOPS_ENABLE_STAGING_TRIAL_ACCESS!=='true') return [];
  // Finance admission is explicitly gated for integrated staging UAT.
  return [...new Set(String(env.MYOPS_TRIAL_READY_APPS||'').split(',').map(x=>x.trim()))]

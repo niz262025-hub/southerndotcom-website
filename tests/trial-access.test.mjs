@@ -6,15 +6,6 @@ const env={VERCEL_ENV:'preview',MYOPS_ENVIRONMENT:'staging',MYOPS_USE_ISOLATED_S
 const now=Date.now();const trial={id:'id',user_id:'user',organization_id:null,status:'active',policy_version:1,started_at:new Date(now-1000).toISOString(),expires_at:new Date(now-1000+604800000).toISOString()};
 const catalog=['opsflow','opsfinance','opsp'].map(slug=>({slug,launch_status:'live'}));
 const states=(t,apps=['opsflow'])=>resolveProductStates({userId:'user',catalog,subscriptions:[],grants:[],trial:t,trialApps:apps,now});
-test('production trial requires its own switch and admits only OpsHR',()=>{
- const production={VERCEL_ENV:'production',MYOPS_ENVIRONMENT:'production',VITE_SUPABASE_URL:'https://uhuukcztdifvpjuopdea.supabase.co',MYOPS_ENABLE_PRODUCTION_TRIAL_ACCESS:'true',MYOPS_TRIAL_READY_APPS:'opsfinance,opsflow,opsp,opshr'};
- assert.deepEqual(trialAppsForEnvironment(production),['opshr']);
- assert.deepEqual(trialAppsForEnvironment({...production,MYOPS_ENABLE_PRODUCTION_TRIAL_ACCESS:'false'}),[]);
- assert.deepEqual(trialAppsForEnvironment({...production,VITE_SUPABASE_URL:'https://other.supabase.co'}),[]);
- const result=resolveProductStates({userId:'user',catalog:[{slug:'opshr',launch_status:'live'}],subscriptions:[],grants:[],trial,trialApps:['opshr'],now});
- assert.equal(result.opshr,'active');
- assert.equal(states({...trial,expires_at:new Date(now-1).toISOString()}).opsflow,'none');
-});
 test('trial grants only certified app and never grants production or implicit access',()=>{
  assert.deepEqual(trialAppsForEnvironment(env),['opsflow']);
  assert.deepEqual(trialAppsForEnvironment({...env,MYOPS_FINANCE_TRIAL_UAT_READY:'true'}),['opsflow','opsfinance']);

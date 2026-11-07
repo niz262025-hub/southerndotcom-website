@@ -22,7 +22,6 @@ Authenticated MYOPS → Finance/Flow preview launch, paid/trial behavior, deskto
 ## Deployment and rollback
 Apply only on feat/myops-isolated-staging; renew deployment-bound central preview access transport for Finance and Flow after the new preview is READY, then redeploy those preview branches. OpsPS Edge Function preview transport remains separately blocked. No production domains or production environment variables may be changed.
 Rollback the two source/test files to parent 183a957392ca09788a572e5ec4c2274c68a779c9, rebuild the central preview, renew its preview transport and redeploy dependent previews. No database rollback required.
-
 ## Rerun deployment evidence
 - Source commit: 4de726d79a189fa2b3f9a80d8fe69f6f2d3fdab9 on isolated staging.
 - MYOPS preview READY: https://southerndotcom-website-k8axmskki-mohd-syaiful-nizam1.vercel.app (dpl_48HWJPkqVMnRq9jBgqwPZQD3bz1L).

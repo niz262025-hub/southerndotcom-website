@@ -29,8 +29,8 @@ export function resolveProductStates({ userId, catalog, subscriptions, grants, l
       }
     }
   }
-  if(trial?.user_id===userId&&trial.policy_version===1&&effectiveTrialState(trial,now)==='active') {
-    for(const app of trialApps) if(PRODUCT_SLUGS.includes(app)&&live.has(app)) entitled.add(app);
+  if(trial?.user_id===userId && trial.policy_version===1 && effectiveTrialState(trial,now)==='active') {
+    for(const app of trialApps) if(['opsflow','opsfinance','opsp'].includes(app) && live.has(app)) entitled.add(app);
   }
   const slugs = [...new Set([...PRODUCT_SLUGS, ...catalog.map((item) => item.slug).filter((slug) => SLUG.test(slug))])];
   return Object.fromEntries(slugs.map((slug) => [

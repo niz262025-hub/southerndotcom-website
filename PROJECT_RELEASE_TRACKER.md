@@ -1,6 +1,184 @@
+## 2026-11-05 — Authenticated live return-button UAT passed
+
+Owner completed browser login. Live MYOPS displayed MyAccount/Admin and “Log keluar semua aplikasi”. The following were exercised sequentially with this same login, with no additional sign-in:
+
+- Finance: app launched; exactly one “Kembali ke MYOPS” button visible at top-right, duplicate sidebar exit absent. Clicking returned to https://www.myops.com.my/ and MyAccount/global-signout remained available.
+- Flow: app launched with existing UAT records; “Kembali ke MYOPS” button and home icon visible in common top-bar. Clicking returned to the same central homepage with active MYOPS login.
+- OpsPS: app dashboard loaded with new accessible top-right “Kembali ke MYOPS” button beside Settings. Clicking returned to the central homepage; MyAccount/global-signout still available. Initial app hydration took longer than the first locator wait; a fresh AX snapshot then showed the correct dashboard/button, and the actual click/return passed. No permanent missing-button defect.
+- Portal global-signout label confirmed visually. It was intentionally not clicked again in this run, preserving the owner's new login; prior central logout/revocation/reload-denial evidence and unchanged server behavior remain the evidence for global logout. Do not imply a new global-logout click occurred today in this follow-up.
+
+Screenshots saved and visually inspected: /workspace/scratch/uat-return-finance.jpg, uat-return-flow.jpg, uat-return-opsps.jpg, uat-myops-central-logout-label.jpg. No payment or business-data mutation in this follow-up. ToyyibPay remains paused. This completes the post-deployment browser checks pending in the previous checkpoint, for the owner-approved portal-return semantics; it does not certify paid-customer billing or all permission/trial/fulfilment scenarios.
+
+## 2026-11-05 — Owner-approved MYOPS return navigation deployed
+
+This supersedes the previous single-sign-out blocker interpretation. Owner explicitly chose satellite “Kembali ke MYOPS” and portal-only “Log keluar semua aplikasi”, then authorized implementation with “ok ubah”. MYOPS issue#34 closed not_planned with the clarification; satellite global revocation was not implemented or claimed.
+
+- Portal: homepage and account global sign-out controls renamed, busy/retry wording adjusted; existing central logout POST/revocation retained.
+- Finance: primary return control top-right; duplicate sidebar exit removed. Manual app exit clears the app cookie and returns to the central homepage rather than dashboard; inactivity still returns to central login. Origin checks, cookie security and central session untouched.
+- Flow: both common top-bar and account-menu return labels/icons updated; existing local cleanup and central-home redirect retained.
+- OpsPS: common tabs header gains an accessible top-right return button alongside Settings; settings/admin/customer exit labels updated. Existing app-session cleanup and return-to-portal behavior retained. No new permissions or auth bypass.
+- Validation: portal161 tests pass/36 environment skips and lint; Finance295 pass/1 credentials skip plus typecheck/lint; Flow28 frontend tests/typecheck; OpsPS199 tests/typecheck/lint. Four Vercel production builds READY and all official aliases verified against exact intended deployment IDs. No DB/env/payment changes. Existing15minute inactivity behavior retained.
+
+| Repository | Exact commit | Verified production deployment | PR |
+|---|---|---|---|
+| southerndotcom-website | 71cbb0f8c0a35faf3995e5ecc7c4b2c0c05abfff | dpl_FAqxWU7ArhnXAQagerZLBfMDh22p | https://github.com/niz262025-hub/southerndotcom-website/pull/35 |
+| OpsFinance | 1bbd75c2d86ea68d1c75a4babeb1290d9e523482 | dpl_68GwQ4J4KXUL63iAKbDgMsT3mwj5 | https://github.com/niz262025-hub/OpsFinance/pull/36 |
+| OpsFlow | 99cf601aa6d7f639561059ca92f90031128fe538 | dpl_5ZtAyiEnsWXZxe17Ug7TKRPmcN4C | https://github.com/niz262025-hub/OpsFlow/pull/6 |
+| OpsPSMobileR1 | 4ce533e89426d997cf1dd52af6af8a9faba46800 | dpl_21dy75b6yShU5j3dqTed1HhjL8PJ | https://github.com/niz262025-hub/OpsPSMobileR1/pull/8 |
+
+Rollback targets, respectively: portal dpl_G2CS8J2VhwPmjcCWQXYXnry9MfVD; Finance dpl_3i7r7Jn1JUffTafjpajSpva52WAa; Flow dpl_9eBiNQ1X5qnhPsV24rLsNZMMnCy9; OpsPS dpl_E5aHre92HVqwhR6r2k3AYZDQ7zv8.
+
+Browser verification limitation: current browser started signed out. Secure browserAuth request returned submitted, but no signed-in signal or website error appeared; fresh canonical-home verification still showed Login/Register. Do not claim the new labels/return clicks passed authenticated browser UAT yet. Manual sign-in confirmation is the next dependent step. No credentials inspected or stored in source/tracker. ToyyibPay stays paused; no new bill/payment.
+
+## 2026-11-05 10:09 MYT — Live admin UAT results and deployed fixes
+
+Decision: selected admin operational flows passed, but FULL UAT/launch approval remains BLOCKED by satellite single-sign-out (MYOPS issue#34). ToyyibPay LAST/PAUSED. No new bill, actual payment, payment proof, subscription grant or payment callback in this run.
+
+### Verified production fixes
+
+- MYOPS: commit526c135ee1431178951ec0130f6b0c4dc2534aba, PR#33, deployment dpl_G2CS8J2VhwPmjcCWQXYXnry9MfVD, official alias verified. Read-only signed-user-bound durable liveness fallback resolves portal-cookie expiry despite recent satellite activity. Fresh login01:26:11UTC remained unrevoked with satellite activity through02:07:24UTC (including browser portal signed-in evidence at01:49UTC); it was ended ONLY by the explicit central Logout at02:08:02UTC, ended_reason=logout. 161 tests pass,36 environment-dependent skips; lint/build pass. Idle15min/absolute12h policies retained, no manual session revival.
+- Finance final: commit630b843822b0161c3b98a2c3476978886e87155c, PR#33 signed reversals plus stacked PR#35 report detail/navigation, production dpl_3i7r7Jn1JUffTafjpajSpva52WAa READY/promoted; app.myops.com.my alias verified. P&L nets revenue/cost reversals and retains negatives; statement/account selection reuses posted journals; ledger/statement show transactions; Bank Reconciliation menu link added and browser verified. 295 tests pass,1 live-credentials skip; typecheck/lint/build pass. Rollback prior report build dpl_2GM3FDyHvFAqSLtdJqHYeaqe5YcD; original reversal baseline dpl_7zsNacnq5knE5f2tni86UoXd64G3.
+- Flow: commit a683478d683ab71c9e30893b8ea489404a259a5b, PR#5, deployment dpl_9eBiNQ1X5qnhPsV24rLsNZMMnCy9 READY/promoted, official alias verified. Minimum0 preserved in Dashboard/Inventory; stock1 now Healthy/alerts0. 28 frontend tests/typecheck pass; production build pass. Backend/schema unchanged. Rollback dpl_CcDVREvf4Gr3FLCRZY7WPhqpTd7c.
+- OpsPS: final commit c6f4b42835f5d715b56bac44032a4705438150f7, PR#7, production dpl_E5aHre92HVqwhR6r2k3AYZDQ7zv8 READY, official alias verified. Trip/product/order wait for auth readiness and pending lookup before missing-record state. Initial loading-only fix e1d8f8e was insufficient for auth hydration, so the final follow-up adds ready guards and regression coverage. 199 tests/typecheck/lint pass; production build pass; valid trip/order refresh loaded. Rollback original dpl_HiC4SFq83Dy8B1UMCyyssCSXMaiM.
+
+### Live UI and data evidence
+
+- Finance: synthetic ledger1199 + CASH account persisted, MoneyIn/reversal eachRM1 net0; P&L0, BalanceSheet0 and TrialBalance debit2/credit2. AccountStatement displays both journals/running1 then0. These postings dated2026-10-05; do not claim Nov5 posting dates.
+- Finance CSV: created clearly synthetic BANK master UAT-BANK-20261105, dummy number ending2222, opening0, ledger1110. Wrong-number CSV rejected with Import cancelled popup and posting disabled. Correct CSV two oppositeRM1 lines parsed and posted. Repeated approval left exactly2 CSV journals, each balanced. References UAT-CSV-IN-20261105 and UAT-CSV-REV-20261105; journals UPLOAD-1793843944111-387944 and UPLOAD-1793843944763-437437. Aggregate UAT1110 debit1/credit1,1199 debit1/credit1,4100 debit2/credit2 => all net0. CSV export downloaded/nonempty, both journal IDs and closingBalance0 verified.
+- Finance reconciliation: both CSV bank rows manually matched to their corresponding CSV book references, Outstanding0; completed statement26ba8ef5-9f53-4f09-b776-2b785cf01adb statusMATCHED, bank_rows2/matched_rows2 in SQL, state retained after browser refresh. This supersedes historical tracker statements that reconciliation was only a placeholder. PDF/image/Excel extraction remains visibly unavailable and was outside the approved no-OCR live scope; no invoice/image extraction pass claimed.
+- Flow: zero-stock sale rejected; restock1 persisted; dummy Cash saleS41272167 RM2.12 posted to sales, SALE movement and cash_ledger. PurchasePO42254666 RM1 to synthetic supplier saved, GR42335658 received1, PO FullyReceived, stock1/value1/alerts0 confirmed after refresh. Finance, Reports, Layout and Setup pages loaded. No actual funds exchanged; records are simulated UAT bookkeeping.
+- OpsPS: trip5d4591b0-140a-45fa-a98b-de8e9c080564, product2774f659-0b12-4925-87ce-9525564979ed and dummy order e612d451-ce6b-44a1-b274-cdbde4c8e418 persisted. TripProfit report rows1, inventory/finance/orders views loaded. Generated customer link worked; dummy orderRM2 submitted, AVAILABLE/payment not submitted, merchant dashboard pending order1. No payment or packing/shipping beyond payment gate certified.
+- Central explicit logout: all3 apps were visibly authenticated immediately before clicking MYOPS Logout. SQL marks this bound login revoked02:08:02UTC/reasonlogout. Subsequent protected-page refresh: Finance -> MYOPS/login; Flow and OpsPS -> signed-out MYOPS home. Portal shows Login/Register. This is positive central logout/reload-denial evidence.
+- Satellite explicit logout FAILED single-sign-out: current live Flow Logout returned to MYOPS still showing MyAccount/Admin/Logout; Finance remained available and Flow could reopen without sign-in. Central issue#34 https://github.com/niz262025-hub/southerndotcom-website/issues/34. Finance implementation also clears only local cookie and sends user to central dashboard for another action. Do not certify one-button global logout from every app. Automatic expiry of an old app must not revoke a newer login when fixing this.
+- Latest deployment error/fatal log queries (30min window) returned no entries for MYOPS, Finance report build, Flow and OpsPS. This is not proof that every possible runtime path is error-free.
+
+### Remaining gates and audit
+
+- Fix/retest satellite single-sign-out; paid-customer entitlement/callback/revocation remains separate from this platform-admin run. Fresh trial quota/new-user/tenantA-B lifecycle and every possible CRUD/permission/fulfilment case are NOT newly certified. OpsHR/OpsWMS remain ComingSoon; OpsHub separate.
+- Synthetic production records intentionally retained for audit, not silently deleted. Payment stays paused. Current browser sessions were deliberately signed out by the final central logout test; do not ask for credentials until a dependent retest is ready.
+- Browser proof screenshots: uat-finance-statement-fixed.jpg, uat-flow-purchase-stock-fixed.jpg, uat-opsps-order-unpaid.jpg under /workspace/scratch. Screenshot presence/content checked. These are UAT evidence, not paid-customer certification.
+
+## 2026-11-05 — Cross-app inactivity fix deployed; fresh login retest required
+
+- MYOPS issue #32 and PR #33 https://github.com/niz262025-hub/southerndotcom-website/pull/33. Production candidate is based on exact live a7a1a275, preserving current live billing configuration/code. Four-file fix commit526c135ee1431178951ec0130f6b0c4dc2534aba adds read-only myops_login_live check for a confirmed authenticated user with matching signed login binding when portal activity cookie expires. Existing durable idle15min/absolute12h rules unchanged; no polling touches activity; revoked/expired login denied; lookup outage503 without revoking. No SQL/environment change.
+- 161 tests pass,36 environment-dependent skips; lint/local build pass; Vercel production-auth build READY. Deployment dpl_G2CS8J2VhwPmjcCWQXYXnry9MfVD promoted and official www.myops.com.my alias verified. Rollback dpl_3unGsciHTpzvkEu5cwwLXjQwomhS retained. Browser elapsed-time verification is NOT yet complete; do not call the SSO blocker fully passed from unit tests alone.
+- Old login remains revoked, intentionally not revived. Finance reload redirected to MYOPS/login; Flow reload redirected to signed-out MYOPS home; OpsPS had already redirected. This verifies revoked-session reload denial, not an explicit logout test. Fresh owner login needed for remaining UAT.
+- Follow-up UI findings recorded: Flow issue#4 (minStock0 fallback10) and OpsPS issue#6 (transient false NotFound while loading). Synthetic test records retained. ToyyibPay stays LAST/paused; no bill or actual payment in this UAT.
+
+## 2026-11-05 — Fresh live admin UAT, Finance reversal fixed; cross-app inactivity blocker
+
+This supersedes the earlier browser-SSO-blocked checkpoint. Owner instructed ToyyibPay LAST, only after apps pass. No ToyyibPay payment or new bill initiated.
+
+- Fresh admin SSO launched Finance, Flow and OpsPS without second login; refresh and current data loaded. This is platform-admin evidence, not paid-customer entitlement coverage.
+- Finance created clearly labeled synthetic ledger1199 and CASH account UAT-CASH-20261105 (opening0), posted RM1 MoneyIn UAT-IN-20261105-01 and matching RM1 MoneyOut revenue reversal UAT-REV-20261105-01, both dated2026-10-05. SQL confirmed balanced journals and revenue/cash debit1 credit1 net0. P&L incorrectly showed profit1. Issue #32; fix PR #33 https://github.com/niz262025-hub/OpsFinance/pull/33. Signed revenue/cost movements now retain refunds/negative balances. 293 tests pass,1 credential skip; typecheck/lint/build pass. Exact production b520503507be132ad417e7c44aa118c23ceaec0c, deployment dpl_FCnTWZN984UjgJgzMKpuwzM1mYSd READY/promoted, official alias verified. Browser P&L now Revenue0/Expenses0/Profit0. TrialBalance debit2/credit2 balanced. Rollback dpl_7zsNacnq5knE5f2tni86UoXd64G3. No schema/environment change.
+- Flow synthetic product UAT-20261105-01 persisted. Zero-stock checkout rejected with generic error. Restock1 persisted with ADJUSTMENT audit; subsequent dummy Cash sale S41272167 RM2.12 succeeded. Reports show2.12; SQL confirms one sale, stock0, SALE movement and cash_ledger in2.12. These are simulated bookkeeping records; no actual funds exchanged. UI updates poll every15seconds; receipt preview resets after checkout. minStock0 still shows Low atstock1 because UI uses fallback10; requires correction/retest.
+- OpsPS synthetic trip 5d4591b0-140a-45fa-a98b-de8e9c080564 persisted and TripProfit report rows1/profit0 generated. Inventory, Finance and Orders pages load. Created dummy product2774f659-0b12-4925-87ce-9525564979ed and generated customer link; public product page loads. Submitted clearly labeled dummy customer order e612d451-ce6b-44a1-b274-cdbde4c8e418 RM2; order detail AVAILABLE/payment not submitted; merchant dashboard shows pending order. No payment evidence uploaded/submitted. Initial data fetch briefly renders NotFound before records load; do not misclassify as permanent404, but loading UX needs correction.
+- NEW SSO blocker: central login created00:56:43UTC had durable last_activity01:16:30UTC yet was revoked01:17:15UTC with reason inactivity. Browser central cookie activity expires independently of recent satellite activity; server/auth.js checks cookie before durable bound login. OpsPS returned MYOPS homepage. This is not a proven successful explicit global logout. Fix under development; no security timeout relaxed and no login revived manually.
+- Explicit central logout, paid-user entitlement/revocation, tenant-isolation browser paths and remaining full CRUD/fulfilment/export scenarios are NOT certified. Finance upload/reconciliation historical gaps remain. OpsHR/OpsWMS are ComingSoon. Overall live UAT is NOT fully passed; keep ToyyibPay paused. Retain synthetic records for audit, no silent deletion.
+
+
+## 2026-11-05 — Admin UAT resumed; current browser SSO blocked
+
+- User explicitly paused real payment and requested complete admin UAT for Finance, Flow and OpsPS. No payment initiated, no grant fabricated.
+- Current browser portal initially rendered My Account/Admin and Open App. Finance launch switched portal to signed out; direct /account redirected to login. Thus current SSO happy path is NOT certified.
+- Read-only central login check at 19:55UTC: latest owner login created19:51:23UTC, last_activity same, revoked_at NULL, myops_login_live=true. Browser session unavailable despite DB login being live; exact cause unproven, do not call it normal15minute inactivity or change security settings without evidence.
+- Direct app probes: Finance/dashboard -> MYOPS/login; Flow/app -> MYOPS home signed out; OpsPS/dashboard -> MYOPS home signed out. No protected data exposed. This proves redirect/access denial behavior only, not full backend session revocation coverage.
+- Production alias remains dpl_3unGsciHTpzvkEu5cwwLXjQwomhS. Recent warning/error/fatal runtime query returned no entries. Happy-path SSO, app CRUD/report/refresh and coordinated logout remain pending in this resumed UAT. Historical earlier owner SSO evidence is not a substitute for this current run.
+
+
+## 2026-11-05 — First live checkout created; owner payment handoff
+
+- Production MYOPS login verified on /account, Personal account, platform admin. Initial checkout correctly refused missing server-owned profile; inspected verified owner identity, confirmed no profile, and inserted missing personal profile via insert-only myops_provision_profile. No entitlement granted by this repair. Legacy profile-save provisioning gap remains to fix generally; do not infer eligibility from auth metadata.
+- Browser Claim lifetime access created live ToyyibPay bill fa6dy4cm, order MYOPS-fEpeMJyICZIiNjkL, MYR2900 cents, gateway toyyibpay_live, status pending. Hosted bill rendered correct merchant/MYOPS Founders100/RM29 with Online Banking options. No credentials shared in tracker.
+- Payment handed to owner before terms acceptance/bank transaction. Screenshot /workspace/scratch/myops-live-checkout-1793819802466.jpg. Await real payment and verified callback/settlement. Do not regenerate a second bill or mark paid from browser return. Test account is platform admin, so app-open success alone cannot prove paid-customer entitlement enforcement.
+
+
+## 2026-11-05 — ToyyibPay live runtime deployed; customer payment UAT pending
+
+- Owner explicitly approved transfer of live merchant secret to Vercel Production and live release. Merchant key and active category MYOPS Live Subscriptions saved as sensitive Production-only settings; MYOPS_ENABLE_LIVE_PAYMENTS=true. No credential values in source/tracker.
+- Inspected central production uhuukcztdifvpjuopdea: empty plan/payment tables, no payment RPCs, no founder allocation/events tables. Applied myops_live_billing_foundation via Supabase migration: reviewed phase3 foundation plus live gateway changes. Verification: 0 payments, 100 remaining, live gateway default, anon/authenticated create/settle denied, service_role allowed. Historical/business data not copied.
+- Release branch release/toyyibpay-live-20261105 from actual production 6bd11be; final SHA a7a1a275a8cc57219b5c218fb65f06c5978caac6. Draft PR #31 https://github.com/niz262025-hub/southerndotcom-website/pull/31. Existing production admin audit preserved; central auth explicitly gates live checkout; live callbacks require hash and independent API verification. Frontend live payment messaging enabled.
+- Validation: 156 pass, 0 fail, 36 local PostgreSQL-binary dependent skips; lint/build pass. Exact production-auth browser bundle also rendered in JSDOM smoke test.
+- Production deployment dpl_3unGsciHTpzvkEu5cwwLXjQwomhS READY and promoted. Initial browser blank triggered temporary rollback to old deployment; no code change was needed, subsequent promotion and fresh request rendered normal homepage, 100 slots and live ToyyibPay note. Root cause of initial transient blank not proven. Official alias verified to new deployment. Public JS asset200, callback GET405, invalid POST400. Runtime error/fatal query had no entries.
+- Screenshot proof: /workspace/scratch/myops-live-pricing-1793818969229.jpg. Browser now at production MYOPS login, awaiting customer Individual login and real RM29 payment UAT. No bill/payment created yet. Paid callback and post-payment satellite entitlement flow remain UNVERIFIED. Monthly packages and production trials remain closed; DuitNow QR merchant consent still pending.
+- Rollback: promote dpl_EpC8AHXH2vrP1rw7MqDMzLGAjM6T and disable MYOPS_ENABLE_LIVE_PAYMENTS for later builds; retain all financial records and migration.
+
+
+## 2026-11-05 — ToyyibPay live integration prepared, activation pending
+
+- Owner authorized continuing ToyyibPay live integration. Draft PR #30: https://github.com/niz262025-hub/southerndotcom-website/pull/30 on feat/toyyibpay-live-integration, commit 1bb214381c61a9f7faa8f7a6453c2e77d4a2fe57.
+- Added fixed live host, separate LIVE credentials and explicit production/project/enablement guards; no sandbox fallback in production. Live callback requires valid live hash plus gateway transaction confirmation and matching live ledger. Unmigrated checkout fails before contacting provider.
+- Production-only SQL proposal preserves historical sandbox orders, changes default gateway and returns gateway identity. Not applied to any hosted database. PGlite validates replay, old-order isolation and service-only ACLs.
+- Validation: 169 pass / 0 fail / 36 PostgreSQL-binary dependent skips. Focused payment/database coverage 23 pass. No real payment made.
+- Vercel metadata still has no production ToyyibPay keys or live enablement flag. Merchant login/config, production schema inspection/review/application, release assembly, deploy and real paid callback UAT remain required. Production trial rollout remains separate/incomplete. Owner SSO evidence from prior checkpoint remains valid.
+
 # MYOPS ecosystem release tracker
 
 Updated: 2026-10-27. This tracker records verified evidence. PR resolution is separate from production acceptance; the ecosystem is NOT production-ready.
+
+## Production account verification and Finance release — 5 November 2026
+
+- User authorized continuing to the live account. Secure browser login to www.myops.com.my succeeded with the owner's existing platform-admin account.
+- Released Finance full-ledger dashboard fix from the actual prior production base d09da171 to commit 9102c7ed106a227a8e0af6a335a97cb84d6606fe, branch release/live-dashboard-totals-20261105. Production deployment dpl_7zsNacnq5knE5f2tni86UoXd64G3 READY, promoted; app.myops.com.my alias verified on that deployment.
+- Compare against prior production: only dashboard component and regression tests changed. No data/schema/environment change in production. Rollback target dpl_9ogRCSumNyydGgz7y5wURW8VqrH6 retained.
+- Candidate validation: 289 tests passed, 1 live-credential persistence test skipped; typecheck/lint/build passed. Post-release error/fatal log query returned no entries.
+- Production owner-account browser smoke: MYOPS -> Finance app.myops.com.my/dashboard passed, data loaded and refresh passed; MYOPS -> OpsFlow opsflow.myops.com.my/app passed and refresh passed; MYOPS -> OpsPS Web opsp-mobile-r1.vercel.app/dashboard passed and refresh passed. This validates owner/platform-admin access, not customer checkout, trial signup or paid subscriber lifecycle.
+- Staging business data, sandbox payments and test entitlements were not copied into production.
+- Billing still blocked: current MYOPS production has no live ToyyibPay configuration; payment host and payment schema remain sandbox-specific in source. Production page visibly states Payments are not available yet and monthly plans opening soon. Live integration, real merchant category/key setup, callback/payment activation tests and production trial rollout remain unfinished. Do not describe the overall paid launch as ready.
+
+## OpsPS verified staging recovery — 5 November 2026
+
+- User completed Supabase browser sign-in. Verified target project ojamkplflqafedmxbdxb (OpsFlow Staging, hosting OpsPS Edge Function).
+- Replaced only MYOPS_STAGING_SHARE_TOKEN through the authorized Edge Function Secrets screen with existing valid expiring MYOPS alias access. New digest/update timestamp visible; no other secret values inspected.
+- Staging Edge Function readiness changed from HTTP503 deployment_protection to HTTP200 ready:true, signed_transport:verified, unknown_session:denied.
+- Real browser MYOPS to OpsPS dashboard passed without a second login for MYOPS Trial UAT. Trips page and refresh passed; three existing synthetic UAT trips loaded, including upgraded trip 03. No business records created/changed.
+- Finance, Flow and OpsPS now have verified basic paid/lifetime staging SSO launch and refresh evidence. This does not certify fresh payment callbacks, full trial enforcement, or production billing readiness.
+- Remaining launch gates: new paid callback UAT, live ToyyibPay integration/configuration, coordinated production trial/subscription activation and release verification.
+
+## OpsFlow verified staging recovery — 5 November 2026
+
+- Commit b4325468a861d828a951baf7e30c6f491928faaf deployment dpl_Huxr8wxezSiAh4m6D7GjVj796AEj READY.
+- New backend /api/sso-ready returned 200 with ready:true, signed_transport:verified, unknown_session:denied. Found staging branch alias still pointed at old code; reassigned only opsflow-staging-git-feat-opsflow-ver-f21c05-mohd-syaiful-nizam1.vercel.app to the verified new deployment. Alias readiness then returned the same verified result.
+- Browser MYOPS to OpsFlow /app passed with a fresh central ticket and no second login. Refresh passed; authenticated MYOPS Trial UAT dashboard and existing trial product/purchase/cash records loaded. No business records changed.
+- OpsPS remains blocked by confirmed staging deployment_protection. Required next authorization: open Supabase Edge Function Secrets for project ojamkplflqafedmxbdxb and replace only MYOPS_STAGING_SHARE_TOKEN with scoped expiring MYOPS access, without reading/revealing other credential values. Browser opening of that page was rejected by automatic approval; no OpsPS secret change made.
+- This updates staging evidence only. Production subscription/trial/payment release gates remain open.
+
+## OpsFlow / OpsPS follow-up — 5 November 2026
+
+- User approved OpsFlow Preview transport renewal and browser testing of the legacy mobile-named OpsPS web hostname.
+- Updated MYOPS_STAGING_SHARE_TOKEN only in OpsFlow Vercel Preview for feat/opsflow-vercel-migration; refreshed staging deployment dpl_AVLaw8Q2rcJssDscVGusRp8g34va READY. Browser launch still failed after token renewal.
+- Reproduced MYOPS share-cookie bootstrap: old 8-second timeout failed; a 20-second probe succeeded in 14 seconds and obtained the Vercel protection cookie. Configured canonical MYOPS origin was verified.
+- Commit b4325468a861d828a951baf7e30c6f491928faaf raises Preview bootstrap/upstream timeout to 20 seconds, retains production upstream timeout 8 seconds, and adds bounded Preview readiness reason headers without exception details. All 42 current backend CI contract tests passed, including diagnostic credential-redaction coverage. Deployment dpl_Huxr8wxezSiAh4m6D7GjVj796AEj building at this checkpoint; browser launch not yet certified for that commit.
+- OpsPS browser access now authorized and tested with a fresh MYOPS ticket: launch still denied. Staging Edge Function readiness probe returned HTTP 503, ready:false, reason:deployment_protection.
+- Supabase connector does not offer secret updates; local Supabase CLI/management authentication unavailable. Opening the staging Supabase secret-management dashboard was rejected by automatic approval because that credential destination requires explicit user authorization. No OpsPS secret read or write performed. Need permission to open that page and replace only MYOPS_STAGING_SHARE_TOKEN in staging project ojamkplflqafedmxbdxb.
+- Production deployment records remain READY: Finance d09da171, Flow c3feb86f, OpsPS 99bd42dc. These records do not certify new staging subscription features for production. No production release performed.
+
+## Verified follow-up — 5 November 2026
+
+- Owner explicitly approved Finance staging transport renewal. Updated only Finance Preview MYOPS_STAGING_SHARE_TOKEN on feat/myops-launch-session-bridge using an expiring MYOPS staging alias share.
+- Browser MYOPS to Finance dashboard, Transactions and refresh passed without a second login; existing company MYOPS Trial Test retained.
+- Found real dashboard defect: totals were calculated from only six recent journals and balanced entries displayed zero. Fixed complete paginated journal loading, deterministic same-date order, six-row presentation only, and debit-side entry amounts.
+- Finance commit 55c31b03a2d750ad6789fa854d5b6a94c347e64c, staging deployment dpl_3F49hz1kBR8CA81vtEhw5MRM1cw8 READY. Browser confirms RM30 cash/revenue/profit from 30 RM1 entries and recent entries RM1 each. No financial test records created or changed in this follow-up.
+- Finance full tests 300 pass, 1 credential-dependent skip; typecheck/lint/build pass. Regression covers 1001 journals across three pages and rejection of partial totals on page failure.
+- MYOPS lifetime panel fix browser-confirmed: no trial panel for lifetime account.
+- OpsFlow staging launch still fails session verification; Preview transport renewal in its own Vercel project is a separate pending authorization.
+- OpsPS browser UAT blocked by automatic origin approval interpreting legacy mobile hostname as Phase 2. Repository package build is explicitly web export; browser retry remained rejected. No workaround attempted. Explicit permission for that web origin is required to resume.
+- Production paid checkout/trial gates from the prior checkpoint remain open; no Production changes in this follow-up.
+
+## Launch checkpoint — 5 November 2026, Malaysia time
+
+Target requested: 06:00 MYT, 5 November. This checkpoint supersedes historical status below for the checks listed here.
+
+- Scope: MYOPS, OpsFinance, OpsFlow, OpsPS web, subscriptions/payments. OpsWMS/OpsHR and mobile remain Phase 2.
+- MYOPS production inspected: READY deployment dpl_EpC8AHXH2vrP1rw7MqDMzLGAjM6T, commit 6bd11be4cf4bfa6cc5cfd6c49d0ac286945e07ee. Central staging: 56b897f7.
+- Current open draft PRs: MYOPS #29, Finance #27, Flow #3, OpsPS #5. Descriptions include older checkpoints; do not treat them as current UAT results.
+- Central full local test run at 56b897f7: 164 pass, 0 fail, 36 PostgreSQL-binary-dependent skips. New lifetime/trial UI regression: 2 pass; lint and build pass after UI change.
+- Browser staging account: Founders lifetime active, Finance/Flow/OpsPS active. Manual payment verification returns no pending sandbox payment. This is not evidence that a fresh gateway callback succeeded.
+- Confirmed current staging launch failure: MYOPS to Finance renders Access could not be verified. Temporary transport access renewal is blocked by approval review pending explicit authorization to store the scoped MYOPS token in Finance Preview MYOPS_STAGING_SHARE_TOKEN, branch feat/myops-launch-session-bridge.
+- MYOPS Vercel metadata contains sandbox ToyyibPay credentials for Preview only. Production paid checkout is not configured/certified. Code uses sandbox host and Preview-only callback; do not claim live payment readiness by changing environment variables alone.
+- Trial admission remains explicitly staging-only in central and satellite code. Production enablement requires coordinated implementation, database migration verification, and cross-app quota/upgrade UAT.
+- UI fix: lifetime accounts do not display trial limits or request trial status; payment reconciliation result is preserved without an unnecessary trial lookup.
+- Production release was not performed at this checkpoint. Live paid launch remains blocked by payment integration and production trial/subscription certification, in addition to the staging SSO failure above.
 
 ## Verified source integration
 

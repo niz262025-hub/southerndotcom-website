@@ -25,7 +25,6 @@ test('revoking server admin configuration removes complimentary access', () => {
   const state = resolveProductStates({ ...input, platformAdmin: isPlatformAdmin('owner-id', {}) });
   assert.equal(state.opsfinance, 'none');
 });
-
 test('production audit reads existing payment and subscription tables only', async () => {
   const reads = [];
   const client = { from(table) {
