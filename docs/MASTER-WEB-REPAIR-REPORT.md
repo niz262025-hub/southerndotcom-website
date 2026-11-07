@@ -5,7 +5,11 @@ Date: 7 November 2026, Malaysia. Release recommendation: **NOT READY**.
 This is an interim implementation report. Four development PRs and preview builds exist. The nine-item programme and OpsHR V1 are not complete. No production promotion, database mutation, paid service, APK, native iOS build or app-store configuration was performed in this work.
 
 
-## Latest rerun status — 7 November 2026
+## Latest continuation — 7 November 2026
+
+Finance Quick Actions and safer transaction entry are now in PR 37 and a READY isolated preview. Portal copy now identifies OpsFlow as retail POS without changing the homepage design. Current targeted checks: 18 Finance regressions and 168 portal tests passed; 36 portal tests skipped. Desktop browser confirmed current Finance SSO, summary preservation and invalid-entry guidance. Slow preview route transitions, real mobile acceptance and remaining feature work are still open. See [the current UAT report](./UAT-RERUN-2026-11-07.md) for exact sources, limits and deployment IDs. OpsPS credential renewal remains deferred because the owner cannot control the remote browser from a phone.
+
+## Earlier rerun status — 7 November 2026
 
 See [UAT-RERUN-2026-11-07.md](./UAT-RERUN-2026-11-07.md) for the latest results: 688 automated passes, 37 skips and zero failures across four worktrees. Finance staging dashboard totals/recent amounts corrected in commit `81c1860f2c36b8ba7e050b7e56167b28e3ba1137`; preview deployment `dpl_DRYKVWLk9UTrpRcSsHoCJen5H3Fy` is READY. Fresh owner-completed login and MYOPS → Finance SSO passed. Corrected recent journal amounts, dashboard/P&L reconciliation (RM125 revenue, RM40 expenses, RM85 profit), and selected bank/cash ledgers (RM45/RM40) passed in browser. OpsFlow SSO was recovered and verified, including RM42.40 dashboard/Finance agreement. OpsPS still fails with Edge Function Staging redirect rejected; repair is blocked at staging secret configuration. Full programme and production release remain incomplete.
 
@@ -52,7 +56,7 @@ All new work uses `fix/myops-web-master-repair` in the four changed repositories
 
 - MYOPS: new company form captures name, SSM, company email, PIC, contact and address; individual form captures name, account email, contact and address. Metadata validation bounds length/type and rejects malformed contacts. New forms require their fields; legacy partial profile updates remain compatible. These details are descriptive and cannot establish organization membership, subscription or roles.
 - Confirmation callback: existing server PKCE/session validation retained; confirmed registrations redirect to `/account`. Password recovery retains its fixed password-update route; invalid links retain login fallback. Full email-delivery UAT is outstanding.
-- Finance: account name in shell, collapsible navigation preserving routes, removal of customer-facing technical labels, local-time greeting/date/clock, narrow header wrapping. Clock state is isolated from financial data rendering. Full requested dashboard composition, company logo and approved character illustration remain incomplete.
+- Finance: account name in shell, collapsible navigation preserving routes, removal of customer-facing technical labels, local-time greeting/date/clock, narrow header wrapping. Clock state is isolated from financial data rendering. Quick Actions and transaction-entry validation now implemented. Company logo, approved character illustration, upcoming payments and receivables remain incomplete.
 - Finance regression: reproduced five failures against latest main using tests carried by the inspected live branch. Restored signed refund/reversal P&L and selected-account ledger/statement details. Final tests pass.
 - Finance security: browser inspection found a standalone local login in the initial preview when SSO flags were absent. Hosted builds now deny that fallback. Missing SSO yields a no-store 503 for protected pages/APIs and redirects login/registration to MYOPS. This secures the boundary but does not configure a working integrated preview session.
 - OpsFlow: web below 900px uses an expandable menu instead of an always-visible 260px sidebar; wide financial tables scroll inside their own container.
@@ -65,7 +69,7 @@ FAIL means a known requirement is still unmet. BLOCKED means the specified accep
 | Item | Status | Evidence and remaining work |
 | --- | --- | --- |
 | 001 Central registration/profile | FAIL | New fields and validation implemented; logo upload/update/removal and live profile synchronization to all apps incomplete. No claim of tenant provisioning. |
-| 002 Finance dashboard | FAIL | Shell, greeting, clock and responsive header implemented. Full approved illustration, logo, quick actions, upcoming payments and receivables remain incomplete; authenticated browser UAT blocked. |
+| 002 Finance dashboard | FAIL | Shell, greeting, clock and responsive header implemented. Quick Actions are implemented and limited desktop summary/form UAT passed. Approved illustration, logo, upcoming payments, receivables and full workflow/mobile acceptance remain incomplete. |
 | 003 Four languages | FAIL | Full English/BM/Simplified Chinese/Tamil translation and central preference propagation not implemented in this batch. |
 | 004 Performance | BLOCKED | P&L CPU improvement measured below. No agreed end-to-end network/device baseline and no authenticated dashboard/transition timing. Targets are not claimed. |
 | 005 Navigation/logout | FAIL | Finance groups and web layouts improved. Current app exit still returns to portal rather than completing global sign-out; centralized signed revocation and one top-right control across all apps remain pending. |
