@@ -140,3 +140,76 @@ The latest `pull_request` validation and quality workflow runs available are [MY
 | Central-login cleanup, legacy-subscription migration, integrated UAT | BLOCKED / outstanding | No migration or cleanup was executed. Preserve payment, subscription, session, order and audit data; verify mappings and rollback plan before any authorized write. OpsFlow/OpsHR and other external app repositories/access remain separate dependencies. |
 
 Gate A remains blocked; the owner screenshots do not upgrade artifact integrity or restore status. The next owner-only step is to use a trusted, authorized private computer/runner to obtain a complete restorable logical backup and manifest, then rehearse only in a disposable local/private database. Do not transfer real backup data through GitHub or Actions. Hosted UAT separately requires owner-approved branch-scoped staging bindings and Auth/SMTP configuration. No staging/production database write, Vercel change, payment access, paid resource, deployment, or merge was performed. Keep PR #55 draft and Issue #54 open. This is safe for review as a code-only patch, not authorization to merge or a live-readiness verdict.
+
+## Owner follow-up — 2026-11-08 17:32 UTC
+
+This continuation uses the 13 PR commits through `b3fe9ab4d429f849a24903bf3f438a9fe2cd9951` as its history. It makes documentation-only changes. No Supabase, Vercel, or payment endpoint was contacted, and no secret values were accessed or disclosed.
+
+### Project and Vercel inventory status
+
+The connected-resource inventory reported by the owner distinguishes MYOPS Central Auth from OpsFinance, OpsPS Production, OpsFlow Production, and OpsFlow Staging. OpsFlow Staging is a separate project, not an approved MYOPS restore destination.
+
+| Environment | Current evidence | Safety status |
+| --- | --- | --- |
+| MYOPS-Central-Auth production | Historical project ref `uhuukcztdifvpjuopdea`, branch `main` | Production only; never a restore target. |
+| MYOPS-Central-Auth candidate staging | Historical child ref `wengxxiqwtosirealghx`, branch `myops-sso-validation`; recorded as populated, including payment, subscription, session and audit data | Existing staging; not an empty or approved restore target. |
+| OpsFinance Production | Historical ref `ozkjsihuovzpujuabupa` in the legacy schema inventory | Separate app database; not MYOPS staging. |
+| OpsPS Production | Historical ref `wrsigjhhbkbomtkaqlpw` in the legacy schema inventory | Separate app database; preserve order/payment data; not MYOPS staging. |
+| OpsFlow Production | Owner confirms a separate project; exact ref is not established by this PR evidence | Do not infer or use as a target. |
+| OpsFlow Staging | Historical inventory ref `ojamkplflqafedmxbdxb`; owner explicitly says it is separate from MYOPS | Not an approved MYOPS restore target; never reuse or overwrite. |
+
+These are historical project observations plus the owner's current inventory statement, not a fresh live query. The documented MYOPS Vercel project slug is `mohd-syaiful-nizam1/southerndotcom-website` (historical deployment/configuration references; `vercel.json` also names `southerndotcom-website.vercel.app`). Current Vercel project metadata is not exposed in the connected tools for this continuation.
+
+The branch-binding evidence is inconsistent and must not be interpreted as verified effective configuration: an earlier `LIVE-READINESS.md` says Preview settings were prepared for `copilot/myops-backup-restore-central-access`; the subsequent Vercel metadata audit in this report says staging variables were scoped to `feat/myops-isolated-staging`, not this PR branch. Neither historical record proves the effective current deployment environment. Production-scoped live-payment and MYOPS production credentials were observed in prior metadata, but no current values were read. **Current branch-specific Preview bindings and production/Preview runtime separation: BLOCKED pending a fresh owner-authorized metadata-only inspection (`decrypt=false`); do not copy, reveal, or request secret values in GitHub.** No Vercel settings were changed.
+
+### Backup/export evidence still required
+
+The owner-provided dashboard screenshots establish only that physical backup listings were visible at the time shown. They do not establish downloadable files, a logical `pg_dump`, integrity, completeness, or a successful restore. A Restore button is not a download. Gate A requires, for the exact authorized MYOPS source(s):
+
+- Private inventory identifying source project/ref, branch, snapshot time, PostgreSQL and `pg_dump` versions, format, and SHA-256 for each artifact, with the checksum verified after transfer.
+- Schema and row coverage for every required schema, plus tables, extensions, constraints, indexes, sequences and snapshot-consistent row-count manifest.
+- Auth-related and custom schemas/data as in scope; custom/database roles, memberships, owners, default privileges and `GRANT`/`REVOKE` ACLs captured or separately inventoried. A normal database dump does not by itself include all cluster-global roles/settings.
+- RLS enablement and policies, function definitions/security/search paths/ACLs, triggers, and constraints compared against the manifest after restore.
+- Explicit Storage coverage: database metadata/bucket definitions are not the object bytes. If object bytes are in scope, separately back up and checksum them through an approved private process; do not infer coverage from a zero object count or a database dump.
+- A successful non-destructive rehearsal using only an approved disposable local/private PostgreSQL target, followed by exact manifest comparisons and sanitized evidence. No production or populated staging restore.
+
+The raw backup, credentials, detailed manifest and checksums remain private. Do not transfer them through this repository, PR comments, screenshots, GitHub Actions artifacts, or Actions logs. Use an existing approved private computer/runner to avoid new paid resources; if none is available, Gate A remains BLOCKED.
+
+### Phone-friendly owner checklist
+
+Android Chrome can inspect dashboard listings and authorize GitHub workflow runs, but it cannot safely execute `pg_dump`, verify/restore a large database, or provide an isolated restore target. Use the phone only for these non-executing checks:
+
+1. In Supabase, confirm the organization and project name/ref in the project picker. Select MYOPS-Central-Auth explicitly; keep OpsFlow Staging and all production app projects distinct.
+2. Open the backup/restore page and record snapshot timestamps as **listing evidence only**. If it shows only physical backup entries and Restore buttons, stop; do not claim a downloadable artifact or click Restore.
+3. Ask the authorized database owner/DBA through a secure channel whether a complete, read-only logical export is supported and already available. Do not put credentials in GitHub. Android alone is not the export/restore runner.
+4. On an already-approved trusted private computer/runner, obtain the approved dump and complete manifest, encrypt and checksum them, and retain them only for the owner-approved period. Restore only to a disposable local/private target with outbound access disabled; do not use Supabase production, MYOPS staging, or OpsFlow Staging.
+5. After verification, retain only redacted PASS/FAIL/BLOCKED results in PR evidence; securely remove temporary copies and credentials per the approved retention procedure.
+6. Separately, an authorized Vercel maintainer should inspect environment-variable *scope metadata only* for project `southerndotcom-website`, distinguish Production from Preview and the exact PR branch, and verify Auth redirect/SMTP settings without exposing values. Do not change settings without approval.
+
+### Hosted UAT matrix
+
+No hosted case below is certified by local mocks or builds. All remain BLOCKED until Gate A is complete and the current PR branch is independently verified to use isolated MYOPS staging, with approved test accounts, redirect/SMTP setup, and safe payment sandbox configuration.
+
+| Case | Required safe hosted evidence | Status |
+| --- | --- | --- |
+| Registration and email verification | Dedicated test identity; unverified access denied; confirmation link returns to the approved Preview callback | BLOCKED |
+| Confirmation and automatic login/session | Same-browser callback establishes only the expected staging session; logout revokes it | BLOCKED |
+| MYOPS SSO | Finance, OpsFlow and OpsPS each receive correctly scoped, one-use app access; wrong app/user and replay are denied | BLOCKED |
+| Subscription gating | Active, absent, expired and wrong-user subscription cases allow/deny server-side; retained records stay unchanged | BLOCKED |
+| Seven-day trial | One eligible account, no card/live charge, exactly 168 hours, one-use and eligibility limits enforced | BLOCKED |
+| Logout and 15-minute timeout | Global logout revokes app sessions; idle app access is denied after 15 minutes; polling does not extend it | BLOCKED |
+| OpsHR access | Verify the current intended deny/coming-soon behavior; do not enable or grant OpsHR access until its app is approved and integration is complete | BLOCKED |
+
+### Current tests, Actions authorization, and review status
+
+- The recorded local code validation remains `npm test`: **257 passed, 0 failed, 0 skipped**, including the 36 native PostgreSQL tests on disposable local PostgreSQL 16, against code commit `27af64623f4ab2b14c17f10684fa2ac5a7010dba`. Later commits through `b3fe9ab` are evidence-only. Lint and production, Preview-auth and production-auth builds passed; full dependency audit reported four development-tree advisories, as detailed above.
+- Latest Actions runs available for code commit `36c68dd1956ebeb6ff43c2aa7be8f7bfd89c01ca`: [validation 42504909654](https://github.com/niz262025-hub/southerndotcom-website/actions/runs/42504909654) and [quality 42504909643](https://github.com/niz262025-hub/southerndotcom-website/actions/runs/42504909643). Both are `action_required` with **zero jobs**; Actions log lookup found **zero failed jobs**. No run is recorded here for current head `b3fe9ab`. The API does not expose the reason for `action_required`; it is not evidence of a test failure or pass. An authorized repository maintainer must inspect each run in the GitHub Actions UI and use the normal approval control only if GitHub presents a pending-approval prompt, then confirm a fresh run actually schedules jobs. Do not bypass repository policy or claim CI passed.
+- The nine Copilot reviewer threads from `2b4a38d` are still marked unresolved in GitHub, although all are marked outdated and their findings have documented code/documentation resolutions in the matrix above (workflow artifact path removed in favor of synthetic-only fixtures; output/cleanup and manifest safeguards; Vite effective-env validation; glob/selector/archive handling no longer applies to the synthetic-only workflow; private guide preserves ACL coverage). They are unresolved review metadata, not proof by themselves that the old inline finding still reproduces. A reviewer/maintainer still needs to resolve those threads in GitHub; do not describe the review as fully closed.
+
+### Smallest owner-only next actions
+
+1. An authorized maintainer checks the two `action_required` run pages for the displayed approval reason, approves through the normal GitHub UI only if requested, and confirms CI jobs for the final head.
+2. A database owner/DBA supplies a complete authorized logical backup plus private checksum/manifest through an approved secure route to an existing trusted private runner, and identifies an approved disposable local restore target. Never post credentials or backup data in GitHub; if the physical-backup UI has no export, ask the provider/DBA for the supported export path.
+3. A Vercel maintainer confirms current project and branch-specific Preview metadata without disclosing values, then the owner separately approves any configuration action and dedicated hosted-UAT accounts/SMTP/redirect setup.
+
+Issue #54 remains open. Its current body still contains earlier 204-pass/36-skip results; this report supersedes those test counts for the unchanged code tree. The available GitHub issue tool in this session is read-only, so the Issue #54 body could not be edited here. No merge, deployment, database write, payment access, new paid resource, or secret disclosure occurred; PR #55 remains Draft and not authorized to merge.
