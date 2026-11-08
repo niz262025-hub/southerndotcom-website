@@ -108,7 +108,7 @@ Owner-only next action for Gate A: use a trusted computer/runner and authorized 
 
 ## Continuation validation — 2026-11-08
 
-This update was performed against PR branch commit `27af64623f4ab2b14c17f10684fa2ac5a7010dba`. No repository code or environment settings were changed during this validation; only this evidence report is being updated. No Supabase, Vercel, or payment endpoint was contacted.
+Local validation was performed against code commit `27af64623f4ab2b14c17f10684fa2ac5a7010dba`; the only subsequent change in `36c68dd1956ebeb6ff43c2aa7be8f7bfd89c01ca` is this evidence report. No repository code or environment settings were changed during this validation. No Supabase, Vercel, or payment endpoint was contacted.
 
 ### Local validation
 
@@ -127,7 +127,7 @@ These are local code/test results, not hosted UAT, backup verification, or a rea
 
 ### Current GitHub check state
 
-The latest `pull_request` validation and quality workflow runs found for the checked-out SHA are [MYOPS validation run 42491937037](https://github.com/niz262025-hub/southerndotcom-website/actions/runs/42491937037) and [MYOPS quality checks run 42491936607](https://github.com/niz262025-hub/southerndotcom-website/actions/runs/42491936607). Both have conclusion `action_required` and zero jobs; therefore there is no hosted CI result for this SHA. This supersedes neither the successful historical run on `d798a273...` nor establishes a pass for the current PR head.
+The latest `pull_request` validation and quality workflow runs for current PR head `36c68dd1956ebeb6ff43c2aa7be8f7bfd89c01ca` are [MYOPS validation run 42504909654](https://github.com/niz262025-hub/southerndotcom-website/actions/runs/42504909654) and [MYOPS quality checks run 42504909643](https://github.com/niz262025-hub/southerndotcom-website/actions/runs/42504909643). Both have conclusion `action_required` and zero jobs; therefore there is no hosted CI result for this SHA. This supersedes neither the successful historical run on `d798a273...` nor establishes a pass for the current PR head.
 
 ### Gate A, hosted UAT, and remaining work
 
