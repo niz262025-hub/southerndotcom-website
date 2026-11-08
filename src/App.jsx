@@ -3,6 +3,7 @@ import { AccountPreview } from './AccountPreview';
 import { AuthPortal } from './AuthPortal';
 import { AuthNav, ProductAction, SessionProvider } from './session';
 import { FoundersPromo } from './FoundersPromo';
+import { PUBLIC_PAID_PLANS } from './subscriptionPolicy';
 import { AdminAudit } from './AdminAudit';
 import { useEffect, useState } from 'react';
 import {
@@ -806,13 +807,7 @@ function PricingPage() {
       </PageShell>
     );
   }
-  const plans = [
-    { name: 'Starter', price: 'RM9.90', tag: 'Entry', summary: 'Limited-use tier for lighter operational requirements.', cta: 'Talk to Us' },
-    { name: 'Single', price: 'RM19.90', tag: 'Focused', summary: 'Choose one MYOPS product for a targeted rollout.', cta: 'Talk to Us' },
-    { name: 'Duo', price: 'RM29.90', tag: 'Bundle', summary: 'Access any two paid MYOPS products in one plan.', cta: 'Talk to Us' },
-    { name: 'Complete', price: 'RM39.90', tag: 'Full bundle', summary: 'Unlock the complete MYOPS bundle for your business.', cta: 'Talk to Us', highlight: true },
-    { name: 'OpsHub', price: 'RM0', tag: 'Seller', summary: 'Seller access is free. GMV commissions apply at 3% / 2% / 1.5% tiers.', cta: 'Request quote' },
-  ];
+  const plans = PUBLIC_PAID_PLANS;
 
   return (
     <PageShell pageClass="page-shell-plain">
@@ -821,23 +816,23 @@ function PricingPage() {
           <SectionIntro
             label="Pricing"
             title="MYOPS product pricing"
-            text="Approved monthly pricing in MYR. All paid plans include a 14-day trial, default manual renewal, and no card-based recurring debit checkout. Custom development services are quoted separately."
+            text="One free 7-day trial for available OpsFinance, OpsFlow, OpsPS and OpsHR: 1 user, 1 company and 30 transactions per app. No card or auto-renewal. Custom development services are quoted separately."
           />
           <div className="pricing-grid">
             {plans.map((plan) => (
-              <article key={plan.name} className={`pricing-card${plan.highlight ? ' highlight' : ''}`}>
-                <span className="pricing-tag">{plan.tag}</span>
+              <article key={plan.name} className={`pricing-card${plan.featured ? ' highlight' : ''}`}>
+                <span className="pricing-tag">{plan.billingCycle === 'lifetime' ? 'First 100' : 'Monthly'}</span>
                 <h3>{plan.name}</h3>
                 <div className="price-line">
                   <strong>{plan.price}</strong>
-                  <span>/month</span>
+                  <span>{plan.period}</span>
                 </div>
                 <ul>
-                  <li>{plan.summary}</li>
-                  {plan.name === 'OpsHub' ? <li>Commission tiers: 3% under RM1,000 GMV, 2% from RM1,000 to RM9,999.99, 1.5% above RM10,000.</li> : <li>14-day trial included on paid plans.</li>}
+                  <li>{plan.description}</li>
+                  <li>One 7-day free trial per eligible account.</li>
                   <li>Manual renewal by default. No unsupported recurring debit claims.</li>
                 </ul>
-                <a href="/contact" className="btn btn-primary">{plan.cta}</a>
+                <a href="/contact" className="btn btn-primary">View availability</a>
               </article>
             ))}
           </div>

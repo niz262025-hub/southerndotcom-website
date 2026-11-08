@@ -3,6 +3,7 @@ import PropTypes from 'prop-types';
 import { authRequest } from './authRequest';
 import { useSession } from './session';
 import { FreeTrial } from './FreeTrial';
+import { PUBLIC_PAID_PLANS } from './subscriptionPolicy';
 
 const POLL_MS = 3000;
 const POLL_MAX = 10;
@@ -31,13 +32,7 @@ export function FoundersPromo({ production = false }) {
 
   if (!session.enabled || session.status === 'loading') return null;
 
-  const plans = [
-    { name: 'Starter', price: 'RM9.90', period: '/ month', description: 'Limited-use entry tier for lighter operating needs.', actionLabel: 'Checkout opening soon', featured: false },
-    { name: 'Single', price: 'RM19.90', period: '/ month', description: 'Choose one MYOPS product for a focused rollout.', actionLabel: 'Checkout opening soon', featured: false },
-    { name: 'Duo', price: 'RM29.90', period: '/ month', description: 'Access any two paid MYOPS products in one bundle.', actionLabel: 'Checkout opening soon', featured: false },
-    { name: 'Complete', price: 'RM39.90', period: '/ month', description: 'Unlock the complete MYOPS bundle for your business.', actionLabel: 'Checkout opening soon', featured: true },
-    { name: 'OpsHub', price: 'RM0', period: '/ month', description: 'Seller account is free; GMV commission tiers are 3% / 2% / 1.5%.', actionLabel: null, featured: false },
-  ];
+  const plans = PUBLIC_PAID_PLANS;
 
   return (
     <section className="content-section founders-promo" id="founders" aria-labelledby="founders-title">
@@ -51,18 +46,14 @@ export function FoundersPromo({ production = false }) {
               <h3>{plan.name}</h3>
               <p className="price-amount">{plan.price} <span>{plan.period}</span></p>
               <p>{plan.description}</p>
-              {plan.actionLabel ? (
-                <button type="button" className="btn btn-secondary" disabled>{plan.actionLabel}</button>
-              ) : (
-                <p className="founders-note">Seller account is free. GMV tiers are 3% / 2% / 1.5%.</p>
-              )}
+              <button type="button" className="btn btn-secondary" disabled>Checkout opening soon</button>
             </article>
           ))}
         </div>
         {waiting && <p role="status">Confirming your payment…</p>}
-        <p className="founders-note">All paid plans include a 14-day trial and manual monthly renewal.</p>
-        <p className="founders-note">Monthly subscriptions are not open for purchase yet.</p>
-        <p className="founders-note">{production ? 'Payments are not available yet.' : 'Sandbox payments only: no real money is charged in Preview. Payments are verified server-side before access is granted.'}</p>
+        <p className="founders-note">One free 7-day trial covers available OpsFinance, OpsFlow, OpsPS and OpsHR, subject to eligibility. Monthly plans renew manually.</p>
+        <p className="founders-note">Choose a plan when subscriptions become available.</p>
+        <p className="founders-note">{production ? 'Check payment availability before purchase.' : 'Sandbox payments only: no real money is charged in Preview. Payments are verified server-side before access is granted.'}</p>
       </div>
     </section>
   );

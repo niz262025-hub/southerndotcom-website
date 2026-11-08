@@ -405,8 +405,9 @@ test('central profile is released only on signed, active entitled sessions and n
  assert.equal((await call(f.handler.entitlement,tampered)).statusCode,401);
  });
 
+const quotaEnv={...baseEnv,MYOPS_USE_ISOLATED_STAGING:'true',VITE_SUPABASE_URL:'https://wengxxiqwtosirealghx.supabase.co',MYOPS_ENABLE_STAGING_TRIAL_ACCESS:'true',MYOPS_TRIAL_READY_APPS:'opsp',MYOPS_OPSPS_TRIAL_UAT_READY:'true'};
 test('trial quota requires a signed matching app/session and never touches activity',async()=>{
- const {handler,admin,calls}=make();
+ const {handler,admin,calls}=make({env:quotaEnv});
  admin.from=table=>{assert.equal(table,'myops_app_sessions');const q={select:()=>q,eq:()=>q,maybeSingle:async()=>({data:{user_id:userId,login_session_id:loginSessionId},error:null})};return q;};
  const original=admin.rpc;admin.rpc=async(name,args)=>name==='myops_consume_trial_quota'?{data:{allowed:true,used:1,limit:2,replayed:false}}:original(name,args);
  const body={session_id:sessionId,product:'opsp',feature:'projects',operation_id:loginSessionId};
@@ -418,7 +419,7 @@ test('trial quota requires a signed matching app/session and never touches activ
 });
 test('trial quota endpoint is unavailable in production and rejects expired sessions',async()=>{
  const body={session_id:sessionId,product:'opsp',feature:'projects',operation_id:loginSessionId};
- const denied=await call(make({sessionActive:false}).handler.trialQuota,signedRequest({path:'/api/app/trial-quota',body}));assert.equal(denied.statusCode,403);
+ const denied=await call(make({sessionActive:false,env:quotaEnv}).handler.trialQuota,signedRequest({path:'/api/app/trial-quota',body}));assert.equal(denied.statusCode,403);
  const prod=await call(make({env:{...baseEnv,VERCEL_ENV:'production'}}).handler.trialQuota,{headers:{},body});assert.equal(prod.statusCode,404);
 });
 
@@ -520,4 +521,15 @@ test('snapshot retains company trial isolation and never grants Coming Soon appl
   f.trial.organization_id = null;
   f.tables.myops_products[0].launch_status = 'coming_soon';
   assert.equal((await call(f.handler.entitlement, f.request())).statusCode, 403);
+});
+
+test('production quota requires explicit release gates and verified signed identity',async()=>{
+ const env={...baseEnv,VERCEL_ENV:'production',MYOPS_ENVIRONMENT:'production',MYOPS_ENABLE_PRODUCTION_APP_ACCESS:'true',MYOPS_ENABLE_PRODUCTION_TRIAL_ACCESS:'true',MYOPS_TRIAL_READY_APPS:'opsfinance,opsflow,opsp,opshr',MYOPS_FINANCE_TRIAL_UAT_READY:'true',MYOPS_OPSFLOW_TRIAL_UAT_READY:'true',MYOPS_OPSPS_TRIAL_UAT_READY:'true',MYOPS_OPSHR_TRIAL_UAT_READY:'true'};
+ const {handler,admin,calls}=make({env});
+ admin.from=()=>{const q={select:()=>q,eq:()=>q,maybeSingle:async()=>({data:{user_id:userId,login_session_id:loginSessionId},error:null})};return q;};
+ const original=admin.rpc;admin.rpc=async(name,args)=>name==='myops_consume_trial_quota'?{data:{allowed:true,used:30,limit:30,replayed:false}}:original(name,args);
+ const body={session_id:sessionId,product:'opsp',feature:'transactions',operation_id:loginSessionId};
+ assert.equal((await call(handler.trialQuota,signedRequest({path:'/api/app/trial-quota',body,headers:{host:'www.myops.com.my'}}))).statusCode,200);
+ assert.equal(calls.find(c=>c[0]==='myops_validate_app_session')[1].p_touch,false);
+ assert.equal((await call(make({env:{...env,MYOPS_OPSPS_TRIAL_UAT_READY:'false'}}).handler.trialQuota,{headers:{},body})).statusCode,404);
 });

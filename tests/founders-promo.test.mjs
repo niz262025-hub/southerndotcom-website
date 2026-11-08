@@ -31,22 +31,22 @@ const buttons = () => [...document.querySelectorAll('#founders a, #founders butt
   .map((node) => node.textContent);
 const founders = (remaining) => ({ capacity: 100, allocated: 100 - remaining, remaining, available: remaining > 0 });
 
-test('public pricing shows the approved MYOPS plans, OpsHub fees, and free trial', async () => {
+test('public pricing shows the approved MYOPS plans and one seven-day free trial', async () => {
   const { cleanup } = await mount((body) => Response.json(body.action === 'founders' ? founders(63) : { signedIn: false }));
   try {
     const cards = [...document.querySelectorAll('.pricing-cards .price-card')];
     assert.deepEqual(cards.map((card) => card.querySelector('h3').textContent), [
-      'Free 7-Day Trial · Percubaan Percuma 7 Hari', 'Starter', 'Single', 'Duo', 'Complete', 'OpsHub',
+      'Free 7-Day Trial · Percubaan Percuma 7 Hari', 'First 100 Subscribers', 'Normal Subscription', 'All Apps',
     ]);
     assert.deepEqual(cards.map((card) => card.querySelector('.price-amount').textContent), [
-      'RM0 / 7 hari', 'RM9.90 / month', 'RM19.90 / month', 'RM29.90 / month', 'RM39.90 / month', 'RM0 / month',
+      'RM0 / 7 hari', 'RM29.00 once', 'RM49.00 / month', 'RM79.00 / month',
     ]);
     assert.match(document.querySelector('#founders').textContent, /Choose your MYOPS plan/);
-    assert.match(document.querySelector('#founders').textContent, /14-day trial/);
-    assert.match(document.querySelector('#founders').textContent, /manual monthly renewal/);
-    assert.match(document.querySelector('#founders').textContent, /3% \/ 2% \/ 1\.5%/);
+    assert.match(document.querySelector('#founders').textContent, /7-day trial/);
+    assert.match(document.querySelector('#founders').textContent, /renew manually/);
+    assert.doesNotMatch(document.querySelector('#founders').textContent, /14-day|OpsHub|Starter|RM9\.90/);
     const monthly = [...document.querySelectorAll('.pricing-cards button')].filter((button) => !button.closest('#free-trial'));
-    assert.deepEqual(monthly.map((button) => button.textContent), ['Checkout opening soon', 'Checkout opening soon', 'Checkout opening soon', 'Checkout opening soon']);
+    assert.deepEqual(monthly.map((button) => button.textContent), ['Checkout opening soon', 'Checkout opening soon', 'Checkout opening soon']);
     assert.ok(monthly.every((button) => button.disabled));
   } finally { await cleanup(); }
 });
@@ -55,15 +55,15 @@ test('signed-in visitors see current plans without obsolete Founders checkout co
   const { cleanup } = await mount((body) => Response.json(body.action === 'founders' ? founders(5) : signedIn()));
   try {
     assert.deepEqual(buttons(), []);
-    assert.match(document.querySelector('#founders').textContent, /Starter/);
+    assert.match(document.querySelector('#founders').textContent, /Normal Subscription/);
     assert.doesNotMatch(document.querySelector('#founders').textContent, /Claim lifetime access|Founders 100/);
   } finally { await cleanup(); }
 });
 
-test('OpsHub pricing note makes the commission tiers explicit', async () => {
+test('OpsHub is kept outside MYOPS subscription pricing', async () => {
   const { cleanup } = await mount((body) => Response.json(body.action === 'founders' ? founders(1) : { signedIn: false }));
   try {
-    assert.match(document.querySelector('#founders').textContent, /Seller account is free/);
-    assert.match(document.querySelector('#founders').textContent, /3% \/ 2% \/ 1\.5%/);
+    assert.doesNotMatch(document.querySelector('#founders').textContent, /OpsHub|commission|GMV/);
+    assert.doesNotMatch(document.querySelector('#founders').textContent, /14-day|OpsHub|Starter|RM9\.90/);
   } finally { await cleanup(); }
 });

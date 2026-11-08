@@ -14,7 +14,7 @@ test('central trial: exact 168h, one use, no billing/grants, RLS and passive log
    CREATE FUNCTION auth.uid() RETURNS uuid LANGUAGE sql STABLE AS $$ SELECT nullif(current_setting('request.jwt.claim.sub',true),'')::uuid $$;
    GRANT USAGE ON SCHEMA auth,public TO anon,authenticated,service_role;
    ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON TABLES TO anon,authenticated,service_role;`);
-  for(const path of ['migrations/202610160001_myops_identity_foundation.sql','proposals/phase3_founders_100.sql','proposals/202610170001_myops_app_access.sql','proposals/202610170002_myops_login_sessions.sql','migrations/20261101104802_central_trial_7_day_foundation.sql','migrations/20261101164633_central_trial_usage_limits.sql']) await db.exec(readFileSync(new URL('../supabase/'+path,import.meta.url),'utf8'));
+  for(const path of ['migrations/202610160001_myops_identity_foundation.sql','proposals/phase3_founders_100.sql','proposals/202610170001_myops_app_access.sql','proposals/202610170002_myops_login_sessions.sql','migrations/20261101104802_central_trial_7_day_foundation.sql','migrations/20261101164633_central_trial_usage_limits.sql','proposals/step2_four_app_trial_quotas.sql']) await db.exec(readFileSync(new URL('../supabase/'+path,import.meta.url),'utf8'));
   const user=await one("INSERT INTO auth.users(email,email_confirmed_at) VALUES('trial@dummy.invalid',now()) RETURNING id value");
   const other=await one("INSERT INTO auth.users(email,email_confirmed_at) VALUES('other@dummy.invalid',now()) RETURNING id value");
   await asService();await one("SELECT myops_provision_profile($1,'Dummy','personal') value",[user]);await one("SELECT myops_provision_profile($1,'Other','personal') value",[other]);
@@ -25,12 +25,12 @@ test('central trial: exact 168h, one use, no billing/grants, RLS and passive log
   assert.equal(Date.parse(trial.expires_at)-Date.parse(trial.started_at),168*3600*1000);
   const consume=(app,feature,operation)=>one('SELECT myops_consume_trial_quota($1,$2,$3,$4,$5) value',[user,login,app,feature,operation]);
   const operation=n=>`00000000-0000-4000-8000-${String(n).padStart(12,'0')}`;
-  for(const [app,feature,limit] of [['opsfinance','transactions',30],['opsfinance','bank_statements',2],['opsfinance','invoice_receipt_documents',5],['opsflow','workflows',2],['opsp','projects',2]]) {
+  for(const [app,feature,limit] of [['opsfinance','transactions',30],['opsflow','transactions',30],['opsp','transactions',30],['opshr','transactions',30],['opshr','employees',30],['opsfinance','bank_statements',2],['opsfinance','invoice_receipt_documents',5],['opsflow','workflows',2],['opsp','projects',2]]) {
    for(let i=1;i<=limit;i++) assert.equal((await consume(app,feature,operation(i))).used,i);
    assert.equal((await consume(app,feature,operation(limit+1))).reason,'trial_limit_reached');
    const replay=await consume(app,feature,operation(1));assert.equal(replay.allowed,true);assert.equal(replay.replayed,true);assert.equal(replay.used,limit);
   }
-  for(const [app,feature] of [['opsfinance','export_pdf'],['opsfinance','reconciliation'],['opsflow','automation'],['opsflow','advanced_approval'],['opsp','multi_user'],['opshr','transactions']]) assert.equal((await consume(app,feature,operation(1))).allowed,false);
+  for(const [app,feature] of [['opsfinance','export_pdf'],['opsfinance','reconciliation'],['opsflow','automation'],['opsflow','advanced_approval'],['opsp','multi_user'],['opswms','transactions'],['opshub','transactions'],['opshr','export_pdf']]) assert.equal((await consume(app,feature,operation(1))).allowed,false);
   await assert.rejects(one('SELECT myops_consume_trial_quota($1,$2,$3,$4,$5) value',[other,login,'opsp','projects',operation(1)]),/Active verified/);
   assert.deepEqual(await one('SELECT last_activity_at value FROM myops_login_sessions WHERE id=$1',[login]),before);
 

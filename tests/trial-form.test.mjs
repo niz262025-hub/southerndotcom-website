@@ -5,7 +5,7 @@ import {JSDOM} from 'jsdom';
 import {act,createElement} from 'react';
 import {createRoot} from 'react-dom/client';
 const {AuthPortal}=await importSrc('AuthPortal.jsx');
-test('MYOPS account activates trial through central API and shows expiry/open app without payment fields',async()=>{
+for(const production of [false,true]) test(`MYOPS ${production?'production':'preview'} account activates trial through central API and shows expiry/open app without payment fields`,async()=>{
  const dom=new JSDOM('<div id="root"></div>',{url:'https://staging.test/account'});
  const originals=Object.fromEntries(['window','document','FormData','fetch','IS_REACT_ACT_ENVIRONMENT'].map(k=>[k,globalThis[k]]));
  Object.assign(globalThis,{window:dom.window,document:dom.window.document,FormData:dom.window.FormData,IS_REACT_ACT_ENVIRONMENT:true});
@@ -16,7 +16,7 @@ test('MYOPS account activates trial through central API and shows expiry/open ap
  if(body.action==='trial_start')return Response.json({trial:{status:'active',expires_at:'2099-01-01T00:00:00Z'},canStart:false,availableApps:['opsflow'],message:'Trial active'});
  throw Error('Unexpected action');};
  try {
-  await act(async()=>root.render(createElement(AuthPortal,{mode:'dashboard',production:false})));
+  await act(async()=>root.render(createElement(AuthPortal,{mode:'dashboard',production})));
   const start=[...document.querySelectorAll('button')].find(b=>b.textContent==='Activate free 7-day trial');assert.ok(start);
   assert.match(document.body.textContent,/No payment card/);assert.equal(document.querySelector('input[type=number]'),null);
   await act(async()=>start.click());assert.deepEqual(calls.find(c=>c.action==='trial_start'),{action:'trial_start',confirm:true});

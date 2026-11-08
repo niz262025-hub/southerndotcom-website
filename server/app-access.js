@@ -1,4 +1,4 @@
-import { loadEligibleTrial, trialAppsForEnvironment } from './trial-access.js';
+import { loadEligibleTrial, trialAppsForEnvironment, withoutTrialAccess } from './trial-access.js';
 import { consumeVerifiedTrialQuota } from './trial-quota.js';
 import { loadAppProfile } from './app-profile.js';
 import { loadCentralProfile } from './central-profile.js';
@@ -450,7 +450,7 @@ export function createAppAccess({ env = process.env, adminFactory = createClient
       let mode = { access_mode:'paid' };
       if(trialAppsForEnvironment(env).includes(body.product)) {
         const paid = snapshot ? snapshot.paidProducts
-          : await entitlementResolver(admin,appSession.user_id,now(),{...env,MYOPS_ENABLE_STAGING_TRIAL_ACCESS:'false'});
+          : await entitlementResolver(admin,appSession.user_id,now(),withoutTrialAccess(env));
         if(!paid) return reply(503,{entitled:false,error:'Application access could not be verified.'});
         if(paid[body.product]!=='active') {
           const trial = snapshot ? snapshot.trial : await loadEligibleTrial(admin,appSession.user_id,now(),env);
@@ -467,15 +467,15 @@ export function createAppAccess({ env = process.env, adminFactory = createClient
   }
 
   async function trialQuota(req, res) {
-    // Trial integration remains staging-only until all apps enforce the contract.
-    if (env.VERCEL_ENV !== 'preview' || env.MYOPS_ENVIRONMENT !== 'staging') return res.status(404).json({ error: 'Not available.' });
+    if (!trialAppsForEnvironment(env).length) return res.status(404).json({ error: 'Not available.' });
     try {
       const auth = await authenticate(req, res, 'trial-quota');
       if (!auth || typeof auth.statusCode === 'number') return auth;
       const { admin, appId, clientData, body, reply } = auth;
       if (Object.keys(body).length !== 4 || Object.keys(body).some(key => !['session_id','product','feature','operation_id'].includes(key))
           || !SESSION_ID.test(body.session_id || '') || !SESSION_ID.test(body.operation_id || '')
-          || body.product !== clientData.product_slug || typeof body.feature !== 'string' || body.feature.length > 64) return reply(400, { error: 'Invalid request.' });
+          || body.product !== clientData.product_slug || !trialAppsForEnvironment(env).includes(body.product)
+          || typeof body.feature !== 'string' || body.feature.length > 64) return reply(400, { error: 'Invalid request.' });
       const session = await rpc(admin, 'myops_validate_app_session', { p_session_id: body.session_id, p_app_id: appId, p_product_slug: body.product, p_touch: false });
       if (!session?.active || !USER_ID.test(session.user_id || '')) return reply(403, { allowed: false });
       const bound = await admin.from('myops_app_sessions').select('user_id,login_session_id').eq('id',body.session_id).eq('app_id',appId).eq('product_slug',body.product).maybeSingle();

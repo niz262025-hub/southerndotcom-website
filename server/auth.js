@@ -547,7 +547,7 @@ export function createAuthHandler({ env = process.env, clientFactory = createCli
         return reply(200, { signedIn: true, email: identity.user.email, products: entitlements?.products ?? null, lifetime: entitlements?.lifetime ?? false, ...(isPlatformAdmin(identity.user.id, env) ? { platformAdmin: true } : {}) });
       }
       if(action==='trial_start'||action==='trial_status') {
-        if(PROJECT!=='https://wengxxiqwtosirealghx.supabase.co'||!trialAppsForEnvironment(env).length) return reply(404,{error:'Trial is not enabled.'});
+        if(!trialAppsForEnvironment(env).length) return reply(404,{error:'Trial is not enabled.'});
         const trialKey=serverServiceKey(env.MYOPS_SERVICE_ROLE_KEY,PROJECT);
         if(!trialKey) return reply(503,{error:'Trial service is unavailable.'});
         const result=await trialAction({client:clientFactory(PROJECT,trialKey,{auth:{persistSession:false,autoRefreshToken:false}}),userId:identity.user.id,loginSessionId,action,body,env,now:now()});
