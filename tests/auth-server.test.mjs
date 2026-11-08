@@ -4,8 +4,8 @@ import { createAuthHandler, enforceWorkerRateLimit, signActivity, signIdentity, 
 import { createClient } from '@supabase/supabase-js';
 
 const origin = 'https://trusted-preview.vercel.app';
-const env = { VERCEL_ENV: 'preview', VERCEL_BRANCH_URL: 'trusted-preview.vercel.app', MYOPS_SESSION_SECRET: 's'.repeat(40),
-  VITE_SUPABASE_URL: 'https://uhuukcztdifvpjuopdea.supabase.co', VITE_SUPABASE_PUBLISHABLE_KEY: 'sb_publishable_test_fixture' };
+const env = { VERCEL_ENV: 'preview', MYOPS_ENVIRONMENT: 'staging', MYOPS_USE_ISOLATED_STAGING: 'true', VERCEL_BRANCH_URL: 'trusted-preview.vercel.app', MYOPS_SESSION_SECRET: 's'.repeat(40),
+  VITE_SUPABASE_URL: 'https://wengxxiqwtosirealghx.supabase.co', VITE_SUPABASE_PUBLISHABLE_KEY: 'sb_publishable_test_fixture' };
 const NOW = Date.now();
 const LOGIN_ID = '7c1f0a52-3b6e-4d58-9a41-0e2d5b8c9f13';
 const loginCookie = (id = user.id, loginId = LOGIN_ID, ageMs = 0) => `__Host-myops-login=${signLogin(env.MYOPS_SESSION_SECRET, id, loginId, NOW - ageMs)}`;
@@ -58,7 +58,7 @@ test('production disabled regardless of configured values', async () => {
 });
 test('production app launch requires the explicit production app-access switch', async () => {
   const result = await run({ action: 'launch', product: 'opsp' }, {
-    env: { VERCEL_ENV: 'production', MYOPS_ENABLE_PRODUCTION_AUTH: 'true' },
+    env: { VERCEL_ENV: 'production', VITE_SUPABASE_URL: 'https://uhuukcztdifvpjuopdea.supabase.co', MYOPS_ENABLE_PRODUCTION_AUTH: 'true' },
     headers: { host: 'www.myops.com.my', origin: 'https://www.myops.com.my', cookie: signedIn() },
   });
   assert.equal(result.code, 404);
@@ -151,7 +151,7 @@ test('onboarding saves only descriptive metadata through the verified user and g
   });
   assert.equal(result.code, 200);
   assert.deepEqual(result.data, { next: '/account' });
-  assert.equal(request.url, 'https://uhuukcztdifvpjuopdea.supabase.co/auth/v1/user');
+  assert.equal(request.url, 'https://wengxxiqwtosirealghx.supabase.co/auth/v1/user');
   assert.equal(request.method, 'PUT');
   assert.ok(request.headers.Authorization.startsWith('Bearer '));
   assert.deepEqual(JSON.parse(request.body), { data: { display_name: 'A Person', account_type: 'business', company_name: 'Registered Company' } });
@@ -248,7 +248,7 @@ test('signup SDK destination is exactly the dedicated staging project', async ()
     factory: (url) => { destination = url; return mock(); },
   });
   assert.equal(result.code, 200);
-  assert.equal(destination, 'https://uhuukcztdifvpjuopdea.supabase.co');
+  assert.equal(destination, 'https://wengxxiqwtosirealghx.supabase.co');
 });
 
 
@@ -396,7 +396,7 @@ test('launch: active subscription returns only the configured HTTPS destination'
 });
 test('production launch uses the central package entitlement and issues an app-specific ticket', async () => {
   const productionEnv = {
-    VERCEL_ENV: 'production',
+    VERCEL_ENV: 'production', VITE_SUPABASE_URL: 'https://uhuukcztdifvpjuopdea.supabase.co',
     MYOPS_ENABLE_PRODUCTION_AUTH: 'true',
     MYOPS_ENABLE_PRODUCTION_APP_ACCESS: 'true',
     MYOPS_ENVIRONMENT: 'production',
@@ -921,7 +921,7 @@ test('worker: retry cap reached is surfaced without exposing raw queue state', a
 
 test('official domain login requires opt-in and exact www host/origin', async () => {
   const official = 'https://www.myops.com.my';
-  const production = { VERCEL_ENV: 'production', MYOPS_ENABLE_PRODUCTION_AUTH: 'true' };
+  const production = { VERCEL_ENV: 'production', VITE_SUPABASE_URL: 'https://uhuukcztdifvpjuopdea.supabase.co', MYOPS_ENABLE_PRODUCTION_AUTH: 'true' };
   const headers = { host: 'www.myops.com.my', origin: official };
   const result = await run(login, { env: production, headers });
   assert.equal(result.code, 200);
@@ -936,7 +936,7 @@ test('official domain login requires opt-in and exact www host/origin', async ()
 });
 
 test('official-domain recovery callback is fixed and billing/app operations stay disabled', async () => {
-  const options = { env: { VERCEL_ENV: 'production', MYOPS_ENABLE_PRODUCTION_AUTH: 'true' },
+  const options = { env: { VERCEL_ENV: 'production', VITE_SUPABASE_URL: 'https://uhuukcztdifvpjuopdea.supabase.co', MYOPS_ENABLE_PRODUCTION_AUTH: 'true' },
     headers: { host: 'www.myops.com.my', origin: 'https://www.myops.com.my' } };
   let redirect;
   const result = await run({ action: 'forgot', email: user.email, next: 'https://evil.example' }, {

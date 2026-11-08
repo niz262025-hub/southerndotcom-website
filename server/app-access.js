@@ -54,6 +54,7 @@ export function verifyAppSignature(publicKey, signature, message) {
 }
 
 function serviceClient(env, adminFactory, project) {
+  if (!project || project !== projectForEnvironment(env)) return null;
   const key = serverServiceKey(env.MYOPS_SERVICE_ROLE_KEY, project);
   if (!key) return null;
   return adminFactory(project, key, { auth: { persistSession: false, autoRefreshToken: false } });
@@ -76,7 +77,7 @@ function configured(env) {
   const production = env.VERCEL_ENV === 'production'
     && env.MYOPS_ENVIRONMENT === 'production'
     && flagEnabled(env.MYOPS_ENABLE_PRODUCTION_APP_ACCESS);
-  return (staging || production)
+  return Boolean(projectForEnvironment(env)) && (staging || production)
     && env.VITE_SUPABASE_URL === projectForEnvironment(env)
     && typeof env.MYOPS_APP_USER_REF_SECRET === 'string'
     && env.MYOPS_APP_USER_REF_SECRET.length >= 32;

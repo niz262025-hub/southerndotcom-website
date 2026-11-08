@@ -1,0 +1,14 @@
+
+> myops@1.0.0 build
+> node scripts/build.mjs
+
+vite v5.4.21 building for production...
+transforming...
+✓ 50 modules transformed.
+rendering chunks...
+computing gzip size...
+dist/index.html                   1.52 kB │ gzip:  0.60 kB
+dist/assets/index-CumKa9fy.css   23.56 kB │ gzip:  5.37 kB
+dist/assets/index-CrMX4tVI.js   314.76 kB │ gzip: 94.22 kB
+✓ built in 963ms
+npm warn Unknown env config "http-proxy". This will stop working in the next major version of npm.

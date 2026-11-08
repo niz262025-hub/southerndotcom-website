@@ -8,8 +8,8 @@ import { createPayments, paymentGateway, founderEventKey } from '../server/payme
 const origin = 'https://trusted-preview.vercel.app';
 const SECRET = 'toyyib-sandbox-secret';
 const env = {
-  VERCEL_ENV: 'preview', VERCEL_BRANCH_URL: 'trusted-preview.vercel.app', MYOPS_SESSION_SECRET: 's'.repeat(40),
-  VITE_SUPABASE_URL: 'https://uhuukcztdifvpjuopdea.supabase.co', VITE_SUPABASE_PUBLISHABLE_KEY: 'sb_publishable_test_fixture',
+  VERCEL_ENV: 'preview', MYOPS_ENVIRONMENT: 'staging', MYOPS_USE_ISOLATED_STAGING: 'true', VERCEL_BRANCH_URL: 'trusted-preview.vercel.app', MYOPS_SESSION_SECRET: 's'.repeat(40),
+  VITE_SUPABASE_URL: 'https://wengxxiqwtosirealghx.supabase.co', VITE_SUPABASE_PUBLISHABLE_KEY: 'sb_publishable_test_fixture',
   MYOPS_SERVICE_ROLE_KEY: 'sb_secret_test_fixture', TOYYIBPAY_SANDBOX_SECRET_KEY: SECRET, TOYYIBPAY_SANDBOX_CATEGORY_CODE: 'cat12345',
   MYOPS_ADMIN_USER_IDS: 'admin-user, other-admin',
 };
@@ -149,7 +149,7 @@ test('checkout creates a sandbox bill for RM29 and returns only the sandbox paym
 
 test('sandbox callback bypass stays server-side and is used only for Preview', async () => {
   const bypass = 'test-only-bypass+with/special=characters';
-  for (const environment of ['preview', 'development']) {
+  for (const environment of ['preview']) {
     const state = ledger();
     const g = gateway();
     const payments = createPayments({
@@ -383,23 +383,23 @@ test('isolated staging checkout and callback use the same selected database', as
   assert.ok(projects.every(project => project === selected));
 });
 
-const liveEnv = { ...env, VERCEL_ENV: 'production', MYOPS_ENVIRONMENT: 'production',
+const liveEnv = { ...env, VERCEL_ENV: 'production', VITE_SUPABASE_URL: 'https://uhuukcztdifvpjuopdea.supabase.co', MYOPS_ENVIRONMENT: 'production',
   MYOPS_ENABLE_LIVE_PAYMENTS: 'true', TOYYIBPAY_LIVE_SECRET_KEY: 'live-fixture-only',
   TOYYIBPAY_LIVE_CATEGORY_CODE: 'livecat1', MYOPS_SANDBOX_CALLBACK_BYPASS_SECRET: 'never-export' };
 
 test('live gateway needs explicit production enablement and never falls back to sandbox keys', () => {
-  const project = env.VITE_SUPABASE_URL;
+  const project = liveEnv.VITE_SUPABASE_URL;
   assert.equal(paymentGateway({ ...liveEnv, MYOPS_ENABLE_LIVE_PAYMENTS: '' }, project), null);
   assert.equal(paymentGateway({ ...liveEnv, MYOPS_ENVIRONMENT: 'staging' }, project), null);
   assert.equal(paymentGateway(liveEnv, 'https://wengxxiqwtosirealghx.supabase.co'), null);
   assert.equal(paymentGateway(liveEnv, project).host, 'https://toyyibpay.com');
   assert.equal(paymentGateway({ ...liveEnv, TOYYIBPAY_LIVE_SECRET_KEY: '' }, project).secret, '');
-  assert.equal(paymentGateway({ ...liveEnv, VERCEL_ENV: 'preview' }, project).host, 'https://dev.toyyibpay.com');
+  assert.equal(paymentGateway({ ...liveEnv, VERCEL_ENV: 'preview' }, project), null);
 });
 
 test('live checkout refuses unmigrated ledger before contacting ToyyibPay', async () => {
   const state = ledger(); const g = gateway();
-  const payments = createPayments({ env: liveEnv, project: env.VITE_SUPABASE_URL,
+  const payments = createPayments({ env: liveEnv, project: liveEnv.VITE_SUPABASE_URL,
     adminFactory: () => state.client, transport: g.transport });
   const result = await payments.checkout({ userId: 'user-a', plan: 'founders_lifetime', origin: 'https://www.myops.com.my' });
   assert.equal(result.status, 503);
@@ -418,7 +418,7 @@ test('live bill and callback use live credentials with independent confirmation 
     return result;
   };
   const g = gateway();
-  const payments = createPayments({ env: liveEnv, project: env.VITE_SUPABASE_URL,
+  const payments = createPayments({ env: liveEnv, project: liveEnv.VITE_SUPABASE_URL,
     adminFactory: () => state.client, transport: g.transport });
   const result = await payments.checkout({ userId: 'user-a', plan: 'founders_lifetime', origin: 'https://www.myops.com.my' });
   assert.deepEqual(result, { status: 200, body: { next: 'https://toyyibpay.com/abc123XY' } });

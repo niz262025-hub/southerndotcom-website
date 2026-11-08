@@ -275,7 +275,7 @@ export function createAuthHandler({ env = process.env, clientFactory = createCli
       return reply(403, { error: 'Request rejected.' });
     }
     const secret = env.MYOPS_SESSION_SECRET;
-    if (env.VITE_SUPABASE_URL !== PROJECT || !env.VITE_SUPABASE_PUBLISHABLE_KEY?.startsWith('sb_publishable_')
+    if (!PROJECT || env.VITE_SUPABASE_URL !== PROJECT || !env.VITE_SUPABASE_PUBLISHABLE_KEY?.startsWith('sb_publishable_')
         || typeof secret !== 'string' || secret.length < 32) {
       return reply(503, { error: 'Preview authentication is not configured. Ask the owner to set both Supabase variables and MYOPS_SESSION_SECRET for this Preview branch and redeploy.' });
     }

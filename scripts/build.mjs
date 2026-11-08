@@ -1,6 +1,8 @@
 import { build } from 'vite';
-import { flagEnabled } from '../server/project.js';
+import { flagEnabled, previewIsolationErrors } from '../server/project.js';
 import { productionSsoPreflight } from '../server/production-preflight.js';
+const isolationErrors = previewIsolationErrors(process.env);
+if (isolationErrors.length) throw new Error(`Preview isolation configuration rejected: ${isolationErrors.join(', ')}`);
 const preflight = productionSsoPreflight(process.env);
 if (preflight.errors.length) {
   throw new Error(`Production SSO configuration is incomplete: ${preflight.errors.join(', ')}`);
