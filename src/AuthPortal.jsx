@@ -3,21 +3,22 @@ import PropTypes from 'prop-types';
 import { authRequest as request } from './authRequest';
 import { jumpToFounders } from './foundersNav';
 import { ProfileLogo } from './ProfileLogo';
-import { FreeTrial } from './FreeTrial';
+import { useSession } from './session';
 import { PUBLIC_PAID_PLANS } from './subscriptionPolicy';
 
 const productLabels = { opsp: 'OpsPS', opsfinance: 'OpsFinance', opsflow: 'OpsFlow', opswms: 'OpsWMS', opshr: 'OpsHR' };
 
 export function AuthPortal({ mode, production = false }) {
+  const session = useSession();
   const [message, setMessage] = useState('');
   const [busy, setBusy] = useState(false);
   const [account, setAccount] = useState(null);
   const [trialInfo,setTrialInfo]=useState(null);
   const [accountType, setAccountType] = useState('personal');
-  const started = useRef(false);
+  const started = useRef(null);
   useEffect(() => {
-    if (started.current) return;
-    started.current = true;
+    if (started.current === mode) return;
+    started.current = mode;
     if (mode === 'callback') {
       const params = new URLSearchParams(window.location.search);
       const code = params.get('code');
@@ -36,6 +37,18 @@ export function AuthPortal({ mode, production = false }) {
       }).finally(() => setBusy(false));
     }
   }, [mode, production]);
+
+  useEffect(()=>{
+    if(!['dashboard','reset'].includes(mode)||!session.enabled||session.status!=='ready'||session.signedIn)return;
+    setAccount(null);setTrialInfo(null);
+    window.location.replace('/login');
+  },[mode,session.enabled,session.status,session.signedIn]);
+
+  useEffect(()=>{
+    if(!session.enabled)return;
+    if(session.status==='unavailable')setAccount(previous=>previous?{...previous,products:null}:previous);
+    else if(session.status==='ready'&&session.signedIn)setAccount(previous=>previous?{...previous,products:session.products}:previous);
+  },[session.enabled,session.status,session.signedIn,session.products]);
 
   async function submit(event) {
     event.preventDefault();
@@ -67,11 +80,17 @@ export function AuthPortal({ mode, production = false }) {
   async function startTrial() {
     if(busy) return;
     setBusy(true);setMessage('');
-    try {const result=await request('trial_start',{confirm:true});setTrialInfo(result);setMessage(result.message);}
+    try {
+      const result=await request('trial_start',{confirm:true});
+      setTrialInfo(result);setMessage(result.message);
+      const refreshed=await request('account');
+      setAccount(refreshed);
+      await session.refresh(false);
+    }
     catch(error){setMessage(error.message);}
     finally{setBusy(false);}
   }
-  async function openTrialApp(product) {
+  async function openApp(product) {
     if(busy) return;
     setBusy(true);setMessage('');
     try {const result=await request('launch',{product});window.location.assign(result.next);}
@@ -94,14 +113,13 @@ export function AuthPortal({ mode, production = false }) {
       </div>
       <div className="account-preview-panel account-form-panel">
         <p role="status" aria-live="polite">{busy ? 'Please wait…' : message}</p>
-        {mode === 'register' && <p><strong>Free 7-Day Trial — RM0.</strong> Verify your email, then activate the OpsHR trial from your account. One user, one company, 30 employee records. No card or auto-renewal.</p>}
+        {mode === 'register' && <p><strong>Free 7-Day Trial — RM0.</strong> Verify your email, then activate one trial for available OpsFinance, OpsFlow (Retail POS), OpsPS (Personal Shopper) and OpsHR from your account. One user, one company, 30 transactions per app. No card or auto-renewal.</p>}
         {mode === 'dashboard' && account && <>
-          <FreeTrial />
           <p>Signed in as {account.email}</p>
           <ProfileLogo profile={account.profile} refresh={async () => { const data = await request('account'); setAccount(data); }} />
           {account.profile?.company_name && <p>{account.profile.company_name}</p>}
           {account.profile && <p>{account.profile.display_name} · {account.profile.account_type === 'business' ? 'Business' : 'Personal'}</p>}
-          <p>Open applications from the <a href="/">MYOPS homepage</a>; access is checked by the server on every launch.</p>
+          <p>Open your applications below or from the <a href="/">MYOPS homepage</a>.</p>
           <section id="subscription" aria-labelledby="subscription-title">
             <h2 id="subscription-title">Billing and subscriptions</h2>
             {!production && <button type="button" className="btn btn-secondary" disabled={busy} onClick={checkSandboxPayment}>Verify sandbox payment</button>}
@@ -109,7 +127,8 @@ export function AuthPortal({ mode, production = false }) {
               <ul>
                 {Object.entries(productLabels).map(([slug, label]) => (
                   <li id={`subscription-${slug}`} key={slug}>
-                    {label}: {!account.lifetime && account.products[slug]==='active' && trialInfo?.trial.status==='active' && trialInfo.availableApps.includes(slug) ? 'Free trial active' : ({ active: 'Active subscription', none: 'No subscription', coming_soon: 'Coming soon' })[account.products[slug]]}
+                    {label}: {account.products[slug]==='active' && (account.accessModes?.[slug]==='trial' || (!account.accessModes && !account.lifetime && trialInfo?.trial?.status==='active' && Date.parse(trialInfo.trial.expires_at)>Date.now() && trialInfo.availableApps?.includes(slug))) ? 'Free trial active' : ({ active: 'Active subscription', none: 'No subscription', coming_soon: 'Coming soon' })[account.products[slug]] || 'Access status unavailable'}
+                    {account.products[slug] === 'active' && <button type="button" className="btn btn-primary" disabled={busy} onClick={()=>openApp(slug)}>Open {label}</button>}
                     {account.products[slug] === 'none' && <> — <a className="btn btn-secondary" href="/#founders" onClick={jumpToFounders}>View Founders 100 and All Apps offer</a></>}
                   </li>
                 ))}
@@ -118,7 +137,7 @@ export function AuthPortal({ mode, production = false }) {
             {account.trialAvailable && !account.lifetime && <section aria-labelledby="trial-title">
               <h3 id="trial-title">Free Trial — 7 days</h3>
               <p>RM0 for 7 × 24 hours from activation. No payment card, automatic charge or renewal. One trial per eligible account/company; 1 user and 1 company. Your data is kept after expiry.</p>
-              <p>Available trial apps: {trialInfo?.availableApps.map(product=>productLabels[product]).join(', ') || 'Checking availability…'}. OpsWMS remains Coming Soon.</p>
+              <p>Available trial apps: {trialInfo?.availableApps?.map(product=>productLabels[product]).filter(Boolean).join(', ') || 'Checking availability…'}. OpsWMS remains Coming Soon.</p>
               {trialInfo?.availableApps.includes('opsflow') && <p>OpsFlow: up to 30 transaction records and 2 purchase-order flows.</p>}
               {trialInfo?.availableApps.includes('opsfinance') && <p>OpsFinance: up to 30 transactions and 2 CSV/TXT bank statements, with 30 rows per file. Start bank accounts with zero opening balance. Statement approval, reconciliation and reports are preview only; export requires an upgrade in MYOPS.</p>}
               {trialInfo?.availableApps.includes('opsp') && <p>OpsPS: up to 2 trips/projects and 30 primary orders or manual financial entries. Financial entries linked to an order share its quota. Basic sales/orders reports are included; advanced reporting, export and multi-user require an upgrade in MYOPS.</p>}
@@ -127,7 +146,6 @@ export function AuthPortal({ mode, production = false }) {
                 <p>Trial status: {trialInfo.trial.status.replace('_',' ')}</p>
                 {trialInfo.trial.expires_at && <p>Expires: {new Date(trialInfo.trial.expires_at).toLocaleString()}</p>}
                 {trialInfo.canStart && <button type="button" className="btn btn-primary" disabled={busy} onClick={startTrial}>Activate free 7-day trial</button>}
-                {trialInfo.trial.status==='active' && trialInfo.availableApps.map(product=><button key={product} type="button" className="btn btn-primary" disabled={busy} onClick={()=>openTrialApp(product)}>Open {productLabels[product]}</button>)}
                 {!trialInfo.canStart && trialInfo.trial.status==='not_started' && <p>Your existing access is already active; no trial is needed.</p>}
               </> : <p>Checking trial eligibility…</p>}
               <p>Other packages: {PUBLIC_PAID_PLANS.map(plan=>`${plan.name} ${plan.price} ${plan.period}`).join(' · ')}. Check availability before purchase.</p>
@@ -162,7 +180,7 @@ export function AuthPortal({ mode, production = false }) {
             </>}
             {['register', 'login', 'forgot'].includes(mode) && <label>Email address<input name="email" type="email" autoComplete="email" required maxLength={254} disabled={busy} /></label>}
             {['register', 'login', 'reset'].includes(mode) && <label>Password<input name="password" type="password" autoComplete={mode === 'login' ? 'current-password' : 'new-password'} required minLength={mode === 'login' ? 1 : 12} maxLength={128} disabled={busy} /></label>}
-            {mode === 'register' && <p>Use 12–128 characters for your password. Open the confirmation email in this same browser. You can add an optional company logo from your account after verification.</p>}
+            {mode === 'register' && <p>Use 12–128 characters for your password. Open the confirmation email in this same browser to sign in automatically after verification. You can add an optional company logo from your account after verification.</p>}
             <button className="btn btn-primary" type="submit" disabled={busy}>{busy ? 'Please wait…' : ({ register: 'Register', login: 'Sign in', forgot: 'Send recovery email', reset: 'Save password', dashboard: 'Save profile' })[mode]}</button>
           </form>
         )}

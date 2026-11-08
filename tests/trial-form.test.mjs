@@ -9,11 +9,11 @@ for(const production of [false,true]) test(`MYOPS ${production?'production':'pre
  const dom=new JSDOM('<div id="root"></div>',{url:'https://staging.test/account'});
  const originals=Object.fromEntries(['window','document','FormData','fetch','IS_REACT_ACT_ENVIRONMENT'].map(k=>[k,globalThis[k]]));
  Object.assign(globalThis,{window:dom.window,document:dom.window.document,FormData:dom.window.FormData,IS_REACT_ACT_ENVIRONMENT:true});
- const root=createRoot(document.getElementById('root'));const calls=[];
+ const root=createRoot(document.getElementById('root'));const calls=[];let active=false;
  globalThis.fetch=async(url,init)=>{const body=JSON.parse(init.body);calls.push(body);
- if(body.action==='account')return Response.json({email:'dummy@invalid.test',trialAvailable:true,products:{opsflow:'none'}});
+ if(body.action==='account')return Response.json({email:'dummy@invalid.test',trialAvailable:true,products:{opsflow:active?'active':'none'}});
  if(body.action==='trial_status')return Response.json({trial:{status:'not_started'},canStart:true,availableApps:['opsflow']});
- if(body.action==='trial_start')return Response.json({trial:{status:'active',expires_at:'2099-01-01T00:00:00Z'},canStart:false,availableApps:['opsflow'],message:'Trial active'});
+ if(body.action==='trial_start'){active=true;return Response.json({trial:{status:'active',expires_at:'2099-01-01T00:00:00Z'},canStart:false,availableApps:['opsflow'],message:'Trial active'});}
  throw Error('Unexpected action');};
  try {
   await act(async()=>root.render(createElement(AuthPortal,{mode:'dashboard',production})));
@@ -22,6 +22,9 @@ for(const production of [false,true]) test(`MYOPS ${production?'production':'pre
   await act(async()=>start.click());assert.deepEqual(calls.find(c=>c.action==='trial_start'),{action:'trial_start',confirm:true});
   assert.match(document.body.textContent,/Trial status: active/);assert.match(document.body.textContent,/Expires:/);assert.ok([...document.querySelectorAll('button')].some(b=>b.textContent==='Open OpsFlow'));
   assert.equal([...document.querySelectorAll('button')].some(b=>b.textContent==='Activate free 7-day trial'),false);
+  assert.equal(calls.filter(c=>c.action==='account').length,2);
+  assert.match(document.querySelector('#subscription-opsflow').textContent,/Free trial active/);
+  assert.equal(document.querySelectorAll('#trial-title').length,1);
  }finally{await act(async()=>root.unmount());Object.assign(globalThis,originals);dom.window.close();}
 });
 
