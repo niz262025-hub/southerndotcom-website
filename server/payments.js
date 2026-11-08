@@ -1,4 +1,4 @@
-import { PRODUCTION_PROJECT } from './project.js';
+import { flagEnabled, PRODUCTION_PROJECT } from './project.js';
 import { serverServiceKey } from './service-key.js';
 import { createHash, randomBytes, timingSafeEqual } from 'node:crypto';
 
@@ -6,7 +6,7 @@ import { createHash, randomBytes, timingSafeEqual } from 'node:crypto';
 export function paymentGateway(env, project) {
   if (env.VERCEL_ENV === 'production') {
     if (project !== PRODUCTION_PROJECT || env.MYOPS_ENVIRONMENT !== 'production'
-        || env.MYOPS_ENABLE_LIVE_PAYMENTS !== 'true') return null;
+        || !flagEnabled(env.MYOPS_ENABLE_LIVE_PAYMENTS)) return null;
     return { host: 'https://toyyibpay.com', ledger: 'toyyibpay_live',
       secret: env.TOYYIBPAY_LIVE_SECRET_KEY, category: env.TOYYIBPAY_LIVE_CATEGORY_CODE };
   }

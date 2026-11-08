@@ -19,7 +19,7 @@ const PENDING_MAX_MS = 24 * 60 * 60 * 1000;
 const IDENTITY_MAX_MS = 12 * 60 * 60 * 1000;
 export const INACTIVITY_MS = 15 * 60 * 1000;
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
-import { projectForEnvironment } from './project.js';
+import { flagEnabled, projectForEnvironment } from './project.js';
 
 function cookies(req) {
   return Object.fromEntries((req.headers.cookie || '').split(';').map((part) => {
@@ -261,7 +261,7 @@ export function createAuthHandler({ env = process.env, clientFactory = createCli
     const reply = (status, body) => res.status(status).json(body);
     // Official-domain login requires an explicit deployment opt-in. Never trust a caller's host.
     const production = env.VERCEL_ENV === 'production';
-    if (env.VERCEL_ENV !== 'preview' && !(production && env.MYOPS_ENABLE_PRODUCTION_AUTH === 'true')) {
+    if (env.VERCEL_ENV !== 'preview' && !(production && flagEnabled(env.MYOPS_ENABLE_PRODUCTION_AUTH))) {
       return reply(404, { error: 'Authentication is not enabled for this deployment.' });
     }
     const origin = production ? 'https://www.myops.com.my'
@@ -328,13 +328,13 @@ export function createAuthHandler({ env = process.env, clientFactory = createCli
       const { action } = body;
       const productionAppAccessEnabled = production
         && env.MYOPS_ENVIRONMENT === 'production'
-        && env.MYOPS_ENABLE_PRODUCTION_APP_ACCESS === 'true';
+        && flagEnabled(env.MYOPS_ENABLE_PRODUCTION_APP_ACCESS);
       const liveGateway = paymentGateway(env, PROJECT);
       const productionPaymentsEnabled = production && Boolean(liveGateway?.secret
         && /^[A-Za-z0-9]{4,40}$/.test(liveGateway.category || ''));
       const productionAccountActions = ['register', 'login', 'forgot', 'callback', 'logout', 'session', 'account', 'reset', 'profile', 'profile-logo', 'founders'];
       if (production && !productionAccountActions.includes(action)
-          && !(action === 'admin_audit' && env.MYOPS_ENABLE_PLATFORM_ADMIN === 'true')
+          && !(action === 'admin_audit' && flagEnabled(env.MYOPS_ENABLE_PLATFORM_ADMIN))
           && !(action === 'launch' && productionAppAccessEnabled)
           && !(['trial_start','trial_status'].includes(action) && trialAppsForEnvironment(env).length)
           && !(action === 'checkout' && productionPaymentsEnabled)) {
@@ -344,7 +344,7 @@ export function createAuthHandler({ env = process.env, clientFactory = createCli
       const validEmail = typeof body.email === 'string' && body.email.length <= 254 && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(body.email);
       const validPassword = typeof body.password === 'string' && body.password.length >= 12 && body.password.length <= 128;
       const callback = `${origin}/auth/callback`;
-      const payments = createPayments({ env: production ? { ...env, MYOPS_ADMIN_USER_IDS: env.MYOPS_ENABLE_PLATFORM_ADMIN === 'true' ? env.MYOPS_ADMIN_USER_IDS : '', MYOPS_SERVICE_ROLE_KEY: env.MYOPS_SERVICE_ROLE_KEY } : env, transport, adminFactory: clientFactory, project: PROJECT });
+      const payments = createPayments({ env: production ? { ...env, MYOPS_ADMIN_USER_IDS: flagEnabled(env.MYOPS_ENABLE_PLATFORM_ADMIN) ? env.MYOPS_ADMIN_USER_IDS : '', MYOPS_SERVICE_ROLE_KEY: env.MYOPS_SERVICE_ROLE_KEY } : env, transport, adminFactory: clientFactory, project: PROJECT });
       const appAccessEnv = production && !productionAppAccessEnabled ? { ...env, MYOPS_ENVIRONMENT: undefined } : env;
       const appAccess = appAccessFactory({ env: appAccessEnv, adminFactory: clientFactory, now, project: PROJECT });
       // Revocation targets only identities proven by the server (signed cookie or verified token).

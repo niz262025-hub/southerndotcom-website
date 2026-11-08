@@ -15,6 +15,7 @@ const configured = {
 
 test('production SSO requires aligned auth, project, server credential and exact Finance destination', () => {
   assert.deepEqual(productionSsoPreflight(configured), {enabled:true,errors:[]});
+  assert.deepEqual(productionSsoPreflight({ ...configured, MYOPS_ENABLE_PRODUCTION_APP_ACCESS: true }), {enabled:true,errors:[]});
   for (const key of Object.keys(configured).filter(key => !['VERCEL_ENV','MYOPS_ENABLE_PRODUCTION_APP_ACCESS'].includes(key))) {
     assert.ok(productionSsoPreflight({...configured,[key]:''}).errors.includes(key),key);
   }
@@ -26,6 +27,7 @@ test('production SSO requires aligned auth, project, server credential and exact
 test('preview and explicitly disabled production remain buildable without SSO credentials', () => {
   assert.deepEqual(productionSsoPreflight({VERCEL_ENV:'preview',MYOPS_ENABLE_PRODUCTION_APP_ACCESS:'true'}),{enabled:false,errors:[]});
   assert.deepEqual(productionSsoPreflight({VERCEL_ENV:'production'}),{enabled:false,errors:[]});
+  assert.deepEqual(productionSsoPreflight({VERCEL_ENV:'production',MYOPS_ENABLE_PRODUCTION_APP_ACCESS:true}),{enabled:false,errors:[]});
 });
 
 test('production build rejects incomplete SSO before generating assets without printing secrets', () => {

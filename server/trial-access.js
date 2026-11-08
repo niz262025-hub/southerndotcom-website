@@ -1,10 +1,10 @@
-import { projectForEnvironment, STAGING_PROJECT } from './project.js';
+import { flagEnabled, projectForEnvironment, STAGING_PROJECT } from './project.js';
 import { effectiveTrialState } from './subscription-plans.js';
 export function trialAppsForEnvironment(env={}) {
- if(projectForEnvironment(env)!==STAGING_PROJECT||env.VITE_SUPABASE_URL!==STAGING_PROJECT||env.VERCEL_ENV!=='preview'||env.MYOPS_ENVIRONMENT!=='staging'||env.MYOPS_ENABLE_STAGING_TRIAL_ACCESS!=='true') return [];
+ if(projectForEnvironment(env)!==STAGING_PROJECT||env.VITE_SUPABASE_URL!==STAGING_PROJECT||env.VERCEL_ENV!=='preview'||env.MYOPS_ENVIRONMENT!=='staging'||!flagEnabled(env.MYOPS_ENABLE_STAGING_TRIAL_ACCESS)) return [];
  // Finance admission is explicitly gated for integrated staging UAT.
  return [...new Set(String(env.MYOPS_TRIAL_READY_APPS||'').split(',').map(x=>x.trim()))]
-  .filter(x=>x==='opsflow'||(x==='opsfinance'&&env.MYOPS_FINANCE_TRIAL_UAT_READY==='true')||(x==='opsp'&&env.MYOPS_OPSPS_TRIAL_UAT_READY==='true'));
+  .filter(x=>x==='opsflow'||(x==='opsfinance'&&flagEnabled(env.MYOPS_FINANCE_TRIAL_UAT_READY))||(x==='opsp'&&flagEnabled(env.MYOPS_OPSPS_TRIAL_UAT_READY)));
 }
 export async function loadEligibleTrial(client,userId,now,env={}) {
  if(!trialAppsForEnvironment(env).length) return null;
