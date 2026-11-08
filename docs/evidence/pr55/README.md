@@ -105,3 +105,38 @@ Implementation commit: `763285ff3ee3f6af7284edc24e0effd278112bea`.
 Local regression coverage: `node --test tests/local-restore-rehearsal.test.mjs tests/build-environment.test.mjs`; full suite: `npm test`; style/build: `npm run lint`, `npm run build`; workflow syntax: Ruby YAML parse. CodeQL reported no JavaScript or Actions alerts. GitHub validation [MYOPS validation](https://github.com/niz262025-hub/southerndotcom-website/actions/runs/42491744437) and [MYOPS quality checks](https://github.com/niz262025-hub/southerndotcom-website/actions/runs/42491745186) for this commit are `action_required` with zero jobs; no hosted CI job result is available. These local checks prove code paths only, not a production/staging restore or UAT. No actual source backup is available. Gate A restore and hosted staging UAT remain **BLOCKED**. `workflow_dispatch` is available only when this workflow is on the default branch; do not merge this draft to activate it.
 
 Owner-only next action for Gate A: use a trusted computer/runner and authorized read-only access to create and verify a restorable logical dump plus complete private manifest/checksum, including ACLs and all required schemas. Restore only into a disposable local/private database with no external target. Do not send that dump through GitHub. Hosted UAT still needs separately verified branch-scoped staging credentials/runtime binding. PR #55 stays draft, Issue #54 stays open; no database or Vercel changes, deployment, merge, or paid resources were used.
+
+## Continuation validation — 2026-11-08
+
+This update was performed against PR branch commit `27af64623f4ab2b14c17f10684fa2ac5a7010dba`. No repository code or environment settings were changed during this validation; only this evidence report is being updated. No Supabase, Vercel, or payment endpoint was contacted.
+
+### Local validation
+
+| Check | Result | Evidence / scope |
+| --- | --- | --- |
+| `npm ci` | PASS | Installed lockfile dependencies. npm reported 4 development-tree advisories (1 moderate, 3 high); see audit rows below. |
+| `npm test` | PASS: 257 passed, 0 failed, 0 skipped | Full local suite. All 36 tests previously skipped for missing native PostgreSQL ran, using the available PostgreSQL 16 binaries and throwaway local clusters; includes Founder/payment, S1 access/session, login-session concurrency and rollback cases. No remote database was used. |
+| `npm run lint` | PASS | Exit 0; existing React-version configuration warning only. |
+| `npm run build` | PASS | Production build, exit 0. |
+| `VERCEL_ENV=preview npm run build` | PASS | Preview-auth build, exit 0; build-time isolation preflight exercised. |
+| `VERCEL_ENV=production MYOPS_ENABLE_PRODUCTION_AUTH=true npm run build` | PASS | Production-auth build, exit 0. This is a local build, not a deployment. |
+| `npm audit --omit=dev --audit-level=high` | PASS | Zero production dependency vulnerabilities reported. |
+| `npm audit` | WARN / follow-up | 4 development dependency advisories: 1 moderate and 3 high (`brace-expansion`, `esbuild`, `source-map-js`, `vite`). npm reports that the available Vite fix is a major-version upgrade. No dependency changes were made in this task. |
+
+These are local code/test results, not hosted UAT, backup verification, or a real-backup restore.
+
+### Current GitHub check state
+
+The latest `pull_request` validation and quality workflow runs found for the checked-out SHA are [MYOPS validation run 42491937037](https://github.com/niz262025-hub/southerndotcom-website/actions/runs/42491937037) and [MYOPS quality checks run 42491936607](https://github.com/niz262025-hub/southerndotcom-website/actions/runs/42491936607). Both have conclusion `action_required` and zero jobs; therefore there is no hosted CI result for this SHA. This supersedes neither the successful historical run on `d798a273...` nor establishes a pass for the current PR head.
+
+### Gate A, hosted UAT, and remaining work
+
+| Requirement | Status | Exact limitation |
+| --- | --- | --- |
+| Supabase backup listing | PASS, limited to owner-provided screenshots | Screenshots show physical backup listings, not downloadable logical dumps or verified artifacts. They do not prove backup completeness or integrity. |
+| Downloadable backup, checksum, complete manifest | BLOCKED | No authorized restorable backup artifact or checksum/manifest was supplied to this workspace. Physical backup listings are not pg_dump files. |
+| Isolated restore and source comparison | BLOCKED | No backup artifact to restore and no completed restore rehearsal. Do not restore into the populated MYOPS staging branch or production. |
+| Hosted Preview/staging UAT | BLOCKED | The recorded Vercel metadata observation scoped staging configuration to a different feature branch; effective bindings for this PR branch are not verified. No hosted integration was run and no secrets were changed. |
+| Central-login cleanup, legacy-subscription migration, integrated UAT | BLOCKED / outstanding | No migration or cleanup was executed. Preserve payment, subscription, session, order and audit data; verify mappings and rollback plan before any authorized write. OpsFlow/OpsHR and other external app repositories/access remain separate dependencies. |
+
+Gate A remains blocked; the owner screenshots do not upgrade artifact integrity or restore status. The next owner-only step is to use a trusted, authorized private computer/runner to obtain a complete restorable logical backup and manifest, then rehearse only in a disposable local/private database. Do not transfer real backup data through GitHub or Actions. Hosted UAT separately requires owner-approved branch-scoped staging bindings and Auth/SMTP configuration. No staging/production database write, Vercel change, payment access, paid resource, deployment, or merge was performed. Keep PR #55 draft and Issue #54 open. This is safe for review as a code-only patch, not authorization to merge or a live-readiness verdict.
