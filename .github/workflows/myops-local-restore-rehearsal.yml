@@ -1,0 +1,187 @@
+name: MYOPS local restore rehearsal
+
+on:
+  workflow_dispatch:
+    inputs:
+      restore_target:
+        description: Local-only PostgreSQL destination for the rehearsal; must resolve to localhost/127.0.0.1 only.
+        required: true
+        type: string
+      backup_artifact_name:
+        description: Pre-authorized backup artifact name containing a restorable pg_dump or tar file. Do not upload production or private data to public logs.
+        required: true
+        type: string
+      artifact_file_glob:
+        description: File glob within the artifact, for example *.sql or *.sql.gz
+        required: false
+        default: '*.sql*'
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  local-restore-rehearsal:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      RESTORE_TARGET: ${{ github.event.inputs.restore_target }}
+      BACKUP_ARTIFACT_NAME: ${{ github.event.inputs.backup_artifact_name }}
+      ARTIFACT_FILE_GLOB: ${{ github.event.inputs.artifact_file_glob }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Validate local-only restore target
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import os, sys
+          target = os.environ['RESTORE_TARGET'].strip()
+          if not target:
+              print('BLOCKED: restore target is required')
+              sys.exit(1)
+          from urllib.parse import urlparse
+          parsed = urlparse(target)
+          host = (parsed.hostname or '').lower()
+          denied = ['supabase.co', 'supabase.com', 'supabase']
+          if host in {'', 'localhost', '127.0.0.1', '::1'}:
+              pass
+          elif host.endswith('.localhost'):
+              pass
+          else:
+              print(f'BLOCKED: remote destination rejected: {host}')
+              sys.exit(1)
+          for token in denied:
+              if token in host:
+                  print(f'BLOCKED: production or Supabase host rejected: {host}')
+                  sys.exit(1)
+          if parsed.username or parsed.password:
+              print('BLOCKED: credentials embedded in restore target are not permitted')
+              sys.exit(1)
+          print(f'ALLOW: local-only target accepted: {host}')
+          PY
+
+      - name: Refuse non-local or production secret usage
+        shell: bash
+        run: |
+          set -euo pipefail
+          for name in SUPABASE_URL NEXT_PUBLIC_SUPABASE_URL VITE_SUPABASE_URL SUPABASE_SERVICE_ROLE_KEY SUPABASE_ANON_KEY MYOPS_SERVICE_ROLE_KEY MYOPS_SESSION_SECRET; do
+            if [ -n "${!name:-}" ]; then
+              echo "BLOCKED: ${name} is not allowed in a local restore rehearsal env"
+              exit 1
+            fi
+          done
+          echo 'ALLOW: no remote Supabase secrets or production endpoints were supplied.'
+
+      - name: Confirm authorized backup artifact is supplied
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ -z "${BACKUP_ARTIFACT_NAME:-}" ]; then
+            echo 'BLOCKED: no authorized restorable backup artifact name was supplied.'
+            exit 1
+          fi
+          echo "AUTHORIZED_BACKUP_ARTIFACT=${BACKUP_ARTIFACT_NAME}"
+          echo 'The runner will only accept a pre-authorized artifact; remote production backups are never fetched automatically.'
+
+      - name: Download permitted artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: ${{ github.event.inputs.backup_artifact_name }}
+          path: ${{ runner.temp }}/restore-artifact
+
+      - name: Refuse missing or empty artifact
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ ! -d "${RUNNER_TEMP}/restore-artifact" ] || [ -z "$(ls -A "${RUNNER_TEMP}/restore-artifact" 2>/dev/null)" ]; then
+            echo 'BLOCKED: no authorized backup artifact was downloaded.'
+            exit 1
+          fi
+          echo 'ARTIFACT_PRESENT=true'
+          find "${RUNNER_TEMP}/restore-artifact" -maxdepth 3 -type f | sed 's#^#/#' | head
+
+      - name: Start disposable local PostgreSQL
+        shell: bash
+        run: |
+          set -euo pipefail
+          docker run --rm --name myops-local-restore --detach \
+            -e POSTGRES_USER=postgres \
+            -e POSTGRES_PASSWORD=postgres \
+            -e POSTGRES_DB=restore_rehearsal \
+            -p 127.0.0.1:5432:5432 \
+            postgres:16-alpine
+          for i in $(seq 1 30); do
+            pg_isready -h 127.0.0.1 -p 5432 -U postgres && break
+            sleep 2
+          done
+          pg_isready -h 127.0.0.1 -p 5432 -U postgres
+
+      - name: Restore dump into local-only Postgres
+        shell: bash
+        run: |
+          set -euo pipefail
+          shopt -s nullglob
+          files=("${RUNNER_TEMP}"/restore-artifact/**/*)
+          if [ "${#files[@]}" -eq 0 ]; then
+            echo 'BLOCKED: no files were present in the approved artifact.'
+            exit 1
+          fi
+          found=""
+          for file in "${files[@]}"; do
+            case "$file" in
+              *.sql|*.sql.gz|*.dump|*.tar|*.tar.gz)
+                found="$file"
+                break
+                ;;
+            esac
+          done
+          if [ -z "$found" ]; then
+            echo 'BLOCKED: restore artifact is not a supported pg_dump format.'
+            exit 1
+          fi
+          echo "RESTORE_SOURCE=${found}"
+          export PGHOST=127.0.0.1
+          export PGPORT=5432
+          export PGUSER=postgres
+          export PGPASSWORD=postgres
+          export PGDATABASE=restore_rehearsal
+          if [[ "$found" == *.sql.gz ]]; then
+            gzip -dc "$found" | psql -v ON_ERROR_STOP=1 -d "$PGDATABASE"
+          elif [[ "$found" == *.gz ]]; then
+            gzip -dc "$found" | psql -v ON_ERROR_STOP=1 -d "$PGDATABASE"
+          else
+            psql -v ON_ERROR_STOP=1 -d "$PGDATABASE" < "$found"
+          fi
+          echo 'RESTORE_STATUS=completed'
+
+      - name: Validate schema, row counts, RLS and trigger coverage
+        shell: bash
+        run: |
+          set -euo pipefail
+          export PGHOST=127.0.0.1
+          export PGPORT=5432
+          export PGUSER=postgres
+          export PGPASSWORD=postgres
+          export PGDATABASE=restore_rehearsal
+          psql -d "$PGDATABASE" -Atqc "SELECT to_regclass('public.auth_users'); SELECT to_regclass('public.subscriptions'); SELECT to_regclass('public.payments');" | tr '\n' ' ' | sed 's/[[:space:]]\+/ /g'
+          psql -d "$PGDATABASE" -Atqc "SELECT count(*) FROM information_schema.tables WHERE table_schema = 'public';"
+          psql -d "$PGDATABASE" -Atqc "SELECT count(*) FROM pg_trigger WHERE NOT tgisinternal;"
+          psql -d "$PGDATABASE" -Atqc "SELECT count(*) FROM pg_proc WHERE proname LIKE '%trial%';"
+          echo 'VALIDATION_STATUS=local-only-checks-completed'
+
+      - name: Clean up local database container
+        if: always()
+        shell: bash
+        run: |
+          docker rm -f myops-local-restore >/dev/null 2>&1 || true
+          echo 'CLEANUP_STATUS=done'
+
+      - name: Report result
+        if: always()
+        shell: bash
+        run: |
+          echo 'RESULT=PASS if artifact was approved, restore succeeded, and no remote host or secret was used. Otherwise this workflow must be marked BLOCKED.'

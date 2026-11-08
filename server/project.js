@@ -34,3 +34,32 @@ export function previewIsolationErrors(env = {}) {
   }
   return errors;
 }
+
+export function restoreRehearsalDestinationAllowed(value) {
+  if (typeof value !== 'string') return false;
+  const candidate = value.trim();
+  if (!candidate) return false;
+  try {
+    const url = new URL(candidate);
+    const host = url.hostname.toLowerCase();
+    const localHosts = new Set(['localhost', '127.0.0.1', '::1']);
+    if (host.endsWith('.localhost')) return true;
+    if (localHosts.has(host)) return true;
+    return false;
+  } catch {
+    const host = candidate.replace(/^.*@/, '').replace(/^[a-z]+:\/\//i, '').split('/')[0].split(':')[0].toLowerCase();
+    const localHosts = new Set(['localhost', '127.0.0.1', '::1']);
+    if (host.endsWith('.localhost')) return true;
+    return localHosts.has(host);
+  }
+}
+
+export function restoreRehearsalSafetyErrors(env = {}) {
+  const errors = [];
+  const target = env.RESTORE_REHEARSAL_TARGET || env.DATABASE_URL || env.POSTGRES_RESTORE_TARGET;
+  if (target && !restoreRehearsalDestinationAllowed(target)) errors.push('RESTORE_REHEARSAL_TARGET');
+  for (const key of ['SUPABASE_URL', 'NEXT_PUBLIC_SUPABASE_URL', 'VITE_SUPABASE_URL', 'SUPABASE_SERVICE_ROLE_KEY', 'SUPABASE_ANON_KEY', 'MYOPS_SERVICE_ROLE_KEY', 'MYOPS_SESSION_SECRET']) {
+    if (env[key]) errors.push(key);
+  }
+  return errors;
+}

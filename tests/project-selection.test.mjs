@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { flagEnabled, projectForEnvironment, previewIsolationErrors, PRODUCTION_PROJECT, STAGING_PROJECT } from '../server/project.js';
+import { flagEnabled, projectForEnvironment, previewIsolationErrors, restoreRehearsalDestinationAllowed, restoreRehearsalSafetyErrors, PRODUCTION_PROJECT, STAGING_PROJECT } from '../server/project.js';
 import { createAuthHandler } from '../server/auth.js';
 import { createAppAccess } from '../server/app-access.js';
 import { paymentGateway } from '../server/payments.js';
@@ -48,4 +48,13 @@ test('preview sandbox selection ignores live credentials', () => {
   const gateway = paymentGateway({ ...staging, TOYYIBPAY_LIVE_SECRET_KEY: 'live-fixture' }, STAGING_PROJECT);
   assert.equal(gateway.host, 'https://dev.toyyibpay.com');
   assert.equal(gateway.secret, undefined);
+});
+
+test('restore rehearsal safety rejects remote destinations and Supabase secrets', () => {
+  assert.equal(restoreRehearsalDestinationAllowed('postgresql://user@127.0.0.1:5432/rehearsal'), true);
+  assert.equal(restoreRehearsalDestinationAllowed('postgresql://user@db.supabase.co:5432/postgres'), false);
+  assert.equal(restoreRehearsalDestinationAllowed('https://example.com'), false);
+  assert.deepEqual(restoreRehearsalSafetyErrors({ RESTORE_REHEARSAL_TARGET: 'postgresql://user@127.0.0.1:5432/rehearsal' }), []);
+  assert.ok(restoreRehearsalSafetyErrors({ RESTORE_REHEARSAL_TARGET: 'postgresql://user@db.supabase.co:5432/postgres' }).length);
+  assert.ok(restoreRehearsalSafetyErrors({ SUPABASE_URL: 'https://prod.supabase.co', MYOPS_SERVICE_ROLE_KEY: 'sb_secret_fixture' }).length);
 });
