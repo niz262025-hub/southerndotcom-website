@@ -1,16 +1,18 @@
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
-import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
+import { PGlite } from '@electric-sql/pglite';
 import {
+  createSyntheticFixture,
   dumpFormat,
-  findBackupFiles,
   LOCAL_RESTORE_TARGET,
   parseRestoreTarget,
   resultFromOutcomes,
-  validateManifest,
+  SYNTHETIC_EXPECTED,
+  validateSyntheticManifest,
 } from '../scripts/local-restore-rehearsal-guard.mjs';
 
 const temporaryDirectory = () => mkdtempSync(join(tmpdir(), 'restore-rehearsal-'));
@@ -21,13 +23,11 @@ test('only accepts the exact disposable localhost database URL', () => {
     '',
     'localhost',
     'https://127.0.0.1:5432/restore_rehearsal',
+    'postgres://127.0.0.1:5432/restore_rehearsal',
     'postgresql://localhost:5432/restore_rehearsal',
     'postgresql://127.0.0.1/restore_rehearsal',
     'postgresql://127.0.0.1:5433/restore_rehearsal',
     'postgresql://127.0.0.1:5432/production',
-    'postgresql://user@127.0.0.1:5432/restore_rehearsal',
-    '******127.0.0.1:5432/restore_rehearsal',
-    '******127.0.0.1:5432/restore_rehearsal',
     '******127.0.0.1:5432/restore_rehearsal',
     'postgresql://127.0.0.1:5432/restore_rehearsal/path',
     'postgresql://db.supabase.co:5432/postgres',
@@ -38,7 +38,7 @@ test('only accepts the exact disposable localhost database URL', () => {
   }
 });
 
-test('supports matching pg_dump readers and rejects unsupported formats', () => {
+test('archive formats are identified explicitly; unsupported formats fail closed', () => {
   assert.equal(dumpFormat('source.sql'), 'plain');
   assert.equal(dumpFormat('source.sql.gz'), 'gzip-sql');
   assert.equal(dumpFormat('source.dump'), 'custom');
@@ -48,84 +48,121 @@ test('supports matching pg_dump readers and rejects unsupported formats', () => 
   }
 });
 
-test('requires a single supported dump and manifest in the artifact', () => {
+test('workflow fixture is generated locally and contains synthetic records only', () => {
   const directory = temporaryDirectory();
   try {
-    assert.throws(() => findBackupFiles(directory), /exactly one supported dump/);
-    writeFileSync(join(directory, 'backup-manifest.json'), '{}');
-    writeFileSync(join(directory, 'backup.dump'), 'dump');
-    assert.equal(findBackupFiles(directory).format, 'custom');
-    writeFileSync(join(directory, 'extra.sql'), 'extra');
-    assert.throws(() => findBackupFiles(directory), /exactly one supported dump/);
-    rmSync(join(directory, 'extra.sql'));
-    rmSync(join(directory, 'backup.dump'));
-    writeFileSync(join(directory, 'backup.tar.gz'), 'not supported');
-    assert.throws(() => findBackupFiles(directory), /exactly one supported dump/);
+    const fixture = createSyntheticFixture(directory);
+    const manifestContents = readFileSync(fixture.manifestPath, 'utf8');
+    const manifest = JSON.parse(manifestContents);
+    assert.equal(manifest.sourceRef, 'synthetic-fixture');
+    assert.deepEqual(manifest.expected, SYNTHETIC_EXPECTED);
+    assert.match(readFileSync(fixture.dumpPath, 'utf8'), /synthetic-only/);
+    assert.equal(
+      validateSyntheticManifest(manifest, fixture.dumpPath, manifestContents, fixture.manifestHash),
+      true,
+    );
+    assert.throws(() => validateSyntheticManifest(
+      { ...manifest, sourceRef: 'uhuukcztdifvpjuopdea' },
+      fixture.dumpPath,
+      manifestContents,
+      fixture.manifestHash,
+    ), /only the generated synthetic fixture/);
   } finally {
     rmSync(directory, { recursive: true, force: true });
   }
 });
 
-test('fails closed for missing, fake, malformed, or mismatched manifests', () => {
+test('synthetic SQL restore reproduces the manifest security and ACL assertions', async () => {
+  const directory = temporaryDirectory();
+  const db = new PGlite();
+  try {
+    const fixture = createSyntheticFixture(directory);
+    await db.exec(readFileSync(fixture.dumpPath, 'utf8'));
+    const aggregate = async (sql) => (await db.query(sql)).rows[0].actual ?? [];
+    assert.deepEqual(await aggregate(
+      `SELECT COALESCE(json_agg(schema_name ORDER BY schema_name), '[]'::json) AS actual ` +
+      `FROM information_schema.schemata WHERE schema_name NOT LIKE 'pg\\_%' ESCAPE '\\' ` +
+      `AND schema_name <> 'information_schema'`,
+    ), SYNTHETIC_EXPECTED.schemas);
+    assert.deepEqual(await aggregate(
+      `SELECT COALESCE(json_agg(n.nspname || '.' || c.relname ORDER BY n.nspname, c.relname), '[]'::json) AS actual ` +
+      `FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace ` +
+      `WHERE c.relkind IN ('r', 'p') AND n.nspname NOT LIKE 'pg\\_%' ESCAPE '\\' ` +
+      `AND n.nspname <> 'information_schema'`,
+    ), Object.keys(SYNTHETIC_EXPECTED.tableRows));
+    assert.deepEqual((await db.query('SELECT count(*)::int AS count FROM rehearsal.fixture_items')).rows[0].count, 1);
+    assert.deepEqual(await aggregate(
+      `SELECT COALESCE(json_agg(n.nspname || '.' || c.relname ORDER BY n.nspname, c.relname), '[]'::json) AS actual ` +
+      `FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace ` +
+      `WHERE c.relrowsecurity AND n.nspname = 'rehearsal'`,
+    ), SYNTHETIC_EXPECTED.rlsEnabledTables);
+    assert.deepEqual(await aggregate(
+      `SELECT COALESCE(json_agg(schemaname || '.' || tablename || '.' || policyname ` +
+      `ORDER BY schemaname, tablename, policyname), '[]'::json) AS actual ` +
+      `FROM pg_policies WHERE schemaname = 'rehearsal'`,
+    ), SYNTHETIC_EXPECTED.policies);
+    assert.deepEqual(await aggregate(
+      `SELECT COALESCE(json_agg(n.nspname || '.' || c.relname || '.' || k.conname || ':' || ` +
+      `k.contype::text || ':' || k.convalidated::text ORDER BY n.nspname, c.relname, k.conname), '[]'::json) AS actual ` +
+      `FROM pg_constraint k JOIN pg_class c ON c.oid = k.conrelid ` +
+      `JOIN pg_namespace n ON n.oid = c.relnamespace ` +
+      `WHERE n.nspname = 'rehearsal' AND k.contype <> 'n'`,
+    ), SYNTHETIC_EXPECTED.constraints);
+    assert.deepEqual(await aggregate(
+      `SELECT COALESCE(json_agg(n.nspname || '.' || p.proname || '(' || ` +
+      `pg_get_function_identity_arguments(p.oid) || ')' ORDER BY n.nspname, p.proname), '[]'::json) AS actual ` +
+      `FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace WHERE n.nspname = 'rehearsal'`,
+    ), SYNTHETIC_EXPECTED.functions);
+    assert.deepEqual(await aggregate(
+      `SELECT COALESCE(json_agg(n.nspname || '.' || c.relname || '.' || t.tgname ` +
+      `ORDER BY n.nspname, c.relname, t.tgname), '[]'::json) AS actual ` +
+      `FROM pg_trigger t JOIN pg_class c ON c.oid = t.tgrelid ` +
+      `JOIN pg_namespace n ON n.oid = c.relnamespace WHERE NOT t.tgisinternal AND n.nspname = 'rehearsal'`,
+    ), SYNTHETIC_EXPECTED.triggers);
+    assert.deepEqual(await aggregate(
+      `SELECT COALESCE(json_agg(rolname ORDER BY rolname), '[]'::json) AS actual ` +
+      `FROM pg_roles WHERE rolname = 'rehearsal_reader'`,
+    ), SYNTHETIC_EXPECTED.roles);
+    assert.deepEqual(await aggregate(
+      `SELECT COALESCE(json_agg(grantee || '.' || table_schema || '.' || table_name || '.' || privilege_type ` +
+      `ORDER BY grantee, table_schema, table_name, privilege_type), '[]'::json) AS actual ` +
+      `FROM information_schema.table_privileges WHERE grantee = 'rehearsal_reader' AND table_schema = 'rehearsal'`,
+    ), SYNTHETIC_EXPECTED.grants);
+  } finally {
+    await db.close();
+    rmSync(directory, { recursive: true, force: true });
+  }
+});
+
+test('rejects fake, altered, missing-checksum, or incomplete manifests', () => {
   const directory = temporaryDirectory();
   try {
-    const dumpPath = join(directory, 'backup.sql');
-    const dumpContents = 'SELECT 1;';
-    writeFileSync(dumpPath, dumpContents);
-    const manifest = {
-      sourceRef: 'uhuukcztdifvpjuopdea',
-      snapshotAt: '2026-11-07T22:56:25Z',
-      postgresMajor: 16,
-      pgDumpMajor: 16,
-      format: 'plain',
-      sha256: createHash('sha256').update(dumpContents).digest('hex'),
-      expected: {
-        schemas: ['public'],
-        tableRows: { 'public.example': 0 },
-        rlsEnabledTables: [],
-        policies: [],
-        constraints: [],
-        functions: [],
-        triggers: [],
-      },
-    };
-    const manifestContents = JSON.stringify(manifest);
-    const manifestHash = createHash('sha256').update(manifestContents).digest('hex');
-    const rejectManifest = (candidate, expectedError) => {
-      const contents = JSON.stringify(candidate);
-      const hash = createHash('sha256').update(contents).digest('hex');
-      assert.throws(() => validateManifest(candidate, dumpPath, 'plain', hash, contents), expectedError);
-    };
-    assert.equal(validateManifest(manifest, dumpPath, 'plain', manifestHash, manifestContents), true);
-    assert.throws(() => validateManifest(manifest, dumpPath, 'plain', '0'.repeat(64), manifestContents), /independently supplied checksum/);
-    assert.throws(() => validateManifest(manifest, dumpPath, 'custom', manifestHash, manifestContents), /format does not match/);
-    rejectManifest(
-      { ...manifest, sourceRef: 'ojamkplflqafedmxbdxb' },
-      /source project\/ref is not on the MYOPS allowlist/,
-    );
-    rejectManifest(
-      { ...manifest, postgresMajor: 17 },
-      /PostgreSQL 16/,
-    );
-    const incomplete = { ...manifest, expected: { ...manifest.expected, functions: undefined } };
-    const incompleteContents = JSON.stringify(incomplete);
-    const incompleteHash = createHash('sha256').update(incompleteContents).digest('hex');
-    assert.throws(() => validateManifest(incomplete, dumpPath, 'plain', incompleteHash, incompleteContents), /malformed or incomplete/);
-    writeFileSync(dumpPath, 'changed');
-    assert.throws(() => validateManifest(manifest, dumpPath, 'plain', manifestHash, manifestContents), /dump checksum/);
+    const fixture = createSyntheticFixture(directory);
+    const manifestContents = readFileSync(fixture.manifestPath, 'utf8');
+    const manifest = JSON.parse(manifestContents);
+    assert.throws(() => validateSyntheticManifest(manifest, fixture.dumpPath, '0'.repeat(64), fixture.manifestHash), /checksum mismatch/);
+    assert.throws(() => validateSyntheticManifest(manifest, fixture.dumpPath, manifestContents, '0'.repeat(64)), /checksum mismatch/);
+
+    const altered = { ...manifest, expected: { ...manifest.expected, tableRows: {} } };
+    const alteredContents = JSON.stringify(altered);
+    const alteredHash = createHash('sha256').update(alteredContents).digest('hex');
+    assert.throws(() => validateSyntheticManifest(altered, fixture.dumpPath, alteredContents, alteredHash), /expectations were changed/);
+
+    writeFileSync(fixture.dumpPath, 'not the generated fixture');
+    assert.throws(() => validateSyntheticManifest(manifest, fixture.dumpPath, manifestContents, fixture.manifestHash), /dump checksum mismatch/);
   } finally {
     rmSync(directory, { recursive: true, force: true });
   }
 });
 
-test('never reports PASS unless every required step succeeded', () => {
-  assert.equal(resultFromOutcomes(['success', 'success', 'success']), 'RESTORE_REHEARSAL_PASS');
+test('never reports a rehearsal pass unless every required step succeeded', () => {
+  assert.equal(resultFromOutcomes(['success', 'success', 'success']), 'SYNTHETIC_REHEARSAL_PASS');
   for (const outcomes of [
     [],
     ['success', 'failure', 'success'],
     ['success', 'skipped', 'success'],
     ['success', 'cancelled'],
   ]) {
-    assert.equal(resultFromOutcomes(outcomes), 'RESTORE_REHEARSAL_FAIL_OR_BLOCKED');
+    assert.equal(resultFromOutcomes(outcomes), 'SYNTHETIC_REHEARSAL_FAIL');
   }
 });

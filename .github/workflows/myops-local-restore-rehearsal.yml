@@ -1,127 +1,72 @@
-name: MYOPS local restore rehearsal
+name: MYOPS synthetic local restore rehearsal
 
 on:
   workflow_dispatch:
     inputs:
       restore_target:
-        description: Fixed disposable localhost target (no other destination is accepted).
+        description: Fixed loopback-only destination for synthetic test data.
         required: true
         type: choice
         options:
           - postgresql://127.0.0.1:5432/restore_rehearsal
-      artifact_run_id:
-        description: Existing run in this private repository that holds the owner-approved protected backup artifact.
-        required: true
-        type: string
-      backup_artifact_name:
-        description: Exact artifact name from that run; artifact must contain only backup-manifest.json and one supported dump.
-        required: true
-        type: string
-      manifest_sha256:
-        description: SHA-256 of the exact backup-manifest.json, verified out-of-band by the owner.
-        required: true
-        type: string
 
 permissions:
-  actions: read
   contents: read
 
 jobs:
-  local-restore-rehearsal:
+  synthetic-local-restore:
     runs-on: ubuntu-24.04
-    timeout-minutes: 30
+    timeout-minutes: 20
     env:
       RESTORE_TARGET_INPUT: ${{ inputs.restore_target }}
-      ARTIFACT_RUN_ID: ${{ inputs.artifact_run_id }}
-      BACKUP_ARTIFACT_NAME: ${{ inputs.backup_artifact_name }}
-      MANIFEST_SHA256: ${{ inputs.manifest_sha256 }}
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Require PostgreSQL client tools
+      - name: Install PostgreSQL 16 client
         id: client
         shell: bash
         run: |
           set -euo pipefail
-          pg_isready --version >/dev/null
-          node scripts/local-restore-rehearsal-guard.mjs clients
+          sudo apt-get update >/dev/null
+          sudo apt-get install --yes postgresql-client-16 >/dev/null
+          echo '/usr/lib/postgresql/16/bin' >> "$GITHUB_PATH"
+          /usr/lib/postgresql/16/bin/psql --version >/dev/null
+          /usr/lib/postgresql/16/bin/pg_restore --version >/dev/null
 
-      - name: Validate private-repository artifact and local target
-        id: preflight
+      - name: Validate exact loopback destination
+        id: target
         shell: bash
         run: |
           set -euo pipefail
-          if [[ "${GITHUB_REPOSITORY}" != */* ]] || ! [[ "$ARTIFACT_RUN_ID" =~ ^[0-9]+$ ]]; then
-            echo 'BLOCKED: malformed repository or artifact run ID.'
-            exit 1
-          fi
-          if ! [[ "$MANIFEST_SHA256" =~ ^[a-fA-F0-9]{64}$ ]]; then
-            echo 'BLOCKED: an independently verified manifest SHA-256 is required.'
-            exit 1
-          fi
-          if [[ -z "$BACKUP_ARTIFACT_NAME" || "$BACKUP_ARTIFACT_NAME" == *$'\n'* ]]; then
-            echo 'BLOCKED: an exact artifact name is required.'
-            exit 1
-          fi
           node scripts/local-restore-rehearsal-guard.mjs target "$RESTORE_TARGET_INPUT"
-          if [[ "$(gh api "repos/${GITHUB_REPOSITORY}" --jq '.private')" != true ]]; then
-            echo 'BLOCKED: backup artifacts are accepted only from a private repository.'
-            exit 1
-          fi
-          for name in SUPABASE_URL NEXT_PUBLIC_SUPABASE_URL VITE_SUPABASE_URL \
-            SUPABASE_SERVICE_ROLE_KEY SUPABASE_ANON_KEY MYOPS_SERVICE_ROLE_KEY \
-            MYOPS_SESSION_SECRET DATABASE_URL SUPABASE_DB_URL SUPABASE_DATABASE_URL \
-            POSTGRES_URL POSTGRES_PASSWORD PGHOST PGPORT PGUSER PGPASSWORD PGDATABASE; do
-            if [[ -n "${!name:-}" ]]; then
-              echo "BLOCKED: remote endpoint or database secret ${name} is present."
-              exit 1
-            fi
-          done
-          echo 'PREFLIGHT=passed'
-        env:
-          GH_TOKEN: ${{ github.token }}
 
-      - name: Download explicitly approved private artifact
-        id: download
-        uses: actions/download-artifact@v4
-        with:
-          name: ${{ inputs.backup_artifact_name }}
-          run-id: ${{ inputs.artifact_run_id }}
-          repository: ${{ github.repository }}
-          github-token: ${{ github.token }}
-          path: ${{ runner.temp }}/restore-artifact
-
-      - name: Inspect artifact layout without logging file names
-        id: inspect
+      - name: Generate synthetic fixture and manifest
+        id: fixture
         shell: bash
         run: |
           set -euo pipefail
-          node scripts/local-restore-rehearsal-guard.mjs inspect "${RUNNER_TEMP}/restore-artifact"
+          node scripts/local-restore-rehearsal-guard.mjs fixture
 
-      - name: Validate dump integrity and source manifest
+      - name: Validate synthetic fixture checksums and manifest
         id: manifest
         shell: bash
         env:
-          EXPECTED_MANIFEST_SHA256: ${{ inputs.manifest_sha256 }}
+          FIXTURE_MANIFEST: ${{ steps.fixture.outputs.manifest }}
+          FIXTURE_DUMP: ${{ steps.fixture.outputs.dump }}
+          FIXTURE_MANIFEST_HASH: ${{ steps.fixture.outputs.manifest_hash }}
         run: |
           set -euo pipefail
-          manifest="${{ steps.inspect.outputs.manifest }}"
-          dump="${{ steps.inspect.outputs.dump }}"
-          format="${{ steps.inspect.outputs.format }}"
-          echo "::add-mask::$manifest"
-          echo "::add-mask::$dump"
           node scripts/local-restore-rehearsal-guard.mjs manifest \
-            "$manifest" "$dump" "$format" "$EXPECTED_MANIFEST_SHA256"
-          echo 'MANIFEST=verified'
+            "$FIXTURE_MANIFEST" "$FIXTURE_DUMP" "$FIXTURE_MANIFEST_HASH"
 
       - name: Start disposable PostgreSQL bound to loopback
         id: postgres
         shell: bash
         run: |
           set -euo pipefail
-          docker run --rm --name myops-local-restore --detach \
+          docker run --rm --name myops-synthetic-restore --detach \
             -e POSTGRES_USER=postgres \
             -e POSTGRES_HOST_AUTH_METHOD=trust \
             -e POSTGRES_DB=restore_rehearsal \
@@ -134,73 +79,51 @@ jobs:
             sleep 2
           done
           pg_isready -h "$PGHOST" -p "$PGPORT" -U "$PGUSER" >/dev/null
-          echo 'LOCAL_POSTGRES=ready'
 
-      - name: Restore using the matching pg_dump reader
+      - name: Restore only the generated synthetic SQL fixture
         id: restore
         shell: bash
         env:
-          DUMP_FILE: ${{ steps.inspect.outputs.dump }}
-          DUMP_FORMAT: ${{ steps.inspect.outputs.format }}
+          FIXTURE_DUMP: ${{ steps.fixture.outputs.dump }}
         run: |
           set -euo pipefail
-          if ! {
-            case "$DUMP_FORMAT" in
-              plain)
-                psql --no-psqlrc --set=ON_ERROR_STOP=1 "$RESTORE_TARGET" < "$DUMP_FILE"
-                ;;
-              gzip-sql)
-                gzip -dc -- "$DUMP_FILE" | psql --no-psqlrc --set=ON_ERROR_STOP=1 "$RESTORE_TARGET"
-                ;;
-              custom|tar)
-                pg_restore --exit-on-error --no-owner --no-privileges \
-                  --dbname="$RESTORE_TARGET" "$DUMP_FILE"
-                ;;
-              *)
-                exit 1
-                ;;
-            esac
-          } >"${RUNNER_TEMP}/restore-output.log" 2>&1; then
-            rm -f "${RUNNER_TEMP}/restore-output.log"
-            echo 'BLOCKED_OR_FAILED: restore failed; details withheld.'
+          if ! psql --no-psqlrc --set=ON_ERROR_STOP=1 "$RESTORE_TARGET" \
+              < "$FIXTURE_DUMP" >"${RUNNER_TEMP}/synthetic-restore.log" 2>&1; then
+            rm -f "${RUNNER_TEMP}/synthetic-restore.log"
+            echo 'SYNTHETIC_RESTORE_FAILED: diagnostic output withheld.'
             exit 1
           fi
-          rm -f "${RUNNER_TEMP}/restore-output.log"
-          echo 'RESTORE=completed'
+          rm -f "${RUNNER_TEMP}/synthetic-restore.log"
+          echo 'SYNTHETIC_SQL_RESTORED=true'
 
-      - name: Compare restored database to the verified source manifest
+      - name: Compare all synthetic manifest assertions
         id: compare
         shell: bash
         env:
-          MANIFEST_FILE: ${{ steps.inspect.outputs.manifest }}
+          FIXTURE_MANIFEST: ${{ steps.fixture.outputs.manifest }}
         run: |
           set -euo pipefail
-          node scripts/local-restore-rehearsal-guard.mjs compare "$MANIFEST_FILE"
+          node scripts/local-restore-rehearsal-guard.mjs compare "$FIXTURE_MANIFEST"
 
-      - name: Clean up disposable database
+      - name: Remove disposable database and fixture
         id: cleanup
         if: always()
         shell: bash
         run: |
           set -euo pipefail
-          container="$(docker ps -aq --filter name='^/myops-local-restore$')"
-          if [[ -n "$container" ]]; then
-            docker rm -f "$container" >/dev/null
-          fi
-          rm -rf "${RUNNER_TEMP}/restore-artifact" \
-            "${RUNNER_TEMP}/restore-backup-manifest.json" \
-            "${RUNNER_TEMP}"/restore-backup.* \
-            "${RUNNER_TEMP}/restore-output.log"
-          echo 'CLEANUP=completed'
+          container="$(docker ps -aq --filter name='^/myops-synthetic-restore$')"
+          if [[ -n "$container" ]]; then docker rm -f "$container" >/dev/null; fi
+          rm -rf "${RUNNER_TEMP}/synthetic-fixture" "${RUNNER_TEMP}/synthetic-restore.log"
+          echo 'SYNTHETIC_CLEANUP=completed'
 
-      - name: Report actual rehearsal outcome
+      - name: Report actual synthetic rehearsal outcome
+        id: result
         if: always()
         shell: bash
         env:
-          PREFLIGHT_OUTCOME: ${{ steps.preflight.outcome }}
-          DOWNLOAD_OUTCOME: ${{ steps.download.outcome }}
-          INSPECT_OUTCOME: ${{ steps.inspect.outcome }}
           CLIENT_OUTCOME: ${{ steps.client.outcome }}
+          TARGET_OUTCOME: ${{ steps.target.outcome }}
+          FIXTURE_OUTCOME: ${{ steps.fixture.outcome }}
           MANIFEST_OUTCOME: ${{ steps.manifest.outcome }}
           POSTGRES_OUTCOME: ${{ steps.postgres.outcome }}
           RESTORE_OUTCOME: ${{ steps.restore.outcome }}
@@ -209,6 +132,6 @@ jobs:
         run: |
           set -euo pipefail
           result="$(node scripts/local-restore-rehearsal-guard.mjs result \
-            "$CLIENT_OUTCOME" "$PREFLIGHT_OUTCOME" "$DOWNLOAD_OUTCOME" "$INSPECT_OUTCOME" "$MANIFEST_OUTCOME" \
+            "$CLIENT_OUTCOME" "$TARGET_OUTCOME" "$FIXTURE_OUTCOME" "$MANIFEST_OUTCOME" \
             "$POSTGRES_OUTCOME" "$RESTORE_OUTCOME" "$COMPARE_OUTCOME" "$CLEANUP_OUTCOME")"
-          echo "REHEARSAL_RESULT=${result}"
+          echo "SYNTHETIC_REHEARSAL_RESULT=${result}"

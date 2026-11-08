@@ -24,10 +24,10 @@ The owner screenshot shows backup listings in the Supabase dashboard and a Resto
 4. Confirm whether a Download / Export / Backup file option exists.
    - If the UI only shows scheduled backups and Restore buttons, then this is not a downloadable logical backup artifact.
    - Do not treat a listing screenshot as a pg_dump or database tarball.
-5. If an owner-approved secure transfer path exists, use a trusted computer or runner with a read-only database role and a proper logical dump command. Do not use GitHub repo files, public Actions artifacts, PR comments, screenshots or chat to hold secrets or raw dumps.
-6. Use an approved private, access-controlled transfer route. A private GitHub Actions artifact is permitted only if the owner explicitly approves access for all repository readers and the short retention period; otherwise do not upload the data to GitHub and rehearse on a trusted local runner.
-7. Keep the file out of the repository and out of the Actions workflow log output. Redact or mask all credentials and raw SQL output before sharing any summary.
-8. Prepare a checksum manifest and a backup inventory that records:
+5. A logical `pg_dump` requires a trusted computer/runner with PostgreSQL client tools and securely authorized database connectivity. Android Chrome alone cannot run it or safely hold a full dump; GitHub Actions in this PR deliberately has no real-backup input or database access.
+6. Ask the database owner/DBA whether an authorized read-only role has the required `CONNECT`, schema `USAGE`, and table `SELECT` rights for all required objects. `pg_dump` issues catalog queries and may fail or omit objects when object privileges are missing; read-only does not imply complete backup coverage. Do not elevate privileges or change database grants as part of this task.
+7. Export only on an explicitly approved private computer/runner. Keep the dump, credentials, manifest details, and any roles file off GitHub, PR comments, screenshots, public artifacts and chat. Use an owner-approved encrypted temporary destination and delete local/remote copies after verification per the approved retention policy.
+8. Prepare a checksum manifest and backup inventory locally that records:
    - source project/ref
    - snapshot timestamp
    - PostgreSQL version and compatible pg_dump version
@@ -35,19 +35,17 @@ The owner screenshot shows backup listings in the Supabase dashboard and a Resto
    - checksum SHA-256 per artifact
    - schema/data coverage, auth/custom schemas, RLS, functions, triggers, and Storage caveat
    - secure retention period and cleanup steps
-9. Only then supply the approved artifact to the localhost-only workflow from a run in this same private repository. The artifact bundle must contain exactly `backup-manifest.json` and one supported `.sql`, `.sql.gz`, `.dump`, or `.tar` file. Supply the artifact's source run ID/name and the manifest SHA-256 through workflow dispatch; verify the manifest hash out of band.
+9. Run a real restore rehearsal only on that trusted private isolated runner/computer, using a disposable local database and the owner-verified manifest. Never transfer an actual production/staging dump through GitHub Actions artifacts.
 
-On Android Chrome, once the workflow is available on the default branch, open the repository's **Actions** tab, choose **MYOPS local restore rehearsal**, tap **Run workflow**, select the fixed localhost target, and enter the artifact run ID, exact artifact name, and verified manifest SHA-256. The dispatch form cannot upload a file; an approved artifact must already exist from a trusted owner-controlled runner. If the workflow is not listed, it is not on the default branch yet—do not merge this draft to make it available.
+On Android Chrome, once this workflow is available on the default branch, open **Actions**, choose **MYOPS synthetic local restore rehearsal**, and tap **Run workflow**. It restores only generated, non-sensitive synthetic test data; it cannot receive or access a real backup. GitHub only lists `workflow_dispatch` workflows present on the default branch. This PR remains draft; do not merge it to activate the workflow. A real backup rehearsal requires a trusted computer/runner and separately approved local PostgreSQL environment.
 
 ## GitHub Actions artifact handoff limitations
 
-- The workflow downloads an artifact only from a named earlier Actions run in this same repository. It does not accept uploads from the mobile dispatch form and never downloads a Supabase physical backup or contacts a Supabase endpoint.
-- The workflow refuses to run against a public repository. A private-repository artifact is still visible to people with repository access; the owner must explicitly approve that access and the temporary retention before using it. Use a short artifact retention period (one day where supported), do not create an artifact if that exposure is not approved, and delete the source artifact/run after the rehearsal. The workflow's ephemeral runner copy is removed when its job ends.
-- GitHub Actions artifacts expire according to their configured retention and can persist until deletion/expiry. Downloading an artifact does not shorten or delete the source artifact. Logs report only status, not file names, checksums, row data, or SQL.
-- GitHub requires a `workflow_dispatch` workflow to exist on the repository's default branch before it can be manually dispatched. This PR is draft; do not merge it just to activate the workflow. Until the workflow is already available on the default branch and the owner has approved the private artifact route, use a trusted owner-controlled computer/runner for a localhost-only rehearsal or leave the work BLOCKED.
-- The workflow can read the dump only after GitHub has decrypted its artifact storage copy; it does not support a client-encrypted dump or request a decryption secret. Do not weaken the private-repository gate, add a secret/passphrase to workflow inputs, or expose a raw dump in logs, the repository, PR comments, screenshots, or a public artifact. If there is no owner-approved private handoff, the exact prerequisite is an owner-provisioned, access-controlled private artifact in this repository with an approved retention window; otherwise use a trusted local runner.
+- The workflow contains no artifact input, upload, download action, GitHub artifact permission, or Supabase connection. It generates a tiny synthetic SQL fixture at runtime and removes it and the ephemeral local database on completion.
+- GitHub Actions artifacts, even in a private repository, are not an approved path for actual customer, auth, financial, production, or staging backups. Do not add a real-dump artifact route to this workflow.
+- A `workflow_dispatch` workflow must exist on the repository's default branch to be offered in the Actions UI. Do not merge this draft just to activate it. Run the synthetic test locally or wait until normal owner-approved activation; perform real backup rehearsal only on a trusted private runner.
 
-The workflow accepts a separate SHA-256 for the exact manifest bytes and verifies the dump SHA-256 recorded in that manifest. The manifest must identify only MYOPS Central Auth production (`uhuukcztdifvpjuopdea`) or its candidate staging branch (`wengxxiqwtosirealghx`), include the snapshot timestamp and PostgreSQL/pg_dump major versions, and identify a PostgreSQL 16 source. It must include the complete user-schema inventory, every user table's row count, RLS-enabled tables, policies, constraints, functions, and non-internal triggers. Other source refs or database majors are rejected. A checksum proves integrity relative to the supplied hash, not source authenticity; the owner must verify the manifest/hash and source snapshot independently. Unsupported formats (including `.tar.gz`) are rejected rather than sent to `psql`.
+The generated synthetic manifest uses a checksum and compares schema/table inventory, row count, RLS, policies, constraints, functions, triggers, a role, and its table grant. It exercises only the workflow tooling and is not Gate A evidence. A checksum alone does not prove source authenticity or completeness of an actual backup.
 
 ## Safe export conditions that must be true before any actual dump
 
@@ -61,25 +59,21 @@ The owner must confirm all of the following before a real logical export is atte
 - the destination for the export is an explicitly approved secure location
 - the backup artifact is encrypted or otherwise protected before transfer
 
-## Recommended minimal pg_dump command pattern (owner-run only, examples only)
+## Private owner-run export notes (not executed here)
 
-These are examples for a trusted owner machine. They are not executed by this repository and must not be pasted into PRs or public logs.
+An authorized DBA should choose a format and full schema scope for a trusted private runner. A plain or custom archive may be used, but the file stays on that private runner. Do not execute this example on a phone or paste credentials into a URI, command log, GitHub, PR or screenshot.
 
 ```bash
-pg_dump "postgresql://readonly_user@host:5432/dbname" \
+pg_dump --dbname="${PGSERVICE:-myops-gate-a-readonly}" \
   --format=custom \
   --compress=9 \
   --no-owner \
-  --no-privileges \
-  --clean \
-  --if-exists \
-  --schema=public \
-  --schema=auth \
-  --schema=storage \
-  > /tmp/myops-production-backup.dump
+  --file="$PRIVATE_BACKUP_DIR/myops-gate-a.dump"
 ```
 
-If a full logical export is required, the owner may need separate schema coverage and a manifest that explicitly records custom schemas, RLS/policies, functions, triggers, and any Storage object export limitations.
+Configure the `PGSERVICE` connection in a private libpq service file and credentials in a permission-restricted `.pgpass`/approved secret manager; do not put passwords in the URI, shell history, screenshots or logs. `PGSERVICE` and `PRIVATE_BACKUP_DIR` above are placeholders. Run the command only after creating the private directory and validating available disk space.
+
+Do **not** add `--no-privileges` / `-x`: it suppresses ACL `GRANT`/`REVOKE` statements needed for privilege verification. `--no-owner` omits original object ownership; record this limitation and verify ownership/roles separately if ownership is in scope. Database-wide roles are not included in an ordinary `pg_dump`; any separately authorized roles/global-object export may contain sensitive role metadata and must remain private. Compare object grants, default privileges, role memberships and ownership to the source manifest. Use `pg_restore --exit-on-error` for custom/tar archives; decompress `.sql.gz` before piping into `psql`. A direct read-only dump may not be complete if role privileges omit objects or required catalog visibility.
 
 ## Storage and auth coverage limitations
 
@@ -90,10 +84,10 @@ If a full logical export is required, the owner may need separate schema coverag
 
 ## Transfer and artifact handling
 
-- The artifact must be placed only in an approved private transfer location.
-- The file must be encrypted or protected before transfer and uploaded only to a secure, explicitly authorized destination. For the Actions path, GitHub artifact storage is the protection boundary; owner approval must explicitly accept repository-reader access. Client-encrypted artifacts require a separate trusted local restore path because this workflow has no decryption mechanism.
-- The repo and GitHub Actions logs must never contain raw dump contents, DB credentials, or unredacted backup metadata.
-- The artifact may be consumed only by the localhost-only GitHub Actions restore rehearsal workflow after explicit owner approval and confirmation of private-repository access/retention. The workflow uses `psql` for plain/gzip SQL and `pg_restore` for custom/tar archives.
+- Store actual dumps and manifests only on an owner-approved private secure system, encrypted in transit and at rest; use a private `.pgpass`/secret manager with least privilege rather than embedding credentials in command lines.
+- Keep checksums and detailed schema/data/role manifests private with the dump. Share only redacted pass/fail summaries; never log SQL, row values, credentials, or private metadata.
+- Delete temporary data and credentials after the owner-approved retention window; record cleanup without exposing file names or hashes publicly.
+- GitHub workflow is for synthetic fixtures only. It restores plain SQL with `psql`; private local restore procedures use `psql` for plain SQL and `pg_restore` for custom/tar archives.
 
 ## Evidence matrix for Gate A
 
