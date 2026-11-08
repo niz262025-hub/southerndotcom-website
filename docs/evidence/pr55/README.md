@@ -82,3 +82,23 @@ Supabase security advisors returned INFO notices for RLS-enabled tables without 
 7. Re-run required automated checks on the final commit, resolve critical findings, and obtain the owner's explicit approval AFTER reviewing final evidence. Do not merge while any required item is FAIL/BLOCKED; do not automatically deploy production. Before any eventual merge, recheck auto-closing keywords and keep Issue #54 open until all its broader work is verified.
 
 Code rollback if needed: create a follow-up commit on this feature branch that restores the reviewed prior code only. No database rollback is applicable because this run made no database changes. Never roll back isolation guards onto production as an automatic action.
+
+## Local restore workflow review follow-up
+
+The manual rehearsal workflow and its guards were revised after review. These code-only checks do not constitute a real restore:
+
+| Check | Result | Evidence / limitation |
+| --- | --- | --- |
+| Restore destination | PASS in code tests: only the exact disposable `127.0.0.1:5432/restore_rehearsal` URL is accepted and is used by the restore commands | `tests/local-restore-rehearsal.test.mjs`; remote Supabase refs, malformed URLs, blank input, other ports/databases, credentials and query strings are rejected |
+| Dump format handling | PASS in code tests: plain SQL and gzip SQL use `psql`; custom `.dump` and `.tar` use `pg_restore`; `.tar.gz` and unknown formats are rejected | `tests/local-restore-rehearsal.test.mjs`; no restore was run |
+| Artifact and manifest guards | PASS in code tests: exactly one dump plus manifest, independently supplied manifest SHA-256, dump checksum, source-ref allowlist and expected schema/table-row/RLS/policy/constraint/function/trigger inventory are required | Missing, fake, incomplete or mismatched manifests fail; only MYOPS refs `uhuukcztdifvpjuopdea` and `wengxxiqwtosirealghx`, PostgreSQL 16 manifests are accepted |
+| Outcome reporting | PASS in code tests: only successful required step outcomes can report `RESTORE_REHEARSAL_PASS`; skipped or failed steps report `RESTORE_REHEARSAL_FAIL_OR_BLOCKED` | This is explicitly a local-rehearsal result, not a Gate A or release-readiness certification; actual workflow result depends on each GitHub Actions step outcome |
+| Secure artifact route | BLOCKED for execution | Workflow downloads only a named artifact from an earlier run in the same private repository. It does not import Supabase backups or provide a mobile file upload. Owner approval of repository-reader access and artifact retention is required |
+| Actual isolated restore / Gate A | BLOCKED | No restorable dump and trusted manifest were supplied; screenshots of physical-backup listings are not a pg_dump. The workflow is not yet available for dispatch unless already present on the default branch; do not merge this draft to activate it |
+| Hosted staging UAT | BLOCKED | No verified branch-scoped staging credentials or runtime binding are provided to this change |
+
+Validation on this worktree: `node --test tests/local-restore-rehearsal.test.mjs` PASS (5/5); `npm test` PASS (253/253); `npm run lint` PASS; `npm run build` PASS; Ruby YAML parse and `git diff --check` PASS. This verifies code and local mocks only; the Actions restore workflow has not been run with an artifact and no Supabase endpoint was contacted.
+
+Owner-only next action: from a trusted computer/runner, obtain and independently verify a restorable PostgreSQL 16 logical dump and complete manifest for the intended allowlisted source; do not treat dashboard physical-backup entries as files. If using Actions, place the approved bundle in a private, short-retention artifact from an earlier run in this repository only after explicitly approving access for repository readers, then provide that run ID/name and the manifest SHA-256 out of band. Otherwise perform a localhost-only restore on a trusted local runner. Keep Gate A and hosted UAT BLOCKED until actual artifact integrity and local restore comparisons pass.
+
+No artifact was downloaded, no database or Vercel settings were changed, and no merge, deployment, production/staging write, paid resource or destructive operation was performed. PR #55 remains draft and Issue #54 remains open.

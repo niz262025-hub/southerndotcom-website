@@ -4,184 +4,211 @@ on:
   workflow_dispatch:
     inputs:
       restore_target:
-        description: Local-only PostgreSQL destination for the rehearsal; must resolve to localhost/127.0.0.1 only.
+        description: Fixed disposable localhost target (no other destination is accepted).
+        required: true
+        type: choice
+        options:
+          - postgresql://127.0.0.1:5432/restore_rehearsal
+      artifact_run_id:
+        description: Existing run in this private repository that holds the owner-approved protected backup artifact.
         required: true
         type: string
       backup_artifact_name:
-        description: Pre-authorized backup artifact name containing a restorable pg_dump or tar file. Do not upload production or private data to public logs.
+        description: Exact artifact name from that run; artifact must contain only backup-manifest.json and one supported dump.
         required: true
         type: string
-      artifact_file_glob:
-        description: File glob within the artifact, for example *.sql or *.sql.gz
-        required: false
-        default: '*.sql*'
+      manifest_sha256:
+        description: SHA-256 of the exact backup-manifest.json, verified out-of-band by the owner.
+        required: true
         type: string
 
 permissions:
+  actions: read
   contents: read
 
 jobs:
   local-restore-rehearsal:
-    runs-on: ubuntu-latest
-    timeout-minutes: 20
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
     env:
-      RESTORE_TARGET: ${{ github.event.inputs.restore_target }}
-      BACKUP_ARTIFACT_NAME: ${{ github.event.inputs.backup_artifact_name }}
-      ARTIFACT_FILE_GLOB: ${{ github.event.inputs.artifact_file_glob }}
+      RESTORE_TARGET_INPUT: ${{ inputs.restore_target }}
+      ARTIFACT_RUN_ID: ${{ inputs.artifact_run_id }}
+      BACKUP_ARTIFACT_NAME: ${{ inputs.backup_artifact_name }}
+      MANIFEST_SHA256: ${{ inputs.manifest_sha256 }}
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Validate local-only restore target
+      - name: Require PostgreSQL client tools
+        id: client
         shell: bash
         run: |
           set -euo pipefail
-          python - <<'PY'
-          import os, sys
-          target = os.environ['RESTORE_TARGET'].strip()
-          if not target:
-              print('BLOCKED: restore target is required')
-              sys.exit(1)
-          from urllib.parse import urlparse
-          parsed = urlparse(target)
-          host = (parsed.hostname or '').lower()
-          denied = ['supabase.co', 'supabase.com', 'supabase']
-          if host in {'', 'localhost', '127.0.0.1', '::1'}:
-              pass
-          elif host.endswith('.localhost'):
-              pass
-          else:
-              print(f'BLOCKED: remote destination rejected: {host}')
-              sys.exit(1)
-          for token in denied:
-              if token in host:
-                  print(f'BLOCKED: production or Supabase host rejected: {host}')
-                  sys.exit(1)
-          if parsed.username or parsed.password:
-              print('BLOCKED: credentials embedded in restore target are not permitted')
-              sys.exit(1)
-          print(f'ALLOW: local-only target accepted: {host}')
-          PY
+          pg_isready --version >/dev/null
+          node scripts/local-restore-rehearsal-guard.mjs clients
 
-      - name: Refuse non-local or production secret usage
+      - name: Validate private-repository artifact and local target
+        id: preflight
         shell: bash
         run: |
           set -euo pipefail
-          for name in SUPABASE_URL NEXT_PUBLIC_SUPABASE_URL VITE_SUPABASE_URL SUPABASE_SERVICE_ROLE_KEY SUPABASE_ANON_KEY MYOPS_SERVICE_ROLE_KEY MYOPS_SESSION_SECRET; do
-            if [ -n "${!name:-}" ]; then
-              echo "BLOCKED: ${name} is not allowed in a local restore rehearsal env"
+          if [[ "${GITHUB_REPOSITORY}" != */* ]] || ! [[ "$ARTIFACT_RUN_ID" =~ ^[0-9]+$ ]]; then
+            echo 'BLOCKED: malformed repository or artifact run ID.'
+            exit 1
+          fi
+          if ! [[ "$MANIFEST_SHA256" =~ ^[a-fA-F0-9]{64}$ ]]; then
+            echo 'BLOCKED: an independently verified manifest SHA-256 is required.'
+            exit 1
+          fi
+          if [[ -z "$BACKUP_ARTIFACT_NAME" || "$BACKUP_ARTIFACT_NAME" == *$'\n'* ]]; then
+            echo 'BLOCKED: an exact artifact name is required.'
+            exit 1
+          fi
+          node scripts/local-restore-rehearsal-guard.mjs target "$RESTORE_TARGET_INPUT"
+          if [[ "$(gh api "repos/${GITHUB_REPOSITORY}" --jq '.private')" != true ]]; then
+            echo 'BLOCKED: backup artifacts are accepted only from a private repository.'
+            exit 1
+          fi
+          for name in SUPABASE_URL NEXT_PUBLIC_SUPABASE_URL VITE_SUPABASE_URL \
+            SUPABASE_SERVICE_ROLE_KEY SUPABASE_ANON_KEY MYOPS_SERVICE_ROLE_KEY \
+            MYOPS_SESSION_SECRET DATABASE_URL SUPABASE_DB_URL SUPABASE_DATABASE_URL \
+            POSTGRES_URL POSTGRES_PASSWORD PGHOST PGPORT PGUSER PGPASSWORD PGDATABASE; do
+            if [[ -n "${!name:-}" ]]; then
+              echo "BLOCKED: remote endpoint or database secret ${name} is present."
               exit 1
             fi
           done
-          echo 'ALLOW: no remote Supabase secrets or production endpoints were supplied.'
+          echo 'PREFLIGHT=passed'
+        env:
+          GH_TOKEN: ${{ github.token }}
 
-      - name: Confirm authorized backup artifact is supplied
-        shell: bash
-        run: |
-          set -euo pipefail
-          if [ -z "${BACKUP_ARTIFACT_NAME:-}" ]; then
-            echo 'BLOCKED: no authorized restorable backup artifact name was supplied.'
-            exit 1
-          fi
-          echo "AUTHORIZED_BACKUP_ARTIFACT=${BACKUP_ARTIFACT_NAME}"
-          echo 'The runner will only accept a pre-authorized artifact; remote production backups are never fetched automatically.'
-
-      - name: Download permitted artifact
+      - name: Download explicitly approved private artifact
+        id: download
         uses: actions/download-artifact@v4
         with:
-          name: ${{ github.event.inputs.backup_artifact_name }}
+          name: ${{ inputs.backup_artifact_name }}
+          run-id: ${{ inputs.artifact_run_id }}
+          repository: ${{ github.repository }}
+          github-token: ${{ github.token }}
           path: ${{ runner.temp }}/restore-artifact
 
-      - name: Refuse missing or empty artifact
+      - name: Inspect artifact layout without logging file names
+        id: inspect
         shell: bash
         run: |
           set -euo pipefail
-          if [ ! -d "${RUNNER_TEMP}/restore-artifact" ] || [ -z "$(ls -A "${RUNNER_TEMP}/restore-artifact" 2>/dev/null)" ]; then
-            echo 'BLOCKED: no authorized backup artifact was downloaded.'
-            exit 1
-          fi
-          echo 'ARTIFACT_PRESENT=true'
-          find "${RUNNER_TEMP}/restore-artifact" -maxdepth 3 -type f | sed 's#^#/#' | head
+          node scripts/local-restore-rehearsal-guard.mjs inspect "${RUNNER_TEMP}/restore-artifact"
 
-      - name: Start disposable local PostgreSQL
+      - name: Validate dump integrity and source manifest
+        id: manifest
+        shell: bash
+        env:
+          EXPECTED_MANIFEST_SHA256: ${{ inputs.manifest_sha256 }}
+        run: |
+          set -euo pipefail
+          manifest="${{ steps.inspect.outputs.manifest }}"
+          dump="${{ steps.inspect.outputs.dump }}"
+          format="${{ steps.inspect.outputs.format }}"
+          echo "::add-mask::$manifest"
+          echo "::add-mask::$dump"
+          node scripts/local-restore-rehearsal-guard.mjs manifest \
+            "$manifest" "$dump" "$format" "$EXPECTED_MANIFEST_SHA256"
+          echo 'MANIFEST=verified'
+
+      - name: Start disposable PostgreSQL bound to loopback
+        id: postgres
         shell: bash
         run: |
           set -euo pipefail
           docker run --rm --name myops-local-restore --detach \
             -e POSTGRES_USER=postgres \
-            -e POSTGRES_PASSWORD=postgres \
+            -e POSTGRES_HOST_AUTH_METHOD=trust \
             -e POSTGRES_DB=restore_rehearsal \
             -p 127.0.0.1:5432:5432 \
-            postgres:16-alpine
-          for i in $(seq 1 30); do
-            pg_isready -h 127.0.0.1 -p 5432 -U postgres && break
+            postgres:16-alpine >/dev/null
+          for attempt in $(seq 1 30); do
+            if pg_isready -h "$PGHOST" -p "$PGPORT" -U "$PGUSER" >/dev/null 2>&1; then
+              break
+            fi
             sleep 2
           done
-          pg_isready -h 127.0.0.1 -p 5432 -U postgres
+          pg_isready -h "$PGHOST" -p "$PGPORT" -U "$PGUSER" >/dev/null
+          echo 'LOCAL_POSTGRES=ready'
 
-      - name: Restore dump into local-only Postgres
+      - name: Restore using the matching pg_dump reader
+        id: restore
         shell: bash
+        env:
+          DUMP_FILE: ${{ steps.inspect.outputs.dump }}
+          DUMP_FORMAT: ${{ steps.inspect.outputs.format }}
         run: |
           set -euo pipefail
-          shopt -s nullglob
-          files=("${RUNNER_TEMP}"/restore-artifact/**/*)
-          if [ "${#files[@]}" -eq 0 ]; then
-            echo 'BLOCKED: no files were present in the approved artifact.'
-            exit 1
-          fi
-          found=""
-          for file in "${files[@]}"; do
-            case "$file" in
-              *.sql|*.sql.gz|*.dump|*.tar|*.tar.gz)
-                found="$file"
-                break
+          if ! {
+            case "$DUMP_FORMAT" in
+              plain)
+                psql --no-psqlrc --set=ON_ERROR_STOP=1 "$RESTORE_TARGET" < "$DUMP_FILE"
+                ;;
+              gzip-sql)
+                gzip -dc -- "$DUMP_FILE" | psql --no-psqlrc --set=ON_ERROR_STOP=1 "$RESTORE_TARGET"
+                ;;
+              custom|tar)
+                pg_restore --exit-on-error --no-owner --no-privileges \
+                  --dbname="$RESTORE_TARGET" "$DUMP_FILE"
+                ;;
+              *)
+                exit 1
                 ;;
             esac
-          done
-          if [ -z "$found" ]; then
-            echo 'BLOCKED: restore artifact is not a supported pg_dump format.'
+          } >"${RUNNER_TEMP}/restore-output.log" 2>&1; then
+            rm -f "${RUNNER_TEMP}/restore-output.log"
+            echo 'BLOCKED_OR_FAILED: restore failed; details withheld.'
             exit 1
           fi
-          echo "RESTORE_SOURCE=${found}"
-          export PGHOST=127.0.0.1
-          export PGPORT=5432
-          export PGUSER=postgres
-          export PGPASSWORD=postgres
-          export PGDATABASE=restore_rehearsal
-          if [[ "$found" == *.sql.gz ]]; then
-            gzip -dc "$found" | psql -v ON_ERROR_STOP=1 -d "$PGDATABASE"
-          elif [[ "$found" == *.gz ]]; then
-            gzip -dc "$found" | psql -v ON_ERROR_STOP=1 -d "$PGDATABASE"
-          else
-            psql -v ON_ERROR_STOP=1 -d "$PGDATABASE" < "$found"
-          fi
-          echo 'RESTORE_STATUS=completed'
+          rm -f "${RUNNER_TEMP}/restore-output.log"
+          echo 'RESTORE=completed'
 
-      - name: Validate schema, row counts, RLS and trigger coverage
+      - name: Compare restored database to the verified source manifest
+        id: compare
+        shell: bash
+        env:
+          MANIFEST_FILE: ${{ steps.inspect.outputs.manifest }}
+        run: |
+          set -euo pipefail
+          node scripts/local-restore-rehearsal-guard.mjs compare "$MANIFEST_FILE"
+
+      - name: Clean up disposable database
+        id: cleanup
+        if: always()
         shell: bash
         run: |
           set -euo pipefail
-          export PGHOST=127.0.0.1
-          export PGPORT=5432
-          export PGUSER=postgres
-          export PGPASSWORD=postgres
-          export PGDATABASE=restore_rehearsal
-          psql -d "$PGDATABASE" -Atqc "SELECT to_regclass('public.auth_users'); SELECT to_regclass('public.subscriptions'); SELECT to_regclass('public.payments');" | tr '\n' ' ' | sed 's/[[:space:]]\+/ /g'
-          psql -d "$PGDATABASE" -Atqc "SELECT count(*) FROM information_schema.tables WHERE table_schema = 'public';"
-          psql -d "$PGDATABASE" -Atqc "SELECT count(*) FROM pg_trigger WHERE NOT tgisinternal;"
-          psql -d "$PGDATABASE" -Atqc "SELECT count(*) FROM pg_proc WHERE proname LIKE '%trial%';"
-          echo 'VALIDATION_STATUS=local-only-checks-completed'
+          container="$(docker ps -aq --filter name='^/myops-local-restore$')"
+          if [[ -n "$container" ]]; then
+            docker rm -f "$container" >/dev/null
+          fi
+          rm -rf "${RUNNER_TEMP}/restore-artifact" \
+            "${RUNNER_TEMP}/restore-backup-manifest.json" \
+            "${RUNNER_TEMP}"/restore-backup.* \
+            "${RUNNER_TEMP}/restore-output.log"
+          echo 'CLEANUP=completed'
 
-      - name: Clean up local database container
+      - name: Report actual rehearsal outcome
         if: always()
         shell: bash
+        env:
+          PREFLIGHT_OUTCOME: ${{ steps.preflight.outcome }}
+          DOWNLOAD_OUTCOME: ${{ steps.download.outcome }}
+          INSPECT_OUTCOME: ${{ steps.inspect.outcome }}
+          CLIENT_OUTCOME: ${{ steps.client.outcome }}
+          MANIFEST_OUTCOME: ${{ steps.manifest.outcome }}
+          POSTGRES_OUTCOME: ${{ steps.postgres.outcome }}
+          RESTORE_OUTCOME: ${{ steps.restore.outcome }}
+          COMPARE_OUTCOME: ${{ steps.compare.outcome }}
+          CLEANUP_OUTCOME: ${{ steps.cleanup.outcome }}
         run: |
-          docker rm -f myops-local-restore >/dev/null 2>&1 || true
-          echo 'CLEANUP_STATUS=done'
-
-      - name: Report result
-        if: always()
-        shell: bash
-        run: |
-          echo 'RESULT=PASS if artifact was approved, restore succeeded, and no remote host or secret was used. Otherwise this workflow must be marked BLOCKED.'
+          set -euo pipefail
+          result="$(node scripts/local-restore-rehearsal-guard.mjs result \
+            "$CLIENT_OUTCOME" "$PREFLIGHT_OUTCOME" "$DOWNLOAD_OUTCOME" "$INSPECT_OUTCOME" "$MANIFEST_OUTCOME" \
+            "$POSTGRES_OUTCOME" "$RESTORE_OUTCOME" "$COMPARE_OUTCOME" "$CLEANUP_OUTCOME")"
+          echo "REHEARSAL_RESULT=${result}"
