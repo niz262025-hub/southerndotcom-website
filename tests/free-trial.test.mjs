@@ -6,7 +6,7 @@ import {createRoot} from 'react-dom/client';
 import {importSrc} from './helpers/load-src.mjs';
 const {SessionProvider}=await importSrc('session.jsx');
 const {FreeTrial}=await importSrc('FreeTrial.jsx');
-async function mount(signedIn){
+async function mount(signedIn,availableApps=['opsfinance','opsflow','opsp','opshr']){
  const dom=new JSDOM('<div id="root"></div>',{url:'https://www.myops.com.my/'});
  const keys=['window','document','fetch','IS_REACT_ACT_ENVIRONMENT'];const originals=Object.fromEntries(keys.map(k=>[k,globalThis[k]]));
  const calls=[];let active=false;
@@ -14,7 +14,7 @@ async function mount(signedIn){
   const body=JSON.parse(init.body);calls.push(body);
   if(body.action==='session')return Response.json({signedIn,products:{opshr:active?'active':'none'}});
   if(body.action==='trial_start')active=true;
-  return Response.json({canStart:!active,trial:active?{status:'active',expires_at:'2099-01-01T00:00:00Z'}:{status:'not_started'}});
+  return Response.json({canStart:!active,availableApps,trial:active?{status:'active',expires_at:'2099-01-01T00:00:00Z'}:{status:'not_started'}});
  }});
  const root=createRoot(document.getElementById('root'));await act(async()=>root.render(createElement(SessionProvider,{enabled:true},createElement(FreeTrial))));
  return {calls,cleanup:async()=>{await act(async()=>root.unmount());dom.window.close();Object.assign(globalThis,originals);}};
@@ -30,6 +30,14 @@ test('trial activation sends explicit consent and displays expiry and app access
  const {calls,cleanup}=await mount(true);try{
   await act(async()=>document.querySelector('button').click());
   assert.deepEqual(calls.find(c=>c.action==='trial_start'),{action:'trial_start',confirm:true});
-  assert.match(document.body.textContent,/Active until/);assert.match(document.body.textContent,/Open OpsHR/);
+  assert.match(document.body.textContent,/Active until/);
+  assert.deepEqual([...document.querySelectorAll('button')].map(b=>b.textContent),['Open OpsFinance','Open OpsFlow','Open OpsPS','Open OpsHR']);
+ }finally{await cleanup();}
+});
+
+test('active trial only offers apps returned by the central eligibility service',async()=>{
+ const {cleanup}=await mount(true,['opsflow','opswms','opshub']);try{
+  await act(async()=>document.querySelector('button').click());
+  assert.deepEqual([...document.querySelectorAll('button')].map(b=>b.textContent),['Open OpsFlow']);
  }finally{await cleanup();}
 });

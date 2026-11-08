@@ -1,12 +1,12 @@
 import {loadCurrentEntitlements} from './app-access.js';
-import {trialAppsForEnvironment} from './trial-access.js';
+import {trialAppsForEnvironment,withoutTrialAccess} from './trial-access.js';
 import {SUBSCRIPTION_OPTIONS} from './subscription-plans.js';
 export async function trialAction({client,userId,loginSessionId,action,body,env,now}) {
  const apps=trialAppsForEnvironment(env);
  if(!apps.length) return {status:404,body:{error:'Trial is not enabled.'}};
  const allowed=action==='trial_start'?['action','confirm']:['action'];
  if(Object.keys(body).some(key=>!allowed.includes(key))||(action==='trial_start'&&body.confirm!==true)) return {status:400,body:{error:'Confirm trial activation.'}};
- const paid=await loadCurrentEntitlements(client,userId,now,{...env,MYOPS_ENABLE_STAGING_TRIAL_ACCESS:'false'});
+ const paid=await loadCurrentEntitlements(client,userId,now,withoutTrialAccess(env));
  if(!paid) return {status:503,body:{error:'Access status is unavailable.'}};
  const paidActive=Object.values(paid).includes('active');
  const current=await client.rpc('myops_trial_state',{p_user_id:userId});

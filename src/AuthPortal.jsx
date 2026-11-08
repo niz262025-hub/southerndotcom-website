@@ -4,6 +4,7 @@ import { authRequest as request } from './authRequest';
 import { jumpToFounders } from './foundersNav';
 import { ProfileLogo } from './ProfileLogo';
 import { FreeTrial } from './FreeTrial';
+import { PUBLIC_PAID_PLANS } from './subscriptionPolicy';
 
 const productLabels = { opsp: 'OpsPS', opsfinance: 'OpsFinance', opsflow: 'OpsFlow', opswms: 'OpsWMS', opshr: 'OpsHR' };
 
@@ -29,7 +30,7 @@ export function AuthPortal({ mode, production = false }) {
         .catch((error) => setMessage(error.message)).finally(() => setBusy(false));
     } else if (mode === 'dashboard' || mode === 'reset') {
       setBusy(true);
-      request('account').then((data) => { setAccount(data); setAccountType(data.profile?.account_type || 'personal'); if(data.trialAvailable&&!data.lifetime&&!production) request('trial_status').then(setTrialInfo).catch(error=>setMessage(error.message)); }).catch((error) => {
+      request('account').then((data) => { setAccount(data); setAccountType(data.profile?.account_type || 'personal'); if(data.trialAvailable&&!data.lifetime) request('trial_status').then(setTrialInfo).catch(error=>setMessage(error.message)); }).catch((error) => {
         if (error.status === 401) window.location.replace('/login');
         else setMessage(error.message);
       }).finally(() => setBusy(false));
@@ -114,13 +115,14 @@ export function AuthPortal({ mode, production = false }) {
                 ))}
               </ul>
             ) : <p>Subscription status is currently unavailable.</p>}
-            {!production && account.trialAvailable && !account.lifetime && <section aria-labelledby="trial-title">
+            {account.trialAvailable && !account.lifetime && <section aria-labelledby="trial-title">
               <h3 id="trial-title">Free Trial — 7 days</h3>
               <p>RM0 for 7 × 24 hours from activation. No payment card, automatic charge or renewal. One trial per eligible account/company; 1 user and 1 company. Your data is kept after expiry.</p>
-              <p>Staging UAT apps: {trialInfo?.availableApps.map(product=>productLabels[product]).join(', ') || 'Checking availability…'}. Other applications are not included yet.</p>
+              <p>Available trial apps: {trialInfo?.availableApps.map(product=>productLabels[product]).join(', ') || 'Checking availability…'}. OpsWMS remains Coming Soon.</p>
               {trialInfo?.availableApps.includes('opsflow') && <p>OpsFlow: up to 30 transaction records and 2 purchase-order flows.</p>}
               {trialInfo?.availableApps.includes('opsfinance') && <p>OpsFinance: up to 30 transactions and 2 CSV/TXT bank statements, with 30 rows per file. Start bank accounts with zero opening balance. Statement approval, reconciliation and reports are preview only; export requires an upgrade in MYOPS.</p>}
               {trialInfo?.availableApps.includes('opsp') && <p>OpsPS: up to 2 trips/projects and 30 primary orders or manual financial entries. Financial entries linked to an order share its quota. Basic sales/orders reports are included; advanced reporting, export and multi-user require an upgrade in MYOPS.</p>}
+              {trialInfo?.availableApps.includes('opshr') && <p>OpsHR: up to 30 transactions and 30 employee records; 1 user and 1 company.</p>}
               {trialInfo ? <>
                 <p>Trial status: {trialInfo.trial.status.replace('_',' ')}</p>
                 {trialInfo.trial.expires_at && <p>Expires: {new Date(trialInfo.trial.expires_at).toLocaleString()}</p>}
@@ -128,7 +130,7 @@ export function AuthPortal({ mode, production = false }) {
                 {trialInfo.trial.status==='active' && trialInfo.availableApps.map(product=><button key={product} type="button" className="btn btn-primary" disabled={busy} onClick={()=>openTrialApp(product)}>Open {productLabels[product]}</button>)}
                 {!trialInfo.canStart && trialInfo.trial.status==='not_started' && <p>Your existing access is already active; no trial is needed.</p>}
               </> : <p>Checking trial eligibility…</p>}
-              <p>Other packages: First 100 Subscribers · Normal Subscription (2 apps) · All Apps. New paid checkout is not enabled by this trial test.</p>
+              <p>Other packages: {PUBLIC_PAID_PLANS.map(plan=>`${plan.name} ${plan.price} ${plan.period}`).join(' · ')}. Check availability before purchase.</p>
             </section>}
             {account.lifetime && <p>Founders 100 lifetime access: active (all current and future MYOPS apps).</p>}
             <p>{production ? 'View subscription availability and pricing on the MYOPS homepage. Access is granted after payment verification.' : 'Preview payments use the ToyyibPay sandbox only. Application access is granted only after the server confirms a verified payment or active subscription.'}</p>

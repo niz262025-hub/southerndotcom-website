@@ -1,7 +1,7 @@
 // Trusted server adapter only. The signed app/session handler must supply this
 // identity; never pass through user_id/login_session_id from a browser body.
 const UUID=/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
-const FEATURES={opsfinance:['transactions','bank_statements','invoice_receipt_documents'],opsflow:['transactions','workflows'],opsp:['transactions','projects']};
+const FEATURES={opsfinance:['transactions','bank_statements','invoice_receipt_documents'],opsflow:['transactions','workflows'],opsp:['transactions','projects'],opshr:['transactions','employees']};
 export async function consumeVerifiedTrialQuota(client,identity,feature,operationId) {
  if(!identity?.active || !UUID.test(identity.userId||'') || !UUID.test(identity.loginSessionId||'') || !UUID.test(operationId||'')) return {allowed:false,reason:'invalid_session'};
  if(!Object.hasOwn(FEATURES,identity.product) || !FEATURES[identity.product].includes(feature)) return {allowed:false,reason:'premium_or_unavailable'};

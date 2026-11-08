@@ -11,11 +11,19 @@ test('trial adapter binds quota to verified identity and stable operation, retur
 test('invalid identities, premium and unknown apps never call database',async()=>{
  const client={rpc:()=>assert.fail('must not consume')};
  for(const i of [{...identity,active:false},{...identity,userId:'bad'},{...identity,loginSessionId:null}]) assert.equal((await consumeVerifiedTrialQuota(client,i,'projects',op)).allowed,false);
- for(const product of ['__proto__','opshr']) assert.equal((await consumeVerifiedTrialQuota(client,{...identity,product},'projects',op)).allowed,false);
+ for(const product of ['__proto__','opswms','opshub']) assert.equal((await consumeVerifiedTrialQuota(client,{...identity,product},'projects',op)).allowed,false);
  assert.equal((await consumeVerifiedTrialQuota(client,identity,'export_pdf',op)).allowed,false);
 });
 test('expiry, exhausted limits, upstream failure and malformed response all fail closed',async()=>{
  for(const reason of ['trial_inactive','trial_membership_changed','trial_limit_reached']) assert.deepEqual(await consumeVerifiedTrialQuota({rpc:async()=>({data:{allowed:false,reason}})},identity,'projects',op),{allowed:false,reason});
  for(const reply of [{error:{message:'secret'}},{data:{allowed:true,used:3,limit:2,replayed:false}},{data:null}]) assert.deepEqual(await consumeVerifiedTrialQuota({rpc:async()=>reply},identity,'projects',op),{allowed:false,reason:'unavailable'});
  assert.equal((await consumeVerifiedTrialQuota({rpc:async()=>{throw Error('secret');}},identity,'projects',op)).reason,'unavailable');
+});
+
+test('OpsHR transaction and employee quotas use verified identity with the same central RPC',async()=>{
+ for(const feature of ['transactions','employees']) {
+  let args;
+  const result=await consumeVerifiedTrialQuota({rpc:async(_name,input)=>{args=input;return {data:{allowed:true,used:30,limit:30,replayed:false}};}},{...identity,product:'opshr'},feature,op);
+  assert.equal(result.allowed,true);assert.equal(args.p_app_id,'opshr');assert.equal(args.p_feature,feature);
+ }
 });

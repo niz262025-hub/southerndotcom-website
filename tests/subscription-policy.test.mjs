@@ -5,14 +5,15 @@ test('central catalog contains four options and free trial never renews or requi
  assert.equal(SUBSCRIPTION_OPTIONS.length,4);assert.equal(new Set(SUBSCRIPTION_OPTIONS.map(p=>p.id)).size,4);
  assert.deepEqual(SUBSCRIPTION_OPTIONS[0],{id:'free_trial',name:'Free Trial',amountCents:0,durationDays:7,cardRequired:false,autoRenew:false});
  assert.equal(TRIAL_DURATION_MS,604800000);
+ assert.deepEqual(SUBSCRIPTION_OPTIONS.map(p=>[p.id,p.amountCents]),[['free_trial',0],['founders_lifetime',2900],['two_apps_monthly',4900],['all_apps_monthly',7900]]);
 });
 test('trial feature contracts match app-specific evaluation limits and fail closed for unavailable apps',()=>{
  assert.equal(trialFeaturePolicy('opsfinance').bankStatements,2);assert.equal(trialFeaturePolicy('opsfinance').invoiceReceiptDocuments,5);
  assert.equal(trialFeaturePolicy('opsfinance').reconciliation,'preview');assert.equal(trialFeaturePolicy('opsfinance').exportExcel,false);
  assert.equal(trialFeaturePolicy('opsflow').workflows,2);assert.equal(trialFeaturePolicy('opsflow').automation,false);
  assert.equal(trialFeaturePolicy('opsp').projects,2);assert.equal(trialFeaturePolicy('opsp').multiUser,false);
- for(const app of ['opsfinance','opsflow','opsp']) assert.equal(trialFeaturePolicy(app).transactions,30);
- for(const app of ['opswms','opshr','unknown','__proto__']) assert.equal(trialFeaturePolicy(app),null);
+ for(const app of ['opsfinance','opsflow','opsp','opshr']) assert.equal(trialFeaturePolicy(app).transactions,30);
+ for(const app of ['opswms','opshub','unknown','__proto__']) assert.equal(trialFeaturePolicy(app),null);
 });
 test('trial is invalid at exact expiry even if the persisted status remains active',()=>{
  const start=Date.parse('2026-11-01T04:00:00Z'),trial={status:'active',started_at:new Date(start).toISOString(),expires_at:new Date(start+TRIAL_DURATION_MS).toISOString()};
