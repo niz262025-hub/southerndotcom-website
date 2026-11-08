@@ -21,7 +21,7 @@ The seven-day trial currently advertised is OpsHR-only; do not present it as a t
 
 | Step | Work | Status / acceptance evidence |
 | --- | --- | --- |
-| 2 | Consistent application entry | IN PROGRESS: solution-page CTAs for Finance, Flow and OpsPS now point to central /account, matching OpsHR. Central account must keep enforcing authentication and server-side launch authorization. Source validation passed: 204 tests pass, 36 environment-dependent skips, zero failures; lint and production-mode build pass. Live deployment and authenticated browser acceptance remain pending. |
+| 2 | Consistent application entry | DONE for existing administrator access: central login, product entry, application launch, refresh and return navigation verified. OpsPS and OpsHR use MYOPS custom domains. New-customer registration, billing and tenant-isolation acceptance remain separate gates below. |
 | 3 | Registration / email / password recovery | NOT VERIFIED: full new-user inbox and browser lifecycle required. |
 | 4 | Onboarding | NOT VERIFIED: individual/business profile, company and usable next action. |
 | 5 | Checkout | NOT VERIFIED: success, failure, cancellation and expected amount. |
