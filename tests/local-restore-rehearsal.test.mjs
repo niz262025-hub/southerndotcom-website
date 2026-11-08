@@ -38,6 +38,21 @@ test('only accepts the exact disposable localhost database URL', () => {
   }
 });
 
+test('Actions workflow is synthetic-only and has no real backup or remote database path', () => {
+  const workflow = readFileSync(new URL('../.github/workflows/myops-local-restore-rehearsal.yml', import.meta.url), 'utf8');
+  assert.match(workflow, /workflow_dispatch:/);
+  assert.match(workflow, /contents:\s*read/);
+  assert.match(workflow, /Generate synthetic fixture and manifest/);
+  assert.match(workflow, /Restore only the generated synthetic SQL fixture/);
+  assert.match(workflow, /127\.0\.0\.1:5432:5432/);
+  assert.doesNotMatch(
+    workflow,
+    /actions\/(?:download|upload)-artifact|artifact_run_id|backup_artifact_name|SUPABASE|pg_dump|https?:\/\/|curl\s/i,
+  );
+  assert.match(workflow, />"\$\{RUNNER_TEMP\}\/synthetic-restore\.log" 2>&1/);
+  assert.match(workflow, /rm -rf "\$\{RUNNER_TEMP\}\/synthetic-fixture"/);
+});
+
 test('archive formats are identified explicitly; unsupported formats fail closed', () => {
   assert.equal(dumpFormat('source.sql'), 'plain');
   assert.equal(dumpFormat('source.sql.gz'), 'gzip-sql');
