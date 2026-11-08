@@ -87,7 +87,7 @@ test('MYOPS root shows the original landing page before and after login', async 
   try {
     assert.ok(document.querySelector('.landing-shell .hero'));
     assert.equal(document.querySelector('#auth-title'), null);
-    assert.deepEqual(nav(), ['My Account', 'Log keluar semua aplikasi']);
+    assert.deepEqual(nav(), ['My Account', 'Sign out of all applications']);
   } finally { await signedInPage.cleanup(); }
 });
 
@@ -109,7 +109,7 @@ test('signed-out visitors see Register and Login, and Subscribe on live cards', 
 test('signed-in users see My Account and Logout instead of Register and Login', async () => {
   const { cleanup } = await mount(() => Response.json(signedInState()));
   try {
-    assert.deepEqual(nav(), ['My Account', 'Log keluar semua aplikasi']);
+    assert.deepEqual(nav(), ['My Account', 'Sign out of all applications']);
     assert.equal(document.querySelector('.nav-auth a').getAttribute('href'), '/account');
     assert.ok(!nav().includes('Register') && !nav().includes('Login'));
   } finally { await cleanup(); }
@@ -158,7 +158,7 @@ test('a passive probe after server-side inactivity logout returns the nav to sig
   let signedIn = true;
   const { calls, cleanup, dom } = await mount(() => Response.json(signedIn ? signedInState() : signedOut));
   try {
-    assert.deepEqual(nav(), ['My Account', 'Log keluar semua aplikasi']);
+    assert.deepEqual(nav(), ['My Account', 'Sign out of all applications']);
     signedIn = false;
     await act(async () => document.querySelector('#passive').dispatchEvent(new dom.window.MouseEvent('click', { bubbles: true })));
     assert.deepEqual(calls.at(-1), { action: 'session', activity: false });
@@ -211,7 +211,7 @@ test('logout failure stays visible and retryable, including after a signed-out p
     assert.equal(document.querySelector('.nav-auth button').disabled, false);
     signedIn = false;
     await act(async () => click('#passive'));
-    assert.equal(text('.nav-auth button'), 'Log keluar semua aplikasi');
+    assert.equal(text('.nav-auth button'), 'Sign out of all applications');
     assert.equal(document.querySelector('#opsp button'), null);
     await act(async () => click('.nav-auth button'));
     assert.equal(calls.filter((body) => body.action === 'logout').length, 2);

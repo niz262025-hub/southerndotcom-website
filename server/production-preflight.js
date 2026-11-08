@@ -1,14 +1,14 @@
-import { PRODUCTION_PROJECT } from './project.js';
+import { flagEnabled, PRODUCTION_PROJECT } from './project.js';
 import { serverServiceKey } from './service-key.js';
 
 // Checks configuration only. Never return credential values or certify live UAT.
 export function productionSsoPreflight(env) {
-  if (env.VERCEL_ENV !== 'production' || env.MYOPS_ENABLE_PRODUCTION_APP_ACCESS !== 'true') {
+  if (env.VERCEL_ENV !== 'production' || !flagEnabled(env.MYOPS_ENABLE_PRODUCTION_APP_ACCESS)) {
     return { enabled: false, errors: [] };
   }
   const errors = [];
   if (env.MYOPS_ENVIRONMENT !== 'production') errors.push('MYOPS_ENVIRONMENT');
-  if (env.MYOPS_ENABLE_PRODUCTION_AUTH !== 'true') errors.push('MYOPS_ENABLE_PRODUCTION_AUTH');
+  if (!flagEnabled(env.MYOPS_ENABLE_PRODUCTION_AUTH)) errors.push('MYOPS_ENABLE_PRODUCTION_AUTH');
   if (env.VITE_SUPABASE_URL !== PRODUCTION_PROJECT) errors.push('VITE_SUPABASE_URL');
   if (!/^sb_publishable_[A-Za-z0-9_-]+$/.test(env.VITE_SUPABASE_PUBLISHABLE_KEY || '')) errors.push('VITE_SUPABASE_PUBLISHABLE_KEY');
   if (!serverServiceKey(env.MYOPS_SERVICE_ROLE_KEY, PRODUCTION_PROJECT)) errors.push('MYOPS_SERVICE_ROLE_KEY');

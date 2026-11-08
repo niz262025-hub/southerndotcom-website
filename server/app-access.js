@@ -6,7 +6,7 @@ import { createHash, createHmac, createPublicKey, randomBytes, verify } from 'no
 import { createClient } from '@supabase/supabase-js';
 import { resolveProductStates, isPlatformAdmin } from './entitlements.js';
 
-import { projectForEnvironment } from './project.js';
+import { flagEnabled, projectForEnvironment } from './project.js';
 import { serverServiceKey } from './service-key.js';
 const APP_ID = /^[a-z][a-z0-9_-]{1,31}$/;
 const PRODUCT = /^[a-z0-9_]{1,32}$/;
@@ -23,8 +23,8 @@ export const hashTicket = (ticket) => createHash('sha256').update(ticket).digest
 function receivesCentralLabels(product,env) {
   if(product==='opsflow')return true;
   if(env.VERCEL_ENV!=='preview'||env.MYOPS_ENVIRONMENT!=='staging')return false;
-  return (product==='opsfinance'&&env.MYOPS_FINANCE_PROVISIONING_READY==='true')
-    ||(product==='opsp'&&env.MYOPS_OPSPS_PROVISIONING_READY==='true');
+  return (product==='opsfinance'&&flagEnabled(env.MYOPS_FINANCE_PROVISIONING_READY))
+    ||(product==='opsp'&&flagEnabled(env.MYOPS_OPSPS_PROVISIONING_READY));
 }
 
 // Deterministic JSON: sorted keys at every depth, so no nested field can change unsigned.
@@ -54,6 +54,7 @@ export function verifyAppSignature(publicKey, signature, message) {
 }
 
 function serviceClient(env, adminFactory, project) {
+  if (!project || project !== projectForEnvironment(env)) return null;
   const key = serverServiceKey(env.MYOPS_SERVICE_ROLE_KEY, project);
   if (!key) return null;
   return adminFactory(project, key, { auth: { persistSession: false, autoRefreshToken: false } });
@@ -75,8 +76,8 @@ function configured(env) {
   const staging = env.VERCEL_ENV === 'preview' && env.MYOPS_ENVIRONMENT === 'staging';
   const production = env.VERCEL_ENV === 'production'
     && env.MYOPS_ENVIRONMENT === 'production'
-    && env.MYOPS_ENABLE_PRODUCTION_APP_ACCESS === 'true';
-  return (staging || production)
+    && flagEnabled(env.MYOPS_ENABLE_PRODUCTION_APP_ACCESS);
+  return Boolean(projectForEnvironment(env)) && (staging || production)
     && env.VITE_SUPABASE_URL === projectForEnvironment(env)
     && typeof env.MYOPS_APP_USER_REF_SECRET === 'string'
     && env.MYOPS_APP_USER_REF_SECRET.length >= 32;
@@ -154,7 +155,7 @@ function requestContext(req, res, env, now) {
   const staging = env.VERCEL_ENV === 'preview' && env.MYOPS_ENVIRONMENT === 'staging';
   const production = env.VERCEL_ENV === 'production'
     && env.MYOPS_ENVIRONMENT === 'production'
-    && env.MYOPS_ENABLE_PRODUCTION_APP_ACCESS === 'true';
+    && flagEnabled(env.MYOPS_ENABLE_PRODUCTION_APP_ACCESS);
   if (!staging && !production) return { done: reply(404, { error: 'Application access is not enabled.' }) };
   const expectedHost = production ? 'www.myops.com.my' : env.VERCEL_BRANCH_URL;
   if (!expectedHost || req.headers.host !== expectedHost) return { done: reply(403, { error: 'Request rejected.' }) };

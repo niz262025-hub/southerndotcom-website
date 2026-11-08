@@ -2,6 +2,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useRef, use
 import PropTypes from 'prop-types';
 import { authRequest } from './authRequest';
 import { jumpToFounders } from './foundersNav';
+import { useLocale } from './locale';
 
 const PROBE_INTERVAL_MS = 60 * 1000;
 const SignedOut = { status: 'ready', signedIn: false, products: null, lifetime: false };
@@ -79,28 +80,30 @@ export function useSession() {
 }
 
 export function AuthNav() {
+  const {t}=useLocale();
   const session = useSession();
   if (!session.enabled || session.status === 'loading') return null;
-  if (session.status === 'unavailable') return <div className="nav-auth" role="status">Session check unavailable. <button className="btn btn-secondary" onClick={() => session.refresh(false)}>Retry</button></div>;
+  if (session.status === 'unavailable') return <div className="nav-auth" role="status">Session check unavailable. <button className="btn btn-secondary" onClick={() => session.refresh(false)}>{t('Retry')}</button></div>;
   if (session.signedIn || session.logoutError) {
     return (
       <div className="nav-auth">
-        <a href="/account" className="btn btn-secondary">My Account</a>
+        <a href="/account" className="btn btn-secondary">{t('My Account')}</a>
         {session.platformAdmin && <a href="/admin/audit" className="btn btn-secondary">Admin</a>}
-        <button type="button" className="btn btn-primary" disabled={session.logoutBusy} onClick={session.logout}>{session.logoutBusy ? 'Sedang log keluar…' : 'Log keluar semua aplikasi'}</button>
+        <button type="button" className="btn btn-primary" disabled={session.logoutBusy} onClick={session.logout}>{t(session.logoutBusy ? 'Signing out…' : 'Sign out of all applications')}</button>
         {session.logoutError && <p role="alert">{session.logoutError}</p>}
       </div>
     );
   }
   return (
     <div className="nav-auth">
-      <a href="/register" className="btn btn-secondary">Register</a>
-      <a href="/login" className="btn btn-primary">Login</a>
+      <a href="/register" className="btn btn-secondary">{t('Register')}</a>
+      <a href="/login" className="btn btn-primary">{t('Login')}</a>
     </div>
   );
 }
 
 export function ProductAction({ product, arrow = false }) {
+  const {t}=useLocale();
   const session = useSession();
   const [message, setMessage] = useState('');
   const [busy, setBusy] = useState(false);
@@ -120,7 +123,7 @@ export function ProductAction({ product, arrow = false }) {
       if (error.status === 401) session.refresh(false);
     } finally { setBusy(false); }
   }
-  if (state === 'coming_soon') return <span className="coming-soon-label">Coming Soon</span>;
+  if (state === 'coming_soon') return <span className="coming-soon-label">{t('Coming Soon')}</span>;
   if (state === 'active') {
     if (arrow) return (
       <div className="product-action">
@@ -130,7 +133,7 @@ export function ProductAction({ product, arrow = false }) {
     );
     return (
       <div className="product-action">
-        <button type="button" className="btn btn-primary" disabled={busy} onClick={open}>Open App</button>
+        <button type="button" className="btn btn-primary" disabled={busy} onClick={open}>{t('Open App')}</button>
         <p role="status" aria-live="polite">{message}</p>
       </div>
     );
@@ -145,7 +148,7 @@ export function ProductAction({ product, arrow = false }) {
         href={session.signedIn ? '/#founders' : '/login'}
         onClick={session.signedIn ? jumpToFounders : undefined}
       >
-        Subscribe
+        {t('Subscribe')}
       </a>
     </div>
   );

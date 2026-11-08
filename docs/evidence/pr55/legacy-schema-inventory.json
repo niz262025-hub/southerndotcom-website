@@ -1,0 +1,718 @@
+{
+  "ozkjsihuovzpujuabupa": {
+    "observed_at": "2026-11-08 12:11:26.489989+00",
+    "columns": [
+      {
+        "table_schema": "public",
+        "table_name": "subscription_payments",
+        "column_name": "id",
+        "data_type": "uuid",
+        "is_nullable": "NO"
+      },
+      {
+        "table_schema": "public",
+        "table_name": "subscription_payments",
+        "column_name": "business_id",
+        "data_type": "uuid",
+        "is_nullable": "NO"
+      },
+      {
+        "table_schema": "public",
+        "table_name": "subscription_payments",
+        "column_name": "subscription_id",
+        "data_type": "uuid",
+        "is_nullable": "NO"
+      },
+      {
+        "table_schema": "public",
+        "table_name": "subscription_payments",
+        "column_name": "provider",
+        "data_type": "text",
+        "is_nullable": "NO"
+      },
+      {
+        "table_schema": "public",
+        "table_name": "subscription_payments",
+        "column_name": "provider_payment_id",
+        "data_type": "text",
+        "is_nullable": "YES"
+      },
+      {
+        "table_schema": "public",
+        "table_name": "subscription_payments",
+        "column_name": "provider_reference",
+        "data_type": "text",
+        "is_nullable": "YES"
+      },
+      {
+        "table_schema": "public",
+        "table_name": "subscription_payments",
+        "column_name": "checkout_session_id",
+        "data_type": "text",
+        "is_nullable": "YES"
+      },
+      {
+        "table_schema": "public",
+        "table_name": "subscription_payments",
+        "column_name": "webhook_event_id",
+        "data_type": "text",
+        "is_nullable": "YES"
+      },
+      {
+        "table_schema": "public",
+        "table_name": "subscription_payments",
+        "column_name": "amount",
+        "data_type": "numeric",
+        "is_nullable": "NO"
+      },
+      {
+        "table_schema": "public",
+        "table_name": "subscription_payments",
+        "column_name": "currency",
+        "data_type": "text",
+        "is_nullable": "NO"
+      },
+      {
+        "table_schema": "public",
+        "table_name": "subscription_payments",
+        "column_name": "status",
+        "data_type": "text",
+        "is_nullable": "NO"
+      },
+      {
+        "table_schema": "public",
+        "table_name": "subscription_payments",
+        "column_name": "payment_method",
+        "data_type": "text",
+        "is_nullable": "YES"
+      },
+      {
+        "table_schema": "public",
+        "table_name": "subscription_payments",
+        "column_name": "failure_reason",
+        "data_type": "text",
+        "is_nullable": "YES"
+      },
+      {
+        "table_schema": "public",
+        "table_name": "subscription_payments",
+        "column_name": "metadata",
+        "data_type": "jsonb",
+        "is_nullable": "NO"
+      },
+      {
+        "table_schema": "public",
+        "table_name": "subscription_payments",
+        "column_name": "created_at",
+        "data_type": "timestamp with time zone",
+        "is_nullable": "NO"
+      },
+      {
+        "table_schema": "public",
+        "table_name": "subscription_payments",
+        "column_name": "updated_at",
+        "data_type": "timestamp with time zone",
+        "is_nullable": "NO"
+      },
+      {
+        "table_schema": "public",
+        "table_name": "subscription_payments",
+        "column_name": "debug_flag",
+        "data_type": "boolean",
+        "is_nullable": "YES"
+      },
+      {
+        "table_schema": "public",
+        "table_name": "subscriptions",
+        "column_name": "id",
+        "data_type": "uuid",
+        "is_nullable": "NO"
+      },
+      {
+        "table_schema": "public",
+        "table_name": "subscriptions",
+        "column_name": "business_id",
+        "data_type": "uuid",
+        "is_nullable": "NO"
+      },
+      {
+        "table_schema": "public",
+        "table_name": "subscriptions",
+        "column_name": "plan_code",
+        "data_type": "text",
+        "is_nullable": "NO"
+      },
+      {
+        "table_schema": "public",
+        "table_name": "subscriptions",
+        "column_name": "status",
+        "data_type": "USER-DEFINED",
+        "is_nullable": "NO"
+      },
+      {
+        "table_schema": "public",
+        "table_name": "subscriptions",
+        "column_name": "current_period_start",
+        "data_type": "timestamp with time zone",
+        "is_nullable": "NO"
+      },
+      {
+        "table_schema": "public",
+        "table_name": "subscriptions",
+        "column_name": "current_period_end",
+        "data_type": "timestamp with time zone",
+        "is_nullable": "NO"
+      },
+      {
+        "table_schema": "public",
+        "table_name": "subscriptions",
+        "column_name": "grace_period_end",
+        "data_type": "timestamp with time zone",
+        "is_nullable": "YES"
+      },
+      {
+        "table_schema": "public",
+        "table_name": "subscriptions",
+        "column_name": "created_at",
+        "data_type": "timestamp with time zone",
+        "is_nullable": "NO"
+      },
+      {
+        "table_schema": "public",
+        "table_name": "subscriptions",
+        "column_name": "updated_at",
+        "data_type": "timestamp with time zone",
+        "is_nullable": "NO"
+      },
+      {
+        "table_schema": "public",
+        "table_name": "subscriptions",
+        "column_name": "trial_started_at",
+        "data_type": "timestamp with time zone",
+        "is_nullable": "YES"
+      },
+      {
+        "table_schema": "public",
+        "table_name": "subscriptions",
+        "column_name": "trial_ends_at",
+        "data_type": "timestamp with time zone",
+        "is_nullable": "YES"
+      }
+    ],
+    "constraints": [
+      {
+        "schema": "public",
+        "table_name": "subscription_payments",
+        "conname": "subscription_payments_business_id_fkey",
+        "definition": "FOREIGN KEY (business_id) REFERENCES businesses(id) ON DELETE CASCADE"
+      },
+      {
+        "schema": "public",
+        "table_name": "subscription_payments",
+        "conname": "subscription_payments_checkout_session_id_key",
+        "definition": "UNIQUE (checkout_session_id)"
+      },
+      {
+        "schema": "public",
+        "table_name": "subscription_payments",
+        "conname": "subscription_payments_pkey",
+        "definition": "PRIMARY KEY (id)"
+      },
+      {
+        "schema": "public",
+        "table_name": "subscription_payments",
+        "conname": "subscription_payments_provider_check",
+        "definition": "CHECK ((provider = ANY (ARRAY['CURLEC'::text, 'TOYYIBPAY'::text]))) NOT VALID"
+      },
+      {
+        "schema": "public",
+        "table_name": "subscription_payments",
+        "conname": "subscription_payments_provider_payment_id_key",
+        "definition": "UNIQUE (provider_payment_id)"
+      },
+      {
+        "schema": "public",
+        "table_name": "subscription_payments",
+        "conname": "subscription_payments_status_check",
+        "definition": "CHECK ((status = ANY (ARRAY['INITIATED'::text, 'PENDING'::text, 'AUTHORIZED'::text, 'PAID'::text, 'FAILED'::text, 'CANCELLED'::text, 'REFUNDED'::text])))"
+      },
+      {
+        "schema": "public",
+        "table_name": "subscription_payments",
+        "conname": "subscription_payments_subscription_id_fkey",
+        "definition": "FOREIGN KEY (subscription_id) REFERENCES subscriptions(id) ON DELETE CASCADE"
+      },
+      {
+        "schema": "public",
+        "table_name": "subscription_payments",
+        "conname": "subscription_payments_webhook_event_id_key",
+        "definition": "UNIQUE (webhook_event_id)"
+      },
+      {
+        "schema": "public",
+        "table_name": "subscriptions",
+        "conname": "subscriptions_business_id_fkey",
+        "definition": "FOREIGN KEY (business_id) REFERENCES businesses(id) ON DELETE RESTRICT"
+      },
+      {
+        "schema": "public",
+        "table_name": "subscriptions",
+        "conname": "subscriptions_pkey",
+        "definition": "PRIMARY KEY (id)"
+      }
+    ],
+    "dependent_functions": [
+      {
+        "proname": "set_subscription_payment_updated_at"
+      },
+      {
+        "proname": "create_business_with_owner"
+      }
+    ]
+  },
+  "wrsigjhhbkbomtkaqlpw": {
+    "observed_at": "2026-11-08 12:11:27.122511+00",
+    "columns": [
+      {
+        "table_schema": "public",
+        "table_name": "orders",
+        "column_name": "id",
+        "data_type": "uuid",
+        "is_nullable": "NO"
+      },
+      {
+        "table_schema": "public",
+        "table_name": "orders",
+        "column_name": "business_id",
+        "data_type": "uuid",
+        "is_nullable": "NO"
+      },
+      {
+        "table_schema": "public",
+        "table_name": "orders",
+        "column_name": "trip_id",
+        "data_type": "uuid",
+        "is_nullable": "YES"
+      },
+      {
+        "table_schema": "public",
+        "table_name": "orders",
+        "column_name": "product_id",
+        "data_type": "uuid",
+        "is_nullable": "YES"
+      },
+      {
+        "table_schema": "public",
+        "table_name": "orders",
+        "column_name": "customer_profile_id",
+        "data_type": "uuid",
+        "is_nullable": "YES"
+      },
+      {
+        "table_schema": "public",
+        "table_name": "orders",
+        "column_name": "customer_name",
+        "data_type": "text",
+        "is_nullable": "NO"
+      },
+      {
+        "table_schema": "public",
+        "table_name": "orders",
+        "column_name": "customer_phone",
+        "data_type": "text",
+        "is_nullable": "YES"
+      },
+      {
+        "table_schema": "public",
+        "table_name": "orders",
+        "column_name": "delivery_address",
+        "data_type": "text",
+        "is_nullable": "YES"
+      },
+      {
+        "table_schema": "public",
+        "table_name": "orders",
+        "column_name": "order_date",
+        "data_type": "timestamp with time zone",
+        "is_nullable": "NO"
+      },
+      {
+        "table_schema": "public",
+        "table_name": "orders",
+        "column_name": "subtotal",
+        "data_type": "numeric",
+        "is_nullable": "NO"
+      },
+      {
+        "table_schema": "public",
+        "table_name": "orders",
+        "column_name": "shipping_fee",
+        "data_type": "numeric",
+        "is_nullable": "NO"
+      },
+      {
+        "table_schema": "public",
+        "table_name": "orders",
+        "column_name": "total",
+        "data_type": "numeric",
+        "is_nullable": "NO"
+      },
+      {
+        "table_schema": "public",
+        "table_name": "orders",
+        "column_name": "payment_status",
+        "data_type": "text",
+        "is_nullable": "NO"
+      },
+      {
+        "table_schema": "public",
+        "table_name": "orders",
+        "column_name": "order_status",
+        "data_type": "text",
+        "is_nullable": "NO"
+      },
+      {
+        "table_schema": "public",
+        "table_name": "orders",
+        "column_name": "request_status",
+        "data_type": "text",
+        "is_nullable": "YES"
+      },
+      {
+        "table_schema": "public",
+        "table_name": "orders",
+        "column_name": "payment_option",
+        "data_type": "text",
+        "is_nullable": "YES"
+      },
+      {
+        "table_schema": "public",
+        "table_name": "orders",
+        "column_name": "payment_mode",
+        "data_type": "text",
+        "is_nullable": "YES"
+      },
+      {
+        "table_schema": "public",
+        "table_name": "orders",
+        "column_name": "availability_status",
+        "data_type": "text",
+        "is_nullable": "YES"
+      },
+      {
+        "table_schema": "public",
+        "table_name": "orders",
+        "column_name": "payment_requested_at",
+        "data_type": "timestamp with time zone",
+        "is_nullable": "YES"
+      },
+      {
+        "table_schema": "public",
+        "table_name": "orders",
+        "column_name": "payment_verified_at",
+        "data_type": "timestamp with time zone",
+        "is_nullable": "YES"
+      },
+      {
+        "table_schema": "public",
+        "table_name": "orders",
+        "column_name": "created_at",
+        "data_type": "timestamp with time zone",
+        "is_nullable": "NO"
+      },
+      {
+        "table_schema": "public",
+        "table_name": "orders",
+        "column_name": "updated_at",
+        "data_type": "timestamp with time zone",
+        "is_nullable": "NO"
+      },
+      {
+        "table_schema": "public",
+        "table_name": "payments",
+        "column_name": "id",
+        "data_type": "uuid",
+        "is_nullable": "NO"
+      },
+      {
+        "table_schema": "public",
+        "table_name": "payments",
+        "column_name": "business_id",
+        "data_type": "uuid",
+        "is_nullable": "NO"
+      },
+      {
+        "table_schema": "public",
+        "table_name": "payments",
+        "column_name": "order_id",
+        "data_type": "uuid",
+        "is_nullable": "YES"
+      },
+      {
+        "table_schema": "public",
+        "table_name": "payments",
+        "column_name": "payment_method",
+        "data_type": "text",
+        "is_nullable": "NO"
+      },
+      {
+        "table_schema": "public",
+        "table_name": "payments",
+        "column_name": "payment_status",
+        "data_type": "text",
+        "is_nullable": "NO"
+      },
+      {
+        "table_schema": "public",
+        "table_name": "payments",
+        "column_name": "amount",
+        "data_type": "numeric",
+        "is_nullable": "NO"
+      },
+      {
+        "table_schema": "public",
+        "table_name": "payments",
+        "column_name": "receipt_uri",
+        "data_type": "text",
+        "is_nullable": "YES"
+      },
+      {
+        "table_schema": "public",
+        "table_name": "payments",
+        "column_name": "verified",
+        "data_type": "boolean",
+        "is_nullable": "NO"
+      },
+      {
+        "table_schema": "public",
+        "table_name": "payments",
+        "column_name": "created_at",
+        "data_type": "timestamp with time zone",
+        "is_nullable": "NO"
+      },
+      {
+        "table_schema": "public",
+        "table_name": "payments",
+        "column_name": "updated_at",
+        "data_type": "timestamp with time zone",
+        "is_nullable": "NO"
+      },
+      {
+        "table_schema": "public",
+        "table_name": "payments",
+        "column_name": "provider",
+        "data_type": "text",
+        "is_nullable": "NO"
+      },
+      {
+        "table_schema": "public",
+        "table_name": "payments",
+        "column_name": "provider_session_id",
+        "data_type": "text",
+        "is_nullable": "YES"
+      },
+      {
+        "table_schema": "public",
+        "table_name": "payments",
+        "column_name": "provider_payment_id",
+        "data_type": "text",
+        "is_nullable": "YES"
+      },
+      {
+        "table_schema": "public",
+        "table_name": "payments",
+        "column_name": "callback_event_id",
+        "data_type": "text",
+        "is_nullable": "YES"
+      },
+      {
+        "table_schema": "public",
+        "table_name": "payments",
+        "column_name": "idempotency_key",
+        "data_type": "text",
+        "is_nullable": "YES"
+      },
+      {
+        "table_schema": "public",
+        "table_name": "payments",
+        "column_name": "webhook_verified",
+        "data_type": "boolean",
+        "is_nullable": "NO"
+      },
+      {
+        "table_schema": "public",
+        "table_name": "payments",
+        "column_name": "paid_at",
+        "data_type": "timestamp with time zone",
+        "is_nullable": "YES"
+      },
+      {
+        "table_schema": "public",
+        "table_name": "payments",
+        "column_name": "failed_at",
+        "data_type": "timestamp with time zone",
+        "is_nullable": "YES"
+      },
+      {
+        "table_schema": "public",
+        "table_name": "payments",
+        "column_name": "refunded_at",
+        "data_type": "timestamp with time zone",
+        "is_nullable": "YES"
+      },
+      {
+        "table_schema": "public",
+        "table_name": "payments",
+        "column_name": "provider_fee",
+        "data_type": "numeric",
+        "is_nullable": "NO"
+      },
+      {
+        "table_schema": "public",
+        "table_name": "payments",
+        "column_name": "submitted_at",
+        "data_type": "timestamp with time zone",
+        "is_nullable": "YES"
+      },
+      {
+        "table_schema": "public",
+        "table_name": "payments",
+        "column_name": "verified_at",
+        "data_type": "timestamp with time zone",
+        "is_nullable": "YES"
+      },
+      {
+        "table_schema": "public",
+        "table_name": "payments",
+        "column_name": "verified_by",
+        "data_type": "uuid",
+        "is_nullable": "YES"
+      },
+      {
+        "table_schema": "public",
+        "table_name": "payments",
+        "column_name": "customer_payment_reference",
+        "data_type": "text",
+        "is_nullable": "YES"
+      },
+      {
+        "table_schema": "public",
+        "table_name": "payments",
+        "column_name": "rejection_reason",
+        "data_type": "text",
+        "is_nullable": "YES"
+      },
+      {
+        "table_schema": "public",
+        "table_name": "payments",
+        "column_name": "payment_instructions_snapshot",
+        "data_type": "text",
+        "is_nullable": "YES"
+      },
+      {
+        "table_schema": "public",
+        "table_name": "payments",
+        "column_name": "payment_profile_id",
+        "data_type": "uuid",
+        "is_nullable": "YES"
+      },
+      {
+        "table_schema": "public",
+        "table_name": "payments",
+        "column_name": "verification_event_id",
+        "data_type": "text",
+        "is_nullable": "YES"
+      },
+      {
+        "table_schema": "public",
+        "table_name": "subscriptions",
+        "column_name": "id",
+        "data_type": "uuid",
+        "is_nullable": "NO"
+      },
+      {
+        "table_schema": "public",
+        "table_name": "subscriptions",
+        "column_name": "business_id",
+        "data_type": "uuid",
+        "is_nullable": "NO"
+      },
+      {
+        "table_schema": "public",
+        "table_name": "subscriptions",
+        "column_name": "plan_name",
+        "data_type": "text",
+        "is_nullable": "NO"
+      },
+      {
+        "table_schema": "public",
+        "table_name": "subscriptions",
+        "column_name": "status",
+        "data_type": "text",
+        "is_nullable": "NO"
+      },
+      {
+        "table_schema": "public",
+        "table_name": "subscriptions",
+        "column_name": "payment_status",
+        "data_type": "text",
+        "is_nullable": "NO"
+      },
+      {
+        "table_schema": "public",
+        "table_name": "subscriptions",
+        "column_name": "started_at",
+        "data_type": "timestamp with time zone",
+        "is_nullable": "NO"
+      },
+      {
+        "table_schema": "public",
+        "table_name": "subscriptions",
+        "column_name": "ends_at",
+        "data_type": "timestamp with time zone",
+        "is_nullable": "YES"
+      },
+      {
+        "table_schema": "public",
+        "table_name": "subscriptions",
+        "column_name": "created_at",
+        "data_type": "timestamp with time zone",
+        "is_nullable": "NO"
+      },
+      {
+        "table_schema": "public",
+        "table_name": "subscriptions",
+        "column_name": "updated_at",
+        "data_type": "timestamp with time zone",
+        "is_nullable": "NO"
+      }
+    ],
+    "constraints": [
+      {
+        "schema": "public",
+        "table_name": "subscriptions",
+        "conname": "subscriptions_business_id_fkey",
+        "definition": "FOREIGN KEY (business_id) REFERENCES businesses(id) ON DELETE CASCADE"
+      },
+      {
+        "schema": "public",
+        "table_name": "subscriptions",
+        "conname": "subscriptions_payment_status_check",
+        "definition": "CHECK ((payment_status = ANY (ARRAY['pending'::text, 'paid'::text, 'failed'::text, 'overdue'::text])))"
+      },
+      {
+        "schema": "public",
+        "table_name": "subscriptions",
+        "conname": "subscriptions_pkey",
+        "definition": "PRIMARY KEY (id)"
+      },
+      {
+        "schema": "public",
+        "table_name": "subscriptions",
+        "conname": "subscriptions_status_check",
+        "definition": "CHECK ((status = ANY (ARRAY['trial'::text, 'active'::text, 'paused'::text, 'cancelled'::text, 'expired'::text])))"
+      }
+    ],
+    "dependent_functions": null
+  }
+}

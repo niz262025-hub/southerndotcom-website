@@ -6,15 +6,15 @@ import {createRoot} from 'react-dom/client';
 import {importSrc} from './helpers/load-src.mjs';
 const {SessionProvider}=await importSrc('session.jsx');
 const {FreeTrial}=await importSrc('FreeTrial.jsx');
-async function mount(signedIn){
+async function mount(signedIn,availableApps=['opsflow','opsfinance','opsp']){
  const dom=new JSDOM('<div id="root"></div>',{url:'https://www.myops.com.my/'});
  const keys=['window','document','fetch','IS_REACT_ACT_ENVIRONMENT'];const originals=Object.fromEntries(keys.map(k=>[k,globalThis[k]]));
  const calls=[];let active=false;
  Object.assign(globalThis,{window:dom.window,document:dom.window.document,IS_REACT_ACT_ENVIRONMENT:true,fetch:async(_url,init)=>{
   const body=JSON.parse(init.body);calls.push(body);
-  if(body.action==='session')return Response.json({signedIn,products:{opshr:active?'active':'none'}});
+  if(body.action==='session')return Response.json({signedIn,products:{opsflow:active?'active':'none',opsfinance:active?'active':'none',opsp:active?'active':'none',opshr:'coming_soon',opswms:'coming_soon'}});
   if(body.action==='trial_start')active=true;
-  return Response.json({canStart:!active,trial:active?{status:'active',expires_at:'2099-01-01T00:00:00Z'}:{status:'not_started'}});
+  return Response.json({availableApps,canStart:!active,trial:active?{status:'active',expires_at:'2099-01-01T00:00:00Z'}:{status:'not_started'}});
  }});
  const root=createRoot(document.getElementById('root'));await act(async()=>root.render(createElement(SessionProvider,{enabled:true},createElement(FreeTrial))));
  return {calls,cleanup:async()=>{await act(async()=>root.unmount());dom.window.close();Object.assign(globalThis,originals);}};
@@ -30,6 +30,19 @@ test('trial activation sends explicit consent and displays expiry and app access
  const {calls,cleanup}=await mount(true);try{
   await act(async()=>document.querySelector('button').click());
   assert.deepEqual(calls.find(c=>c.action==='trial_start'),{action:'trial_start',confirm:true});
-  assert.match(document.body.textContent,/Active until/);assert.match(document.body.textContent,/Open OpsHR/);
+  assert.match(document.body.textContent,/Active until/);assert.match(document.body.textContent,/Open OpsFlow/);
+  assert.match(document.body.textContent,/Open OpsFinance/);
+  assert.match(document.body.textContent,/Open OpsPS/);
+  assert.doesNotMatch(document.body.textContent,/Open OpsHR|Open OpsWMS/);
  }finally{await cleanup();}
+});
+
+test('empty or unsupported trial list cannot activate or advertise an unfinished application',async()=>{
+ for(const apps of [[],['opshr','opswms','attacker']]){
+  const {calls,cleanup}=await mount(true,apps);try{
+   assert.equal(document.querySelector('button'),null);
+   assert.equal(calls.some(c=>c.action==='trial_start'),false);
+   assert.doesNotMatch(document.body.textContent,/Open OpsHR|Open OpsWMS/);
+  }finally{await cleanup();}
+ }
 });

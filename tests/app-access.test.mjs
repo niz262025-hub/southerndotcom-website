@@ -16,9 +16,9 @@ const { publicKey, privateKey } = generateKeyPairSync('ed25519');
 const publicPem = publicKey.export({ type: 'spki', format: 'pem' });
 const baseEnv = {
   VERCEL_ENV: 'preview',
-  MYOPS_ENVIRONMENT: 'staging',
+  MYOPS_ENVIRONMENT: 'staging', MYOPS_USE_ISOLATED_STAGING: 'true',
   VERCEL_BRANCH_URL: 'myops-preview.vercel.app',
-  VITE_SUPABASE_URL: 'https://uhuukcztdifvpjuopdea.supabase.co',
+  VITE_SUPABASE_URL: 'https://wengxxiqwtosirealghx.supabase.co',
   MYOPS_SERVICE_ROLE_KEY: 'sb_secret_fixture',
   MYOPS_APP_USER_REF_SECRET: 'u'.repeat(40),
   MYOPS_APP_URL_OPSP: 'https://opsp.example.test/',
@@ -226,7 +226,7 @@ test('production app access needs explicit opt-in and accepts only the official 
   const body = { ticket: Buffer.alloc(32, 9).toString('base64url') };
   const productionEnv = {
     ...baseEnv,
-    VERCEL_ENV: 'production',
+    VERCEL_ENV: 'production', VITE_SUPABASE_URL: 'https://uhuukcztdifvpjuopdea.supabase.co',
     MYOPS_ENVIRONMENT: 'production',
     MYOPS_ENABLE_PRODUCTION_APP_ACCESS: 'true',
   };

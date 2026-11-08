@@ -1,0 +1,13 @@
+✔ signed-out free trial is visible without starting its clock or asking for a card (102.109691ms)
+✔ trial activation sends explicit consent and displays expiry and app access (37.684616ms)
+✔ empty or unsupported trial list cannot activate or advertise an unfinished application (31.496274ms)
+✔ every shipped translation has all four languages and unsupported locales fall back safely (1.744484ms)
+✔ switching all four languages updates accessible registration labels without losing entered data or changing identifiers (125.217269ms)
+ℹ tests 5
+ℹ suites 0
+ℹ pass 5
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 879.004434

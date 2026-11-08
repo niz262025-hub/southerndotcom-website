@@ -1,0 +1,18 @@
+✔ production SSO requires aligned auth, project, server credential and exact Finance destination (2.197104ms)
+✔ preview and explicitly disabled production remain buildable without SSO credentials (0.186473ms)
+✔ production build rejects incomplete SSO before generating assets without printing secrets (154.889096ms)
+✔ flag parser accepts only explicit boolean/string opt-ins (0.842714ms)
+✔ missing, malformed or mismatched preview flags never select production (0.221575ms)
+✔ unsafe preview build settings reject production URL, live keys and public secrets (1.39458ms)
+✔ preview with production credentials cannot construct an auth or SSO client (2.194459ms)
+✔ preview sandbox selection ignores live credentials (0.138699ms)
+✔ trial grants only certified app and never grants production or implicit access (1.658292ms)
+✔ loader binds verified user and rechecks company ownership and single active member (0.840521ms)
+ℹ tests 10
+ℹ suites 0
+ℹ pass 10
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 239.780819

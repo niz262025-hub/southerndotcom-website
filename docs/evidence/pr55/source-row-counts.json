@@ -1,0 +1,180 @@
+{
+  "uhuukcztdifvpjuopdea": {
+    "observed_at": "2026-11-08 11:54:39.704618+00",
+    "counts": [
+      {
+        "table": "myops_app_audit",
+        "rows": 122
+      },
+      {
+        "table": "myops_app_clients",
+        "rows": 4
+      },
+      {
+        "table": "myops_app_grants",
+        "rows": 0
+      },
+      {
+        "table": "myops_app_nonces",
+        "rows": 1
+      },
+      {
+        "table": "myops_app_rate_limits",
+        "rows": 362
+      },
+      {
+        "table": "myops_app_sessions",
+        "rows": 54
+      },
+      {
+        "table": "myops_app_tickets",
+        "rows": 60
+      },
+      {
+        "table": "myops_founder_allocations",
+        "rows": 0
+      },
+      {
+        "table": "myops_lifetime_entitlements",
+        "rows": 0
+      },
+      {
+        "table": "myops_login_sessions",
+        "rows": 36
+      },
+      {
+        "table": "myops_memberships",
+        "rows": 0
+      },
+      {
+        "table": "myops_organizations",
+        "rows": 0
+      },
+      {
+        "table": "myops_payment_events",
+        "rows": 0
+      },
+      {
+        "table": "myops_payments",
+        "rows": 1
+      },
+      {
+        "table": "myops_plans",
+        "rows": 7
+      },
+      {
+        "table": "myops_products",
+        "rows": 5
+      },
+      {
+        "table": "myops_profiles",
+        "rows": 3
+      },
+      {
+        "table": "myops_revocation_requests",
+        "rows": 0
+      },
+      {
+        "table": "myops_subscriptions",
+        "rows": 1
+      },
+      {
+        "table": "myops_trial_usage",
+        "rows": 0
+      },
+      {
+        "table": "myops_trials",
+        "rows": 0
+      }
+    ]
+  },
+  "wengxxiqwtosirealghx": {
+    "observed_at": "2026-11-08 11:54:38.760966+00",
+    "counts": [
+      {
+        "table": "myops_app_audit",
+        "rows": 124
+      },
+      {
+        "table": "myops_app_clients",
+        "rows": 3
+      },
+      {
+        "table": "myops_app_grants",
+        "rows": 0
+      },
+      {
+        "table": "myops_app_nonces",
+        "rows": 90
+      },
+      {
+        "table": "myops_app_rate_limits",
+        "rows": 909
+      },
+      {
+        "table": "myops_app_sessions",
+        "rows": 45
+      },
+      {
+        "table": "myops_app_tickets",
+        "rows": 68
+      },
+      {
+        "table": "myops_founder_allocations",
+        "rows": 1
+      },
+      {
+        "table": "myops_lifetime_entitlements",
+        "rows": 1
+      },
+      {
+        "table": "myops_login_sessions",
+        "rows": 45
+      },
+      {
+        "table": "myops_memberships",
+        "rows": 0
+      },
+      {
+        "table": "myops_organizations",
+        "rows": 0
+      },
+      {
+        "table": "myops_payment_events",
+        "rows": 1
+      },
+      {
+        "table": "myops_payments",
+        "rows": 4
+      },
+      {
+        "table": "myops_plans",
+        "rows": 7
+      },
+      {
+        "table": "myops_products",
+        "rows": 5
+      },
+      {
+        "table": "myops_profiles",
+        "rows": 3
+      },
+      {
+        "table": "myops_revocation_requests",
+        "rows": 0
+      },
+      {
+        "table": "myops_subscriptions",
+        "rows": 4
+      },
+      {
+        "table": "myops_trial_usage",
+        "rows": 0
+      },
+      {
+        "table": "myops_trials",
+        "rows": 1
+      }
+    ]
+  }
+}

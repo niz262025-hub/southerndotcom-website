@@ -1,24 +1,18 @@
 # MYOPS Supabase staging configuration
 
-New dedicated Supabase project reference supplied by owner (connectivity not verified): `uhuukcztdifvpjuopdea`.
+Updated 8 November 2026 for PR #55. This replaces obsolete instructions that labelled production as staging.
 
-Expected project URL: `https://uhuukcztdifvpjuopdea.supabase.co` (format-derived; connectivity not verified).
+| Environment | Project ref | Use |
+| --- | --- | --- |
+| Production | uhuukcztdifvpjuopdea | Never use in Preview |
+| Existing staging branch myops-sso-validation | wengxxiqwtosirealghx | Staging selection only; populated, never overwrite |
 
-## Safe setup
+Preview requires VERCEL_ENV=preview, MYOPS_ENVIRONMENT=staging, MYOPS_USE_ISOLATED_STAGING=true and VITE_SUPABASE_URL=https://wengxxiqwtosirealghx.supabase.co. Missing/malformed isolation settings disable server project selection; unsafe public settings fail the build. Production is not a staging alternative.
 
-1. In Supabase Dashboard, verify this project is owned by MYOPS and is appropriate for staging. **Do not run the draft migration against a production database.**
-2. In Vercel's **Preview** environment (not Production), configure:
-   - `VITE_SUPABASE_URL=https://uhuukcztdifvpjuopdea.supabase.co`
-   - `VITE_SUPABASE_PUBLISHABLE_KEY=<publishable key from Supabase dashboard>`
-3. Never commit service-role keys, database passwords, refresh tokens or user credentials to GitHub. Publishable keys are intended for frontend use, but must still be paired with proper RLS and backend authorization.
-4. Before enabling authentication, configure Supabase Auth allowed redirect URLs for the exact approved preview and application domains. Review email confirmation and SMTP settings.
-5. Review `supabase/migrations/202610160001_myops_identity_foundation.sql` with the actual Supabase schema and existing app authentication before applying to staging.
-6. Confirm Supabase migrations and RLS in staging; then implement actual sign-in, account creation, and server-side session and entitlement verification.
-7. Test inactivity timeout with actual backend enforcement (15 minutes). Frontend timers alone are insufficient.
+Use only staging publishable/service credentials and branch-scoped server secrets. Never expose service credentials under VITE_ or NEXT_PUBLIC_. Preserve the original MYOPS_APP_USER_REF_SECRET: replacing it changes stable app identities. Sensitive values cannot be recovered through the environment API; use the original securely held value, never an invented replacement.
 
-## Current status
+Eleven Preview-only settings were prepared on copilot/myops-backup-restore-central-access: staging URL/publishable key, environment/isolation flags, staging service credential, session secret, disabled trial/live-payment flags and three existing staging app destinations. The staging service credential was accepted by a SELECT-only Data API request. This does not certify hosted UAT.
 
-- Account routes are **preview-only**, not functional.
-- No Supabase API calls or migrations have been run.
-- No secret keys have been requested or stored.
-- Do not merge PR #7 or deploy to production until end-to-end checks pass.
+Still required: original staging MYOPS_APP_USER_REF_SECRET, correct Auth redirect allowlist, verified app-side broker origin/signing settings, eligible UAT accounts and Gate A backup/restore PASS. Trial activation remains disabled. Never copy production secrets or enable unfinished applications.
+
+See evidence/pr55/LIVE-READINESS.md. No database migration or restore was performed.

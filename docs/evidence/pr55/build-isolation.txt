@@ -1,0 +1,5 @@
+isolated-preview: PASS; exit=0; expected=success
+production-url: PASS; exit=1; expected=rejection
+missing-opt-in: PASS; exit=1; expected=rejection
+live-secret: PASS; exit=1; expected=rejection
+public-secret: PASS; exit=1; expected=rejection

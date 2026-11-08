@@ -8,8 +8,8 @@ const catalog=['opsflow','opsfinance','opsp'].map(slug=>({slug,launch_status:'li
 const states=(t,apps=['opsflow'])=>resolveProductStates({userId:'user',catalog,subscriptions:[],grants:[],trial:t,trialApps:apps,now});
 test('trial grants only certified app and never grants production or implicit access',()=>{
  assert.deepEqual(trialAppsForEnvironment(env),['opsflow']);
- assert.deepEqual(trialAppsForEnvironment({...env,MYOPS_FINANCE_TRIAL_UAT_READY:'true'}),['opsflow','opsfinance']);
- assert.deepEqual(trialAppsForEnvironment({...env,MYOPS_FINANCE_TRIAL_UAT_READY:'true',MYOPS_OPSPS_TRIAL_UAT_READY:'true'}),['opsflow','opsfinance','opsp']);
+ assert.deepEqual(trialAppsForEnvironment({...env,MYOPS_FINANCE_TRIAL_UAT_READY:true}),['opsflow','opsfinance']);
+ assert.deepEqual(trialAppsForEnvironment({...env,MYOPS_FINANCE_TRIAL_UAT_READY:true,MYOPS_OPSPS_TRIAL_UAT_READY:true}),['opsflow','opsfinance','opsp']);
  assert.equal(states(trial,['opsp']).opsp,'active');
  assert.equal(states(trial,['opsflow','opsfinance']).opsfinance,'active');
  for(const x of [{...env,VERCEL_ENV:'production'},{...env,MYOPS_ENABLE_STAGING_TRIAL_ACCESS:'false'},{}]) assert.deepEqual(trialAppsForEnvironment(x),[]);

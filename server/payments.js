@@ -1,4 +1,4 @@
-import { PRODUCTION_PROJECT } from './project.js';
+import { flagEnabled, PRODUCTION_PROJECT, STAGING_PROJECT, projectForEnvironment } from './project.js';
 import { serverServiceKey } from './service-key.js';
 import { createHash, randomBytes, timingSafeEqual } from 'node:crypto';
 
@@ -6,10 +6,11 @@ import { createHash, randomBytes, timingSafeEqual } from 'node:crypto';
 export function paymentGateway(env, project) {
   if (env.VERCEL_ENV === 'production') {
     if (project !== PRODUCTION_PROJECT || env.MYOPS_ENVIRONMENT !== 'production'
-        || env.MYOPS_ENABLE_LIVE_PAYMENTS !== 'true') return null;
+        || !flagEnabled(env.MYOPS_ENABLE_LIVE_PAYMENTS)) return null;
     return { host: 'https://toyyibpay.com', ledger: 'toyyibpay_live',
       secret: env.TOYYIBPAY_LIVE_SECRET_KEY, category: env.TOYYIBPAY_LIVE_CATEGORY_CODE };
   }
+  if (project !== STAGING_PROJECT) return null;
   return { host: 'https://dev.toyyibpay.com', ledger: 'toyyibpay_sandbox',
     secret: env.TOYYIBPAY_SANDBOX_SECRET_KEY, category: env.TOYYIBPAY_SANDBOX_CATEGORY_CODE };
 }
@@ -38,7 +39,8 @@ const toCents = (value) => {
 export function createPayments({ env, transport, adminFactory, project }) {
   const gateway = paymentGateway(env, project);
   const gatewayConfigured = () => Boolean(gateway?.secret && /^[A-Za-z0-9]{4,40}$/.test(gateway.category || ''));
-  const adminKey = () => serverServiceKey(env.MYOPS_SERVICE_ROLE_KEY, project);
+  const adminKey = () => project && project === projectForEnvironment(env)
+    ? serverServiceKey(env.MYOPS_SERVICE_ROLE_KEY, project) : null;
   const admin = () => {
     const key = adminKey();
     return key ? adminFactory(project, key, { auth: { persistSession: false, autoRefreshToken: false } }) : null;
