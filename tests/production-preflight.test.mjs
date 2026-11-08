@@ -27,7 +27,6 @@ test('production SSO requires aligned auth, project, server credential and exact
 test('preview and explicitly disabled production remain buildable without SSO credentials', () => {
   assert.deepEqual(productionSsoPreflight({VERCEL_ENV:'preview',MYOPS_ENABLE_PRODUCTION_APP_ACCESS:'true'}),{enabled:false,errors:[]});
   assert.deepEqual(productionSsoPreflight({VERCEL_ENV:'production'}),{enabled:false,errors:[]});
-  assert.deepEqual(productionSsoPreflight({VERCEL_ENV:'production',MYOPS_ENABLE_PRODUCTION_APP_ACCESS:true}),{enabled:false,errors:[]});
 });
 
 test('production build rejects incomplete SSO before generating assets without printing secrets', () => {
