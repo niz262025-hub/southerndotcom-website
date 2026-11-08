@@ -133,7 +133,7 @@ test('account response uses verified identity and descriptive profile metadata',
   client.from = (table) => { tables.push(table); return subscriptionData.from(table); };
   const result = await run({ action: 'account', userId: 'other-user' }, { client, headers: { cookie: signedIn() } });
   assert.ok(!tables.includes('myops_profiles'), 'account details must not depend on an unapproved profile table');
-  assert.deepEqual(result.data, { email: user.email, profile: { display_name: 'A Person', account_type: 'business' },
+  assert.deepEqual(result.data, { email: user.email, profile: { display_name: 'A Person', account_type: 'business' }, accessModes: {},
     products: { opsp: 'none', opsfinance: 'none', opsflow: 'none', opswms: 'coming_soon', opshr: 'coming_soon' }, lifetime: false });
 });
 test('onboarding saves only descriptive metadata through the verified user and grants no role', async () => {
@@ -1062,4 +1062,39 @@ test('logo upload and account readback keep the verified owner and expose only a
  assert.equal((await run({action:'profile-logo',operation:'remove'},{headers,client,transport})).code,200);
  assert.equal(metadata.logo_path,null);
  const removed=await run({action:'account'},{headers,client});assert.equal(removed.data.profile.has_logo,undefined);
+});
+
+test('central account, session and launch agree on four-app trial access and expiry',async()=>{
+ const apps=['opsfinance','opsflow','opsp','opshr'];
+ let expired=false;
+ const client=mock();
+ const trialEnv={MYOPS_ENVIRONMENT:'staging',MYOPS_USE_ISOLATED_STAGING:'true',VITE_SUPABASE_URL:'https://wengxxiqwtosirealghx.supabase.co',MYOPS_SERVICE_ROLE_KEY:'sb_secret_fixture',MYOPS_ENABLE_STAGING_TRIAL_ACCESS:'true',MYOPS_TRIAL_READY_APPS:apps.join(','),MYOPS_FINANCE_TRIAL_UAT_READY:'true',MYOPS_OPSPS_TRIAL_UAT_READY:'true',MYOPS_OPSHR_TRIAL_UAT_READY:'true'};
+ client.from=table=>{
+  const data=table==='myops_products'?[...apps.map(slug=>({slug,launch_status:'live'})),{slug:'opswms',launch_status:'coming_soon'}]:[];
+  const q={select:()=>q,eq:()=>q,then:resolve=>resolve({data,error:null}),maybeSingle:async()=>({error:null,data:table==='myops_trials'?{id:LOGIN_ID,user_id:user.id,organization_id:null,status:'active',policy_version:1,started_at:new Date(NOW-(expired?604800000:1000)).toISOString(),expires_at:new Date(NOW+(expired?0:604799000)).toISOString()}:null})};return q;
+ };
+ const launched=[];
+ const options={env:trialEnv,client,headers:{cookie:signedIn()},appAccessFactory:()=>({issueTicket:async input=>{launched.push(input);return {status:200,next:'https://app.example.test/launch#test'};},loginLive:async()=>true})};
+ const account=await run({action:'account'},options);assert.equal(account.code,200);assert.equal(account.data.trialAvailable,true);
+ for(const app of apps){assert.equal(account.data.products[app],'active');assert.equal(account.data.accessModes[app],'trial');}
+ const probe=await run({action:'session',activity:false},options);assert.deepEqual(probe.data.products,account.data.products);
+ for(const product of apps){assert.equal((await run({action:'launch',product},options)).code,200);assert.deepEqual(launched.at(-1),{userId:user.id,product,loginSessionId:LOGIN_ID});}
+ assert.equal((await run({action:'launch',product:'opswms'},options)).code,403);
+ expired=true;
+ const ended=await run({action:'account'},options);assert.deepEqual(ended.data.accessModes,{});
+ for(const product of apps){assert.equal(ended.data.products[product],'none');assert.equal((await run({action:'launch',product},options)).code,403);}
+ assert.equal(launched.length,4,'expired and coming-soon launches issue no tickets');
+});
+
+test('profile save is read back through the verified central identity without changing access',async()=>{
+ let metadata={display_name:'Owner',account_type:'personal'};
+ const client=withData();
+ client.auth.getUser=async()=>({data:{user:{...user,user_metadata:metadata}},error:null});
+ const transport=async(_url,init)=>{const change=JSON.parse(init.body);assert.deepEqual(Object.keys(change),['data']);assert.equal(change.data.role,undefined);metadata={...metadata,...change.data};return Response.json({id:user.id});};
+ const fields={action:'profile',profileVersion:'1',displayName:'Updated Owner',accountType:'business',companyName:'Updated Company',ssmNumber:'202303050959',companyEmail:'office@example.test',contactNumber:'+60123456789',personInCharge:'Updated Owner',address:'Johor Bahru',role:'admin'};
+ assert.equal((await run(fields,{client,transport,headers:{cookie:signedIn()}})).code,200);
+ const saved=await run({action:'account'},{client,headers:{cookie:signedIn()}});
+ assert.equal(saved.data.profile.display_name,'Updated Owner');assert.equal(saved.data.profile.company_name,'Updated Company');assert.equal(saved.data.profile.ssm_number,'202303050959');assert.equal(saved.data.profile.role,undefined);
+ assert.deepEqual(saved.data.accessModes,{});
+ for(const state of Object.values(saved.data.products))assert.notEqual(state,'active');
 });

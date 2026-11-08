@@ -206,7 +206,7 @@ export async function runRevocationWorker({ env, headers = {}, body = {}, appAcc
 export { PRODUCT_SLUGS, hasLifetime, resolveProductStates };
 const SLUG = /^[a-z0-9_]{1,32}$/;
 
-async function loadEntitlements(client, userId, now, env = {}) {
+async function loadEntitlements(client, userId, now, env = {}, serviceFactory = createClient) {
   const [catalog, subscriptions, grants, lifetime] = await Promise.all([
     client.from('myops_products').select('slug,launch_status'),
     client.from('myops_subscriptions').select('personal_user_id,organization_id,product_slug,is_complete_bundle,status,current_period_end'),
@@ -219,15 +219,16 @@ async function loadEntitlements(client, userId, now, env = {}) {
   // Company membership must be checked server-side: browser RLS hides other members.
   const trialProject=projectForEnvironment(env);
   const trialKey=trialAppsForEnvironment(env).length ? serverServiceKey(env.MYOPS_SERVICE_ROLE_KEY,trialProject) : null;
-  const trial=trialKey ? await loadEligibleTrial(createClient(trialProject,trialKey,{auth:{persistSession:false,autoRefreshToken:false}}),userId,now,env) : null;
-  return {
-    products: resolveProductStates({ userId, catalog: catalog.data || [], subscriptions: subscriptions.data || [], grants: grants.data || [], lifetime: rows, platformAdmin: isPlatformAdmin(userId, env), trial, trialApps:trialAppsForEnvironment(env), now }),
-    lifetime: hasLifetime(userId, rows),
-  };
+  const trial=trialKey ? await loadEligibleTrial(serviceFactory(trialProject,trialKey,{auth:{persistSession:false,autoRefreshToken:false}}),userId,now,env) : null;
+  const inputs={userId,catalog:catalog.data||[],subscriptions:subscriptions.data||[],grants:grants.data||[],lifetime:rows,platformAdmin:isPlatformAdmin(userId,env),now};
+  const products=resolveProductStates({...inputs,trial,trialApps:trialAppsForEnvironment(env)});
+  const paidProducts=resolveProductStates(inputs);
+  const accessModes=Object.fromEntries(Object.entries(products).filter(([,state])=>state==='active').map(([slug])=>[slug,paidProducts[slug]==='active'?'paid':'trial']));
+  return {products,accessModes,lifetime:hasLifetime(userId,rows)};
 }
 
-async function loadProductStates(client, userId, now, env = {}) {
-  return (await loadEntitlements(client, userId, now, env))?.products ?? null;
+async function loadProductStates(client, userId, now, env = {}, serviceFactory = createClient) {
+  return (await loadEntitlements(client, userId, now, env, serviceFactory))?.products ?? null;
 }
 
 function profileFrom(user) {
@@ -450,9 +451,9 @@ export function createAuthHandler({ env = process.env, clientFactory = createCli
           }
           if (error.code === 'weak_password') return reply(400, { error: 'Choose a stronger password with a mix of letters, numbers and symbols.' });
           if (error.code === 'signup_disabled' || error.code === 'email_provider_disabled') {
-            return reply(503, { error: 'Email registration is currently unavailable. Contact the Preview owner.' });
+            return reply(503, { error: 'Email registration is currently unavailable. Contact MYOPS support.' });
           }
-          return reply(502, { error: 'Registration could not be completed. Please try again later or contact the Preview owner.' });
+          return reply(502, { error: 'Registration could not be completed. Please try again later or contact MYOPS support.' });
         }
         return reply(200, { message: 'If registration is available for this address, check your email to confirm it in this browser.' });
       }
@@ -467,10 +468,10 @@ export function createAuthHandler({ env = process.env, clientFactory = createCli
         const { error } = await client.auth.resetPasswordForEmail(body.email, { redirectTo: callback });
         if (error?.status === 429) return reply(429, { error: 'Please wait before trying again.' });
         if (error?.code === 'email_provider_disabled') {
-          return reply(503, { error: 'Email recovery is currently unavailable. Contact the Preview owner.' });
+          return reply(503, { error: 'Email recovery is currently unavailable. Contact MYOPS support.' });
         }
         if (error?.status >= 500) {
-          return reply(502, { error: 'Recovery could not be completed. Please try again later or contact the Preview owner.' });
+          return reply(502, { error: 'Recovery could not be completed. Please try again later or contact MYOPS support.' });
         }
         // Keep account-specific failures indistinguishable to avoid email enumeration.
         return reply(200, { message: 'If the address is registered, a recovery email will arrive. Open it in this browser.' });
@@ -543,7 +544,7 @@ export function createAuthHandler({ env = process.env, clientFactory = createCli
         }
       }
       if (action === 'session') {
-        const entitlements = await loadEntitlements(client, identity.user.id, now(), env);
+        const entitlements = await loadEntitlements(client, identity.user.id, now(), env, clientFactory);
         return reply(200, { signedIn: true, email: identity.user.email, products: entitlements?.products ?? null, lifetime: entitlements?.lifetime ?? false, ...(isPlatformAdmin(identity.user.id, env) ? { platformAdmin: true } : {}) });
       }
       if(action==='trial_start'||action==='trial_status') {
@@ -569,7 +570,7 @@ export function createAuthHandler({ env = process.env, clientFactory = createCli
       }
       if (action === 'launch') {
         if (typeof body.product !== 'string' || !SLUG.test(body.product)) return reply(400, { error: 'Unknown product.' });
-        const products = await loadProductStates(client, identity.user.id, now(), env);
+        const products = await loadProductStates(client, identity.user.id, now(), env, clientFactory);
         if (!products) return reply(503, { error: 'Subscription status is unavailable. Try again later.' });
         if (!products[body.product]) return reply(400, { error: 'Unknown product.' });
         if (products[body.product] !== 'active') return reply(403, { error: 'An active subscription is required for this application.' });
@@ -637,13 +638,13 @@ export function createAuthHandler({ env = process.env, clientFactory = createCli
         return reply(200, { next: '/account' });
       }
       // Auth metadata is user-editable and descriptive only; it never grants access.
-      const entitlements = await loadEntitlements(client, identity.user.id, now(), env);
+      const entitlements = await loadEntitlements(client, identity.user.id, now(), env, clientFactory);
       const profile = profileFrom(identity.user);
       if (profile && ownedLogoPath(identity.user.user_metadata?.logo_path, identity.user.id)) {
         profile.has_logo = true;
         profile.logo_url = await profileLogoUrl(client, identity.user);
       }
-      return reply(200, { email: identity.user.email, profile, ...(trialAppsForEnvironment(env).length ? { trialAvailable: true } : {}), products: entitlements?.products ?? null, lifetime: entitlements?.lifetime ?? false, ...(isPlatformAdmin(identity.user.id, env) ? { platformAdmin: true } : {}) });
+      return reply(200, { email: identity.user.email, profile, accessModes:entitlements?.accessModes??null, ...(trialAppsForEnvironment(env).length ? { trialAvailable: true } : {}), products: entitlements?.products ?? null, lifetime: entitlements?.lifetime ?? false, ...(isPlatformAdmin(identity.user.id, env) ? { platformAdmin: true } : {}) });
     } catch {
       // Never log SDK errors, credentials, request bodies, cookies or callback codes.
       return reply(500, { error: 'Authentication request failed. Please try again.' });

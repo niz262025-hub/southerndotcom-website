@@ -14,6 +14,8 @@ test('registration form submits fields, shows pending state, success and retryab
   const root = createRoot(document.getElementById('root'));
   try {
     await act(async () => root.render(createElement(AuthPortal, { mode: 'register' })));
+    assert.match(document.body.textContent,/OpsFinance.*OpsFlow.*OpsPS.*OpsHR/);
+    assert.doesNotMatch(document.body.textContent,/activate the OpsHR trial/);
     document.querySelector('[name=displayName]').value = 'Preview Tester';
     document.querySelector('[name=companyName]').value = 'Registered Company';
     document.querySelector('[name=contactNumber]').value = '+60123456789';
