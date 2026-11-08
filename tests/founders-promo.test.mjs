@@ -36,10 +36,10 @@ test('public pricing shows the approved MYOPS plans, OpsHub fees, and free trial
   try {
     const cards = [...document.querySelectorAll('.pricing-cards .price-card')];
     assert.deepEqual(cards.map((card) => card.querySelector('h3').textContent), [
-      'Free 7-Day Trial · Percubaan Percuma 7 Hari', 'Starter', 'Single', 'Duo', 'Complete', 'OpsHub',
+      'Free 7-Day Trial', 'Starter', 'Single', 'Duo', 'Complete', 'OpsHub',
     ]);
     assert.deepEqual(cards.map((card) => card.querySelector('.price-amount').textContent), [
-      'RM0 / 7 hari', 'RM9.90 / month', 'RM19.90 / month', 'RM29.90 / month', 'RM39.90 / month', 'RM0 / month',
+      'RM0 / 7 days', 'RM9.90 / month', 'RM19.90 / month', 'RM29.90 / month', 'RM39.90 / month', 'RM0 / month',
     ]);
     assert.match(document.querySelector('#founders').textContent, /Choose your MYOPS plan/);
     assert.match(document.querySelector('#founders').textContent, /14-day trial/);

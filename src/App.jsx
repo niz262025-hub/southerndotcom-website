@@ -1,4 +1,5 @@
 import PropTypes from 'prop-types';
+import { LocaleProvider, LanguageSelector, useLocale } from './locale';
 import { AccountPreview } from './AccountPreview';
 import { AuthPortal } from './AuthPortal';
 import { AuthNav, ProductAction, SessionProvider } from './session';
@@ -342,6 +343,7 @@ function updateSeoMeta(pathname) {
 }
 
 function SiteHeader() {
+  const {t}=useLocale();
   return (
     <header className="topbar">
       <div className="container nav">
@@ -355,10 +357,11 @@ function SiteHeader() {
         <nav className="nav-links" aria-label="Main navigation">
           {topNavItems.map((item) => (
             <a key={item.href} href={item.href}>
-              {item.label}
+              {t(item.label)}
             </a>
           ))}
         </nav>
+        <LanguageSelector />
         <AuthNav />
       </div>
     </header>
@@ -1033,5 +1036,5 @@ export default function App() {
     page = routePageMap[pathname] ? routePageMap[pathname]() : <PageComponent />;
   }
 
-  return <SessionProvider enabled={customerAuthEnabled}>{page}</SessionProvider>;
+  return <LocaleProvider><SessionProvider enabled={customerAuthEnabled}>{page}</SessionProvider></LocaleProvider>;
 }

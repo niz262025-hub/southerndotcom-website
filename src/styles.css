@@ -1181,3 +1181,6 @@ select {
 .profile-logo-actions button { min-height: 44px; border: 1px solid #cbd3e0; border-radius: 10px; background: #fff5ef; color: #071b49; padding: 10px 16px; font: inherit; cursor: pointer; }
 .account-form-panel select, .account-form-panel textarea { box-sizing: border-box; min-width: 0; width: 100%; padding: 13px 14px; border: 1px solid #cbd3e0; border-radius: 10px; background: #f4f6fa; color: #071b49; font: inherit; }
 .account-form-panel textarea { min-height: 110px; resize: vertical; }
+
+.language-selector { display:flex; flex-direction:column; gap:0.2rem; max-width:100%; font-size:0.7rem; }
+.language-selector select { min-height:2.75rem; max-width:100%; padding:0.4rem; color:inherit; background:#fff; border:1px solid #d5dbea; border-radius:0.5rem; }
