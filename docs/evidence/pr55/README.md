@@ -127,7 +127,7 @@ These are local code/test results, not hosted UAT, backup verification, or a rea
 
 ### Current GitHub check state
 
-The latest `pull_request` validation and quality workflow runs for current PR head `36c68dd1956ebeb6ff43c2aa7be8f7bfd89c01ca` are [MYOPS validation run 42504909654](https://github.com/niz262025-hub/southerndotcom-website/actions/runs/42504909654) and [MYOPS quality checks run 42504909643](https://github.com/niz262025-hub/southerndotcom-website/actions/runs/42504909643). Both have conclusion `action_required` and zero jobs; therefore there is no hosted CI result for this SHA. This supersedes neither the successful historical run on `d798a273...` nor establishes a pass for the current PR head.
+The latest `pull_request` validation and quality workflow runs available are [MYOPS validation run 42504909654](https://github.com/niz262025-hub/southerndotcom-website/actions/runs/42504909654) and [MYOPS quality checks run 42504909643](https://github.com/niz262025-hub/southerndotcom-website/actions/runs/42504909643), both for code commit `36c68dd1956ebeb6ff43c2aa7be8f7bfd89c01ca`. Both have conclusion `action_required` and zero jobs. No workflow run is recorded for the current documentation-only head `72ba083baf370ec102c69b8d7bf6a24f1d5b201c`; therefore there is no hosted CI result for the current head. These results supersede neither the successful historical run on `d798a273...` nor establish a pass for the current PR head.
 
 ### Gate A, hosted UAT, and remaining work
 
