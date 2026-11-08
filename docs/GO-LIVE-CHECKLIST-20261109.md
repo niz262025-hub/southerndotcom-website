@@ -22,7 +22,7 @@ The seven-day trial currently advertised is OpsHR-only; do not present it as a t
 | Step | Work | Status / acceptance evidence |
 | --- | --- | --- |
 | 2 | Consistent application entry | DONE for existing administrator access: central login, product entry, application launch, refresh and return navigation verified. OpsPS and OpsHR use MYOPS custom domains. New-customer registration, billing and tenant-isolation acceptance remain separate gates below. |
-| 3 | Registration / email / password recovery | NOT VERIFIED: full new-user inbox and browser lifecycle required. |
+| 3 | Registration / email / password recovery | DONE for registration → confirmation email → verification → login, based on the owner's confirmation on 9 November 2026 that their earlier test succeeded. Automated auth checks passed separately; no new live registration was performed in this follow-up. Password recovery remains a separate unverified check. |
 | 4 | Onboarding | NOT VERIFIED: individual/business profile, company and usable next action. |
 | 5 | Checkout | NOT VERIFIED: success, failure, cancellation and expected amount. |
 | 6 | Automatic access | NOT VERIFIED: verified server callback, correct account/plan, retry and duplicate-payment handling. |
