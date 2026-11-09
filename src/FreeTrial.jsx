@@ -31,7 +31,7 @@ export function FreeTrial() {
   return <article className="price-card price-card-featured" id="free-trial" aria-labelledby="free-trial-title">
     <h3 id="free-trial-title">Free 7-Day Trial · Percubaan Percuma 7 Hari</h3>
     <p className="price-amount">RM0 <span>/ 7 hari</span></p>
-    <p>Try OpsHR employee management: 1 user, 1 company and up to 30 employee records. Other app trials will be added when available.</p>
+    <p>Explore eligible MYOPS applications during a 7-day trial where enabled. Available applications and trial limits are confirmed in your MYOPS account. Trial access is not enabled for every app or environment yet.</p>
     <p>No card required. No automatic renewal. Your data is retained after expiry.</p>
     {!session.signedIn ? <div className="founders-actions"><a className="btn btn-primary" href="/register">Start free 7-day trial</a><a className="btn btn-secondary" href="/login">Already registered? Login</a></div>
       : session.status==='unavailable' ? <p role="status">Retry the session check before starting a trial.</p>
