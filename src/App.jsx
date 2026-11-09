@@ -59,7 +59,7 @@ const products = [
     name: 'OpsHR',
     tag: ['Human Resources', 'Management'],
     icon: 'HR',
-    accent: 'orange',
+    accent: 'teal',
     art: 'opshr',
     href: '/solutions/opshr',
     badgeFormat: 'svg',
@@ -708,7 +708,7 @@ function SolutionPage({ route }) {
   const solutionMeta = {
     opshr: {
       name: 'OpsHR',
-      accent: 'orange',
+      accent: 'teal',
       summary: 'Employee management is available for Live UAT through your MYOPS account. Attendance, leave, payroll, documents and reports are in development.',
       bullets: ['Create and update employee profiles', 'Department, designation and employment status', 'Central MYOPS login and subscription access', 'Personal and company data isolation'],
       ctaLabel: 'Open MYOPS Account',
