@@ -93,7 +93,7 @@ export function AuthPortal({ mode, production = false }) {
       </div>
       <div className="account-preview-panel account-form-panel">
         <p role="status" aria-live="polite">{busy ? 'Please wait…' : message}</p>
-        {mode === 'register' && <p><strong>Free 7-Day Trial — RM0.</strong> Verify your email, then activate the OpsHR trial from your account. One user, one company, 30 employee records. No card or auto-renewal.</p>}
+        {mode === 'register' && <p><strong>Free 7-Day Trial — RM0.</strong> Verify your email to access your MYOPS account. A 7-day trial may be available for eligible MYOPS applications; check availability in your account. No card or auto-renewal for eligible trials.</p>}
         {mode === 'dashboard' && account && <>
           <FreeTrial />
           <p>Signed in as {account.email}</p>
@@ -142,10 +142,11 @@ export function AuthPortal({ mode, production = false }) {
           <form onSubmit={submit} aria-busy={busy}>
             {(mode === 'register' || mode === 'dashboard') && <>
               <input type="hidden" name="profileVersion" value="1" />
-              <h2>{mode === 'dashboard' ? 'Complete your profile' : 'Account details'}</h2>
-              {mode === 'dashboard' && <p>Save your name and company here once. Applications use these details when setting up your account; existing application data is preserved.</p>}
+              <h2>{mode === 'dashboard' ? 'Complete your profile' : 'Account and company details'}</h2>
+              {mode === 'dashboard' && <p>Save your company details centrally in MYOPS. Connected applications can use these details during account setup; existing application data is preserved.</p>}
               <label>Full name<input name="displayName" autoComplete="name" defaultValue={account?.profile?.display_name || ''} required maxLength={100} disabled={busy} /></label>
               {accountType !== 'business' && <label>Company name<input name="companyName" autoComplete="organization" defaultValue={account?.profile?.company_name || ''} maxLength={200} disabled={busy} /></label>}
+              <p>Company name, SSM registration number and business address are saved in your central MYOPS profile for connected applications. Select Business to enter mandatory SSM details.</p>
               <label>Account type<select name="accountType" value={accountType} onChange={(e) => setAccountType(e.target.value)} disabled={busy}>
                 <option value="personal">Personal / Individual</option><option value="business">Business</option>
               </select></label>
