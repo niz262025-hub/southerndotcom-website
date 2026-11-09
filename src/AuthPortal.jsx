@@ -12,7 +12,7 @@ export function AuthPortal({ mode, production = false }) {
   const [busy, setBusy] = useState(false);
   const [account, setAccount] = useState(null);
   const [trialInfo,setTrialInfo]=useState(null);
-  const [accountType, setAccountType] = useState('personal');
+  const [accountType, setAccountType] = useState('business');
   const started = useRef(false);
   useEffect(() => {
     if (started.current) return;
@@ -29,7 +29,7 @@ export function AuthPortal({ mode, production = false }) {
         .catch((error) => setMessage(error.message)).finally(() => setBusy(false));
     } else if (mode === 'dashboard' || mode === 'reset') {
       setBusy(true);
-      request('account').then((data) => { setAccount(data); setAccountType(data.profile?.account_type || 'personal'); if(data.trialAvailable&&!data.lifetime&&!production) request('trial_status').then(setTrialInfo).catch(error=>setMessage(error.message)); }).catch((error) => {
+      request('account').then((data) => { setAccount(data); setAccountType(data.profile?.account_type || 'business'); if(data.trialAvailable&&!data.lifetime&&!production) request('trial_status').then(setTrialInfo).catch(error=>setMessage(error.message)); }).catch((error) => {
         if (error.status === 401) window.location.replace('/login');
         else setMessage(error.message);
       }).finally(() => setBusy(false));
@@ -148,7 +148,7 @@ export function AuthPortal({ mode, production = false }) {
               {accountType !== 'business' && <label>Company name<input name="companyName" autoComplete="organization" defaultValue={account?.profile?.company_name || ''} maxLength={200} disabled={busy} /></label>}
               <p>Company name, SSM registration number and business address are saved in your central MYOPS profile for connected applications. Select Business to enter mandatory SSM details.</p>
               <label>Account type<select name="accountType" value={accountType} onChange={(e) => setAccountType(e.target.value)} disabled={busy}>
-                <option value="personal">Personal / Individual</option><option value="business">Business</option>
+                <option value="business">Business / Company (SSM)</option><option value="personal">Personal / Individual</option>
               </select></label>
               {accountType === 'business' && <>
                 <label>Company name<input name="companyName" autoComplete="organization" defaultValue={account?.profile?.company_name || ''} maxLength={200} required disabled={busy} /></label>

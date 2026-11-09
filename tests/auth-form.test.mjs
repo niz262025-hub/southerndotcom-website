@@ -16,6 +16,9 @@ test('registration form submits fields, shows pending state, success and retryab
     await act(async () => root.render(createElement(AuthPortal, { mode: 'register' })));
     document.querySelector('[name=displayName]').value = 'Preview Tester';
     document.querySelector('[name=companyName]').value = 'Registered Company';
+    document.querySelector('[name=ssmNumber]').value = '202303050959';
+    document.querySelector('[name=companyEmail]').value = 'office@example.test';
+    document.querySelector('[name=personInCharge]').value = 'Preview Tester';
     document.querySelector('[name=contactNumber]').value = '+60123456789';
     document.querySelector('[name=address]').value = 'Johor Bahru';
     document.querySelector('[name=email]').value = 'preview@example.test';
@@ -31,7 +34,7 @@ test('registration form submits fields, shows pending state, success and retryab
     assert.equal(document.querySelector('button[type=submit]').disabled, true);
     assert.match(document.querySelector('[role=status]').textContent, /Please wait/);
     assert.equal(sent.url, '/api/auth');
-    assert.deepEqual(JSON.parse(sent.body), { action: 'register', profileVersion: '1', displayName: 'Preview Tester', companyName: 'Registered Company', accountType: 'personal', contactNumber: '+60123456789', address: 'Johor Bahru', email: 'preview@example.test', password: 'long-test-password' });
+    assert.deepEqual(JSON.parse(sent.body), { action: 'register', profileVersion: '1', displayName: 'Preview Tester', accountType: 'business', companyName: 'Registered Company', ssmNumber: '202303050959', companyEmail: 'office@example.test', personInCharge: 'Preview Tester', contactNumber: '+60123456789', address: 'Johor Bahru', email: 'preview@example.test', password: 'long-test-password' });
     await act(async () => resolveRequest(Response.json({ message: 'Check your email in this browser.' })));
     assert.match(document.querySelector('[role=status]').textContent, /Check your email/);
     for (const response of [Response.json({ error: 'Preview authentication is not configured.' }, { status: 503 }), new Response('<html>unavailable</html>', { status: 502 })]) {
@@ -57,8 +60,11 @@ test('company registration exposes required SSM, PIC and contact fields while pe
   const root = createRoot(document.getElementById('root'));
   try {
     await act(async () => root.render(createElement(AuthPortal, { mode: 'register' })));
-    assert.equal(document.querySelector('[name=ssmNumber]'), null);
+    assert.equal(document.querySelector('[name=ssmNumber]').required, true);
+    assert.equal(document.querySelector('[name=accountType]').value, 'business');
     const select = document.querySelector('[name=accountType]');
+    await act(async () => { select.value = 'personal'; select.dispatchEvent(new dom.window.Event('change', { bubbles: true })); });
+    assert.equal(document.querySelector('[name=ssmNumber]'), null);
     await act(async () => { select.value = 'business'; select.dispatchEvent(new dom.window.Event('change', { bubbles: true })); });
     for (const name of ['companyName', 'ssmNumber', 'companyEmail', 'personInCharge', 'contactNumber', 'address']) {
       assert.equal(document.querySelector(`[name=${name}]`).required, true, name);
