@@ -16,6 +16,12 @@ export function AuthPortal({ mode, production = false }) {
   const started = useRef(false);
   const [verifyEmail, setVerifyEmail] = useState(() => new URLSearchParams(window.location.search).get('email') || '');
   const [resendAt, setResendAt] = useState(0);
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    if (!resendAt || now >= resendAt) return undefined;
+    const timer = window.setInterval(() => setNow(Date.now()), 1000);
+    return () => window.clearInterval(timer);
+  }, [resendAt, now]);
   useEffect(() => {
     if (started.current) return;
     started.current = true;
@@ -145,7 +151,7 @@ export function AuthPortal({ mode, production = false }) {
           <label>Email<input type="email" name="email" autoComplete="email" value={verifyEmail} onChange={e=>setVerifyEmail(e.target.value)} required disabled={busy}/></label>
           <label>Verification code<input type="text" name="token" inputMode="numeric" pattern="[0-9]{6}" maxLength={6} autoComplete="one-time-code" required disabled={busy}/></label>
           <button type="submit" className="btn btn-primary" disabled={busy}>Verify & sign in</button>
-          <button type="button" className="btn btn-secondary" disabled={busy || Date.now() < resendAt} onClick={async()=>{setBusy(true);setMessage('');try{const result=await request('resend_signup_otp',{email:verifyEmail});setMessage(result.message);setResendAt(Date.now()+60000);}catch(error){setMessage(error.message);}finally{setBusy(false);}}}>Resend code</button>
+          <button type="button" className="btn btn-secondary" disabled={busy || now < resendAt} onClick={async()=>{setBusy(true);setMessage('');try{const result=await request('resend_signup_otp',{email:verifyEmail});setMessage(result.message);setNow(Date.now());setResendAt(Date.now()+60000);}catch(error){setMessage(error.message);}finally{setBusy(false);}}}>Resend code</button>
         </form>}
         {mode !== 'callback' && mode !== 'verify' && (mode !== 'dashboard' || account) && (mode !== 'reset' || account) && (
           <form onSubmit={submit} aria-busy={busy}>

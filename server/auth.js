@@ -457,7 +457,7 @@ export function createAuthHandler({ env = process.env, clientFactory = createCli
         return reply(200, { next: `/verify-email?email=${encodeURIComponent(body.email)}`, message: 'Enter the verification code sent to your email.' });
       }
       if (action === 'verify_signup_otp') {
-        if (!validEmail || typeof body.token !== 'string' || !/^\\d{6}$/.test(body.token)) return reply(400, { error: 'Enter your email and 6-digit verification code.' });
+        if (!validEmail || typeof body.token !== 'string' || !/^\d{6}$/.test(body.token)) return reply(400, { error: 'Enter your email and 6-digit verification code.' });
         const { data, error } = await client.auth.verifyOtp({ email: body.email, token: body.token, type: 'signup' });
         if (error || !await saveSession(data?.session, appAccess)) return reply(400, { error: 'Invalid or expired verification code.' });
         return reply(200, { next: '/account' });
