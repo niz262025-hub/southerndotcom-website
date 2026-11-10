@@ -21,7 +21,7 @@ export function AuthPortal({ mode, production = false }) {
     if (!resendAt || now >= resendAt) return undefined;
     const timer = window.setInterval(() => setNow(Date.now()), 1000);
     return () => window.clearInterval(timer);
-  }, [resendAt, now >= resendAt]);
+  }, [resendAt, now]);
   useEffect(() => {
     if (started.current) return;
     started.current = true;
