@@ -332,7 +332,7 @@ export function createAuthHandler({ env = process.env, clientFactory = createCli
       const liveGateway = paymentGateway(env, PROJECT);
       const productionPaymentsEnabled = production && Boolean(liveGateway?.secret
         && /^[A-Za-z0-9]{4,40}$/.test(liveGateway.category || ''));
-      const productionAccountActions = ['register', 'login', 'forgot', 'callback', 'logout', 'session', 'account', 'reset', 'profile', 'profile-logo', 'founders'];
+      const productionAccountActions = ['register', 'verify_signup_otp', 'resend_signup_otp', 'login', 'forgot', 'callback', 'logout', 'session', 'account', 'reset', 'profile', 'profile-logo', 'founders'];
       if (production && !productionAccountActions.includes(action)
           && !(action === 'admin_audit' && env.MYOPS_ENABLE_PLATFORM_ADMIN === 'true')
           && !(action === 'launch' && productionAppAccessEnabled)
@@ -454,7 +454,20 @@ export function createAuthHandler({ env = process.env, clientFactory = createCli
           }
           return reply(502, { error: 'Registration could not be completed. Please try again later or contact the Preview owner.' });
         }
-        return reply(200, { message: 'If registration is available for this address, check your email to confirm it in this browser.' });
+        return reply(200, { next: `/verify-email?email=${encodeURIComponent(body.email)}`, message: 'Enter the verification code sent to your email.' });
+      }
+      if (action === 'verify_signup_otp') {
+        if (!validEmail || typeof body.token !== 'string' || !/^\\d{6}$/.test(body.token)) return reply(400, { error: 'Enter your email and 6-digit verification code.' });
+        const { data, error } = await client.auth.verifyOtp({ email: body.email, token: body.token, type: 'signup' });
+        if (error || !await saveSession(data?.session, appAccess)) return reply(400, { error: 'Invalid or expired verification code.' });
+        return reply(200, { next: '/account' });
+      }
+      if (action === 'resend_signup_otp') {
+        if (!validEmail) return reply(400, { error: 'Enter a valid email address.' });
+        const { error } = await client.auth.resend({ type: 'signup', email: body.email, options: { emailRedirectTo: callback } });
+        if (error?.status === 429) return reply(429, { error: 'Please wait before requesting another code.' });
+        if (error?.status >= 500) return reply(503, { error: 'Verification email unavailable. Try again later.' });
+        return reply(200, { message: 'If confirmation is pending, a new code has been sent.' });
       }
       if (action === 'login') {
         if (!validEmail || typeof body.password !== 'string' || body.password.length > 128) return reply(400, { error: 'Invalid email or password.' });
