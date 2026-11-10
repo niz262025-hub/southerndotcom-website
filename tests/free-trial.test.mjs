@@ -14,7 +14,7 @@ async function mount(signedIn){
   const body=JSON.parse(init.body);calls.push(body);
   if(body.action==='session')return Response.json({signedIn,products:{opshr:active?'active':'none'}});
   if(body.action==='trial_start')active=true;
-  return Response.json({canStart:!active,trial:active?{status:'active',expires_at:'2099-01-01T00:00:00Z'}:{status:'not_started'}});
+  return Response.json({availableApps:['opshr'],canStart:!active,trial:active?{status:'active',expires_at:'2099-01-01T00:00:00Z'}:{status:'not_started'}});
  }});
  const root=createRoot(document.getElementById('root'));await act(async()=>root.render(createElement(SessionProvider,{enabled:true},createElement(FreeTrial))));
  return {calls,cleanup:async()=>{await act(async()=>root.unmount());dom.window.close();Object.assign(globalThis,originals);}};
