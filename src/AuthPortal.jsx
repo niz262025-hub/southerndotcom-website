@@ -93,7 +93,7 @@ export function AuthPortal({ mode, production = false }) {
       </div>
       <div className="account-preview-panel account-form-panel">
         <p role="status" aria-live="polite">{busy ? 'Please wait…' : message}</p>
-        {mode === 'register' && <p><strong>Free 7-Day Trial — RM0.</strong> Verify your email to access your MYOPS account. A 7-day trial may be available for eligible MYOPS applications; check availability in your account. No card or auto-renewal for eligible trials.</p>}
+        {mode === 'register' && <p><strong>Free 7-Day Trial — RM0.</strong> Verify your email to access your MYOPS account. MYOPS applications: OpsPS, OpsFinance, OpsFlow and OpsHR. Free-trial access is available only for applications confirmed as eligible in your account; registration does not automatically activate every application. No card or auto-renewal for eligible trials.</p>}
         {mode === 'dashboard' && account && <>
           <FreeTrial />
           <p>Signed in as {account.email}</p>
