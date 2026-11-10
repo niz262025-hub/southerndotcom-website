@@ -145,11 +145,11 @@ export function AuthPortal({ mode, production = false }) {
           <button type="button" className="btn btn-primary" disabled={busy} onClick={logout}>Log keluar semua aplikasi</button>
           <p><a href="/forgot-password">Change password</a></p>
         </>}
-        {mode === 'verify' && <p>Enter the 6-digit code from your MYOPS confirmation email. After verification you will be signed in automatically.</p>}
+        {mode === 'verify' && <p>Enter the 6- or 8-digit code from your MYOPS confirmation email. After verification you will be signed in automatically.</p>}
         {mode === 'callback' && <p><a href="/login">Return to sign in</a></p>}
         {mode === 'verify' && <form onSubmit={submit} aria-busy={busy}>
           <label>Email<input type="email" name="email" autoComplete="email" value={verifyEmail} onChange={e=>setVerifyEmail(e.target.value)} required disabled={busy}/></label>
-          <label>Verification code<input type="text" name="token" inputMode="numeric" pattern="[0-9]{6}" maxLength={6} autoComplete="one-time-code" required disabled={busy}/></label>
+          <label>Verification code<input type="text" name="token" inputMode="numeric" pattern="[0-9]{6}([0-9]{2})?" maxLength={8} autoComplete="one-time-code" required disabled={busy}/></label>
           <button type="submit" className="btn btn-primary" disabled={busy}>Verify & sign in</button>
           <button type="button" className="btn btn-secondary" disabled={busy || now < resendAt} onClick={async()=>{setBusy(true);setMessage('');try{const result=await request('resend_signup_otp',{email:verifyEmail});setMessage(result.message);setNow(Date.now());setResendAt(Date.now()+60000);}catch(error){setMessage(error.message);}finally{setBusy(false);}}}>Resend code</button>
         </form>}
