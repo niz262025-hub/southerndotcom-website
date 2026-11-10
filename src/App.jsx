@@ -138,6 +138,7 @@ const routes = {
   '/': MyOpsHomePage,
   '/login': () => <PageShell>{portal('login')}</PageShell>,
   '/register': () => <PageShell>{portal('register')}</PageShell>,
+  '/verify-email': () => <PageShell>{portal('verify')}</PageShell>,
   '/forgot-password': () => <PageShell>{portal('forgot')}</PageShell>,
   '/account/update-password': () => <PageShell>{portal('reset')}</PageShell>,
   '/auth/callback': () => <PageShell>{portal('callback')}</PageShell>,

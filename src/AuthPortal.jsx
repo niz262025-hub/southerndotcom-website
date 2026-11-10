@@ -14,6 +14,8 @@ export function AuthPortal({ mode, production = false }) {
   const [trialInfo,setTrialInfo]=useState(null);
   const [accountType, setAccountType] = useState('business');
   const started = useRef(false);
+  const [verifyEmail, setVerifyEmail] = useState(() => new URLSearchParams(window.location.search).get('email') || '');
+  const [resendAt, setResendAt] = useState(0);
   useEffect(() => {
     if (started.current) return;
     started.current = true;
@@ -42,7 +44,7 @@ export function AuthPortal({ mode, production = false }) {
     setBusy(true); setMessage('');
     try {
       const fields = Object.fromEntries(new FormData(event.currentTarget));
-      const action = mode === 'dashboard' ? 'profile' : mode;
+      const action = mode === 'dashboard' ? 'profile' : mode === 'verify' ? 'verify_signup_otp' : mode;
       const result = await request(action, fields);
       if (result.next) window.location.assign(result.next);
       else setMessage(result.message);
@@ -84,7 +86,7 @@ export function AuthPortal({ mode, production = false }) {
   }
 
   const titles = { register: 'Create your MYOPS account', login: 'Welcome back to MYOPS',
-    forgot: 'Reset your password', reset: 'Choose a new password', callback: 'Confirming your MYOPS account', dashboard: 'Your MYOPS account' };
+    verify: 'Verify your email', forgot: 'Reset your password', reset: 'Choose a new password', callback: 'Confirming your MYOPS account', dashboard: 'Your MYOPS account' };
   return (
     <section className="account-preview container" aria-labelledby="auth-title">
       <div className="account-preview-heading"><span className="account-eyebrow">MYOPS · Customer Portal</span>
@@ -137,8 +139,15 @@ export function AuthPortal({ mode, production = false }) {
           <button type="button" className="btn btn-primary" disabled={busy} onClick={logout}>Log keluar semua aplikasi</button>
           <p><a href="/forgot-password">Change password</a></p>
         </>}
+        {mode === 'verify' && <p>Enter the 6-digit code from your MYOPS confirmation email. After verification you will be signed in automatically.</p>}
         {mode === 'callback' && <p><a href="/login">Return to sign in</a></p>}
-        {mode !== 'callback' && (mode !== 'dashboard' || account) && (mode !== 'reset' || account) && (
+        {mode === 'verify' && <form onSubmit={submit} aria-busy={busy}>
+          <label>Email<input type="email" name="email" autoComplete="email" value={verifyEmail} onChange={e=>setVerifyEmail(e.target.value)} required disabled={busy}/></label>
+          <label>Verification code<input type="text" name="token" inputMode="numeric" pattern="[0-9]{6}" maxLength={6} autoComplete="one-time-code" required disabled={busy}/></label>
+          <button type="submit" className="btn btn-primary" disabled={busy}>Verify & sign in</button>
+          <button type="button" className="btn btn-secondary" disabled={busy || Date.now() < resendAt} onClick={async()=>{setBusy(true);setMessage('');try{const result=await request('resend_signup_otp',{email:verifyEmail});setMessage(result.message);setResendAt(Date.now()+60000);}catch(error){setMessage(error.message);}finally{setBusy(false);}}}>Resend code</button>
+        </form>}
+        {mode !== 'callback' && mode !== 'verify' && (mode !== 'dashboard' || account) && (mode !== 'reset' || account) && (
           <form onSubmit={submit} aria-busy={busy}>
             {(mode === 'register' || mode === 'dashboard') && <>
               <input type="hidden" name="profileVersion" value="1" />
@@ -170,4 +179,4 @@ export function AuthPortal({ mode, production = false }) {
     </section>
   );
 }
-AuthPortal.propTypes = { production: PropTypes.bool, mode: PropTypes.oneOf(['register', 'login', 'forgot', 'reset', 'callback', 'dashboard']).isRequired };
+AuthPortal.propTypes = { production: PropTypes.bool, mode: PropTypes.oneOf(['register', 'login', 'forgot', 'reset', 'callback', 'verify', 'dashboard']).isRequired };
