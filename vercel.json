@@ -39,6 +39,14 @@
       "dest": "/index.html"
     },
     {
+      "src": "/verify-email",
+      "headers": {
+        "Referrer-Policy": "no-referrer",
+        "Cache-Control": "no-store"
+      },
+      "dest": "/index.html"
+    },
+    {
       "handle": "filesystem"
     },
     {

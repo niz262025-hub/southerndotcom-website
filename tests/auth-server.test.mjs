@@ -36,6 +36,70 @@ async function run(body, options = {}) {
 }
 const login = { action: 'login', email: user.email, password: 'staging-password' };
 
+test('signup TAC accepts six/eight digits and creates only a verified central session', async () => {
+  for (const token of ['123456', '12345678']) {
+    let received;
+    const result = await run({ action: 'verify_signup_otp', email: user.email, token }, {
+      client: mock({ verifyOtp: async args => { received = args; return { data: { session }, error: null }; } }),
+      appAccessFactory: () => ({}),
+    });
+    assert.deepEqual(received, { email: user.email, token, type: 'signup' });
+    assert.equal(result.code, 200);
+    assert.deepEqual(result.data, { next: '/account' });
+    assert.ok(result.headers['Set-Cookie'].some(value => value.startsWith('__Host-myops-login=')));
+    assert.ok(result.headers['Set-Cookie'].every(value => /HttpOnly; Secure; SameSite=Lax/.test(value)));
+    assert.ok(!JSON.stringify(result.data).includes(token));
+    assert.ok(!JSON.stringify(result.data).includes(session.access_token));
+  }
+});
+
+test('malformed, expired, replayed and unconfirmed signup TAC cannot establish a session', async () => {
+  for (const token of ['12345', '1234567', '123456789', 'abcdef', '123 456', 123456]) {
+    const result = await run({ action: 'verify_signup_otp', email: user.email, token }, {
+      client: mock({ verifyOtp: () => assert.fail('malformed token must not reach Auth') }),
+    });
+    assert.equal(result.code, 400);
+    assert.equal(result.headers['Set-Cookie'], undefined);
+  }
+  for (const client of [
+    mock({ verifyOtp: async () => ({ data: {}, error: { code: 'otp_expired', message: 'private upstream detail' } }) }),
+    mock({ verifyOtp: async () => ({ data: { session }, error: null }), getUser: async () => ({ data: { user: { ...user, email_confirmed_at: null } }, error: null }) }),
+  ]) {
+    const result = await run({ action: 'verify_signup_otp', email: user.email, token: '12345678' }, { client });
+    assert.equal(result.code, 400);
+    assert.equal(result.headers['Set-Cookie'], undefined);
+    assert.ok(!JSON.stringify(result.data).includes('private upstream detail'));
+  }
+  let used = false;
+  const client = mock({ verifyOtp: async () => {
+    if (used) return { data: {}, error: { code: 'otp_expired' } };
+    used = true; return { data: { session }, error: null };
+  } });
+  assert.equal((await run({ action: 'verify_signup_otp', email: user.email, token: '12345678' }, { client })).code, 200);
+  assert.equal((await run({ action: 'verify_signup_otp', email: user.email, token: '12345678' }, { client })).code, 400);
+});
+
+test('TAC verification and resend preserve same-origin checks, rate limits and privacy', async () => {
+  assert.equal((await run({ action: 'verify_signup_otp', email: user.email, token: '12345678' }, {
+    headers: { origin: 'https://other.example' }, client: mock({ verifyOtp: () => assert.fail('cross-origin') }),
+  })).code, 403);
+  assert.equal((await run({ action: 'verify_signup_otp', email: user.email, token: '12345678' }, {
+    client: mock({ verifyOtp: async () => ({ error: { status: 429 } }) }),
+  })).code, 429);
+  let received;
+  const resent = await run({ action: 'resend_signup_otp', email: user.email }, {
+    client: mock({ resend: async args => { received = args; return { error: null }; } }),
+  });
+  assert.equal(resent.code, 200);
+  assert.equal(resent.headers['Set-Cookie'], undefined);
+  assert.deepEqual(received, { type: 'signup', email: user.email, options: { emailRedirectTo: `${origin}/auth/callback` } });
+  for (const [status, expected] of [[429, 429], [500, 503]]) {
+    const result = await run({ action: 'resend_signup_otp', email: user.email }, { client: mock({ resend: async () => ({ error: { status, message: 'private SMTP detail' } }) }) });
+    assert.equal(result.code, expected);
+    assert.ok(!JSON.stringify(result.data).includes('private SMTP detail'));
+  }
+});
+
 test('production disabled regardless of configured values', async () => {
   const result = await run(login, { env: { VERCEL_ENV: 'production' }, factory: () => assert.fail('no upstream call') });
   assert.equal(result.code, 404);
