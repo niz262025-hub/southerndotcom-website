@@ -66,6 +66,26 @@ const products = [
     summary: 'Employee records with MYOPS access. Live UAT; other HR modules are in development.',
   },
   {
+    slug: 'opsclinic',
+    name: 'OpsClinic',
+    tag: ['Clinic', 'Management'],
+    icon: 'OC',
+    accent: 'teal',
+    art: 'opsclinic',
+    comingSoon: true,
+    summary: 'Clinic appointments, patient registration, billing and medical records planning.',
+  },
+  {
+    slug: 'opshome',
+    name: 'OpsHome',
+    tag: ['Smart Home', 'Management'],
+    icon: 'HM',
+    accent: 'teal',
+    art: 'opshome',
+    comingSoon: true,
+    summary: 'Control compatible smart lights, air conditioning, sensors and home automation from one dashboard.',
+  },
+  {
     slug: 'opswms',
     name: 'OpsWMS',
     tag: ['Warehouse', 'Management System'],
@@ -503,14 +523,17 @@ function LandingPage() {
             {products.map((product) => (
               <article className={`product-card ${product.accent}`} key={product.name}>
                 <div className="product-art">
-                  <img
-                    src={`/images/${product.art}-card-art.png`}
-                    alt={`${product.name} illustration`}
-                    width="380"
-                    height="248"
-                  />
+                  {(product.slug === 'opshome' || product.slug === 'opsclinic') ? (
+                    <div style={{ display: 'grid', placeItems: 'center', height: '100%', minHeight: 220 }}><span aria-label={`${product.name} icon`} style={{ fontSize: 64, fontWeight: 700, color: "inherit" }}>{product.icon}</span></div>
+                  ) : (
+                    <img src={`/images/${product.art}-card-art.png`} alt={`${product.name} illustration`} width="380" height="248" />
+                  )}
                 </div>
-                <img className="product-badge" src={`/images/${product.art}-card-badge.${product.badgeFormat || (product.comingSoon ? 'svg' : 'png')}`} alt="" width="88" height="88" />
+                {product.slug === 'opshome' ? (
+                  <span className="product-badge" style={{ display: 'grid', placeItems: 'center', fontWeight: 700, fontSize: 24 }} aria-label={`${product.name} icon`}>{product.icon}</span>
+                ) : (
+                  <img className="product-badge" src={`/images/${product.art}-card-badge.${product.badgeFormat || (product.comingSoon ? 'svg' : 'png')}`} alt="" width="88" height="88" />
+                )}
                 <h3>{product.name}</h3>
                 <p className="product-tagline">
                   {product.tag.map((line) => (
