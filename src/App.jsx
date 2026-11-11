@@ -66,6 +66,16 @@ const products = [
     summary: 'Employee records with MYOPS access. Live UAT; other HR modules are in development.',
   },
   {
+    slug: 'opshome',
+    name: 'OpsHome',
+    tag: ['Smart Home', 'Management'],
+    icon: 'HM',
+    accent: 'teal',
+    art: 'opshome',
+    comingSoon: true,
+    summary: 'Control compatible smart lights, air conditioning, sensors and home automation from one dashboard.',
+  },
+  {
     slug: 'opswms',
     name: 'OpsWMS',
     tag: ['Warehouse', 'Management System'],
