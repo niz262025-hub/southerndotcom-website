@@ -34,6 +34,7 @@ async function run(body, options = {}) {
     transport: options.transport, now: () => NOW, diagnostic: options.diagnostic || (() => {}) })(req, res);
   return { ...res, headers };
 }
+const registrationDetails = { contactNumber: '+60123456789', address: 'Johor Bahru' };
 const login = { action: 'login', email: user.email, password: 'staging-password' };
 
 test('signup TAC accepts six/eight digits and creates only a verified central session', async () => {
@@ -100,6 +101,21 @@ test('TAC verification and resend preserve same-origin checks, rate limits and p
   }
 });
 
+test('anonymous session probes cannot delete cookies issued by a concurrent login', async () => {
+  const result=await run({action:'session',activity:false});
+  assert.equal(result.code,200);
+  assert.deepEqual(result.data,{signedIn:false});
+  assert.equal(result.headers['Set-Cookie'],undefined);
+  const loggedIn=await run(login);
+  assert.equal(loggedIn.code,200);
+  assert.ok(loggedIn.headers['Set-Cookie'].some(c=>c.startsWith('__Host-myops-access=')&&!c.includes('Max-Age=0')));
+});
+test('transient identity lookup failure preserves cookies and denies access until retry', async () => {
+  const result=await run({action:'session',activity:false},{headers:{cookie:signedIn()},client:mock({getUser:async()=>({data:{user:null},error:{name:'AuthRetryableFetchError',status:503}})})});
+  assert.equal(result.code,503);
+  assert.equal(result.headers['Set-Cookie'],undefined);
+});
+
 test('production disabled regardless of configured values', async () => {
   const result = await run(login, { env: { VERCEL_ENV: 'production' }, factory: () => assert.fail('no upstream call') });
   assert.equal(result.code, 404);
@@ -150,7 +166,7 @@ test('wrong credentials and unconfirmed login cannot save a session', async () =
   }
 });
 test('signup never starts a session when confirmation is disabled', async () => {
-  const result = await run({ ...login, action: 'register', accountType: 'business', displayName: 'Test' },
+  const result = await run({ ...login, action: 'register', ...registrationDetails, accountType: 'business', displayName: 'Test', companyName: 'Test Company', ssmNumber: '202303050959', companyEmail: 'office@example.test', personInCharge: 'Owner' },
     { client: mock({ signUp: async () => ({ data: { session }, error: null }) }) });
   assert.equal(result.code, 503);
   assert.equal(result.headers['Set-Cookie'], undefined);
@@ -240,14 +256,14 @@ test('logout clears browser cookies without echoing credentials', async () => {
 test('real installed SDK persists PKCE verifier but never refresh/access session to cookie storage', async () => {
   const factory = (url, key, options) => createClient(url, key, { ...options,
     global: { fetch: async () => new Response(JSON.stringify({ id: 'fixture', email: user.email }), { status: 200, headers: { 'Content-Type': 'application/json' } }) } });
-  const result = await run({ ...login, action: 'register', accountType: 'personal', displayName: 'Test' }, { factory });
+  const result = await run({ ...login, action: 'register', ...registrationDetails, accountType: 'personal', displayName: 'Test' }, { factory });
   assert.equal(result.code, 200);
   assert.ok(result.headers['Set-Cookie'].some((c) => c.startsWith('__Host-myops-pkce=')));
   assert.ok(result.headers['Set-Cookie'].every((c) => !c.startsWith('__Host-myops-access=')));
 });
 
 test('registration errors never masquerade as confirmation success or expose upstream details', async () => {
-  const body = { ...login, action: 'register', accountType: 'personal', displayName: 'Test' };
+  const body = { ...login, action: 'register', ...registrationDetails, accountType: 'personal', displayName: 'Test' };
   for (const [code, status] of [['weak_password', 400], ['signup_disabled', 503], ['email_provider_disabled', 503], ['unexpected_failure', 502]]) {
     const result = await run(body, { client: mock({ signUp: async () => ({ data: {}, error: { code, message: 'private upstream detail' } }) }) });
     assert.equal(result.code, status);
@@ -265,7 +281,7 @@ test('missing Preview key stops signup before client initialization', async () =
 
 
 test('signup diagnostics log only allowlisted codes and numeric HTTP statuses', async () => {
-  const body = { ...login, action: 'register', accountType: 'personal', displayName: 'Test' };
+  const body = { ...login, action: 'register', ...registrationDetails, accountType: 'personal', displayName: 'Test' };
   for (const [code, status, expectedCode, expectedStatus] of [
     ['unexpected_failure', 500, 'unexpected_failure', 500],
     ['email_address_not_authorized', 403, 'email_address_not_authorized', 403],
@@ -286,13 +302,13 @@ test('signup diagnostics log only allowlisted codes and numeric HTTP statuses', 
 test('successful signup and Production rejection produce no signup diagnostics', async () => {
   const entries = [];
   const diagnostic = (entry) => entries.push(entry);
-  const body = { ...login, action: 'register', accountType: 'personal', displayName: 'Test' };
+  const body = { ...login, action: 'register', ...registrationDetails, accountType: 'personal', displayName: 'Test' };
   assert.equal((await run(body, { diagnostic })).code, 200);
   assert.equal((await run(body, { diagnostic, env: { VERCEL_ENV: 'production' } })).code, 404);
   assert.deepEqual(entries, []);
 });
 test('failed diagnostic sink cannot change signup error response', async () => {
-  const result = await run({ ...login, action: 'register', accountType: 'personal', displayName: 'Test' }, {
+  const result = await run({ ...login, action: 'register', ...registrationDetails, accountType: 'personal', displayName: 'Test' }, {
     diagnostic: () => { throw new Error('sink unavailable'); },
     client: mock({ signUp: async () => ({ data: {}, error: { code: 'unexpected_failure', status: 500 } }) }),
   });
@@ -300,7 +316,7 @@ test('failed diagnostic sink cannot change signup error response', async () => {
 });
 test('signup SDK destination is exactly the dedicated staging project', async () => {
   let destination;
-  const result = await run({ ...login, action: 'register', accountType: 'personal', displayName: 'Test' }, {
+  const result = await run({ ...login, action: 'register', ...registrationDetails, accountType: 'personal', displayName: 'Test' }, {
     factory: (url) => { destination = url; return mock(); },
   });
   assert.equal(result.code, 200);
@@ -310,7 +326,7 @@ test('signup SDK destination is exactly the dedicated staging project', async ()
 
 test('invalid upstream email returns actionable 400 without leaking upstream details', async () => {
   const entries = [];
-  const result = await run({ ...login, action: 'register', accountType: 'personal', displayName: 'Test' }, {
+  const result = await run({ ...login, action: 'register', ...registrationDetails, accountType: 'personal', displayName: 'Test' }, {
     diagnostic: (entry) => entries.push(entry),
     client: mock({ signUp: async () => ({ data: {}, error: {
       code: 'email_address_invalid', status: 400, message: 'private upstream detail',
@@ -1022,4 +1038,100 @@ test('recovery does not report email success for upstream outages or disabled em
     assert.equal(result.data.message, undefined);
     assert.ok(!JSON.stringify(result.data).includes('private SMTP detail'));
   }
+});
+
+test('satellite activity keeps a verified bound login active after the portal activity cookie expires', async () => {
+  for (const cookie of [signedIn(16 * 60 * 1000), `__Host-myops-access=test-access-token; ${loginCookie()}`]) {
+    const state = { checked: [], touched: 0, revoked: 0 };
+    const result = await run({ action: 'session', activity: false }, { headers: { cookie }, client: withData(), appAccessFactory: () => ({
+      loginLive: async (...args) => { state.checked.push(args); return true; },
+      touchLogin: async () => { state.touched++; return true; },
+      revokeUserSessions: async () => { state.revoked++; return true; },
+    }) });
+    assert.equal(result.data.signedIn, true);
+    assert.deepEqual(state.checked, [[user.id, LOGIN_ID]]);
+    assert.equal(state.touched, 0, 'passive checks must not extend durable activity');
+    assert.equal(state.revoked, 0);
+    assert.ok(!setCookies(result).some(c => c.startsWith('__Host-myops-activity=') && !c.includes('Max-Age=0')));
+  }
+});
+
+test('expired portal activity cannot resume a revoked or expired durable login', async () => {
+  const result = await run({ action: 'session', activity: false }, { headers: { cookie: signedIn(16 * 60 * 1000) }, appAccessFactory: () => ({
+    loginLive: async () => false, revokeUserSessions: async () => true,
+  }) });
+  assert.equal(result.data.signedIn, false);
+});
+
+test('expired portal activity with an unavailable durable check fails closed without destroying the login', async () => {
+  for (const loginLive of [async () => null, async () => { throw new Error('temporary outage'); }]) {
+    let revoked = false;
+    const result = await run({ action: 'session', activity: false }, { headers: { cookie: signedIn(16 * 60 * 1000) }, appAccessFactory: () => ({
+      loginLive, revokeUserSessions: async () => { revoked = true; return true; },
+    }) });
+    assert.equal(result.code, 503);
+    assert.equal(revoked, false);
+    assert.ok(!setCookies(result).some(c => c.includes('Max-Age=0')));
+  }
+});
+
+test('durable activity fallback requires a signed login belonging to a verified confirmed identity', async () => {
+  for (const extra of ['', loginCookie('someone-else'), '__Host-myops-login=forged.value']) {
+    const cookie = signedIn(16 * 60 * 1000).replace(/; __Host-myops-login=.*/, '') + '; ' + extra;
+    const result = await run({ action: 'session', activity: false }, { headers: { cookie }, appAccessFactory: () => ({
+      loginLive: async () => assert.fail('unbound login must not be checked'), revokeUserSessions: async () => true,
+    }) });
+    assert.equal(result.data.signedIn, false);
+  }
+});
+
+
+test('registration validates company/contact details before signUp even without a form version', async () => {
+  const register = { ...login, ...registrationDetails, action: 'register', accountType: 'business', displayName: 'Owner',
+    companyName: 'Company', ssmNumber: '202303050959', companyEmail: 'office@example.test', personInCharge: 'Owner' };
+  for (const missing of ['companyName', 'ssmNumber', 'companyEmail', 'personInCharge', 'contactNumber', 'address']) {
+    const invalid = { ...register }; delete invalid[missing];
+    const result = await run(invalid, { client: mock({ signUp: () => assert.fail('invalid profile must not reach Auth') }) });
+    assert.equal(result.code, 400, missing);
+  }
+  let sent;
+  assert.equal((await run({ ...register, role: 'admin', organization_id: 'victim', subscription: 'active' }, {
+    client: mock({ signUp: async input => { sent = input; return { data: { session: null }, error: null }; } }),
+  })).code, 200);
+  assert.deepEqual(sent.options.data, { display_name: 'Owner', account_type: 'business', company_name: 'Company',
+    ssm_number: '202303050959', company_email: 'office@example.test', person_in_charge: 'Owner',
+    contact_number: '+60123456789', address: 'Johor Bahru' });
+});
+
+test('central account returns bounded contact metadata without exposing authority claims', async () => {
+  const metadata = { display_name: 'Owner', account_type: 'business', company_name: 'Company',
+    ssm_number: '202303050959', company_email: 'office@example.test', contact_number: '+60123456789',
+    address: 'Johor Bahru', person_in_charge: 'Owner' };
+  const result = await run({ action: 'account' }, { headers: { cookie: signedIn() },
+    client: mock({ getUser: async () => ({ data: { user: { ...user, user_metadata: { ...metadata, role: 'admin', organization_id: 'victim' } } }, error: null }) }),
+    appAccessFactory: () => ({ loginLive: async () => true }) });
+  assert.equal(result.code, 200);
+  assert.deepEqual(result.data.profile, metadata);
+});
+
+test('logo writes need a verified live session and cannot accept an object path supplied by the browser',async()=>{
+ const invalid={action:'profile-logo',operation:'remove'};
+ assert.equal((await run(invalid)).code,401);
+ assert.equal((await run({...invalid,path:'victim/file.png'},{headers:{cookie:signedIn()}})).code,400);
+ const bad=await run({action:'profile-logo',operation:'upload',contentType:'image/svg+xml',encoded:'AAAA'},{headers:{cookie:signedIn()}});
+ assert.equal(bad.code,400);
+});
+test('logo upload and account readback keep the verified owner and expose only a short-lived URL',async()=>{
+ const metadata={display_name:'Owner',account_type:'personal'};
+ const calls=[];
+ const client=mock({getUser:async()=>({data:{user:{...user,user_metadata:metadata}},error:null})});
+ client.storage={from:()=>({upload:async(path)=>{calls.push(path);return {error:null};},remove:async()=>({error:null}),createSignedUrl:async(path,ttl)=>{assert.equal(path,metadata.logo_path);assert.equal(ttl,300);return {data:{signedUrl:'https://storage.example.test/signed'},error:null};}})};
+ const transport=async(_url,request)=>{Object.assign(metadata,JSON.parse(request.body).data);return Response.json({id:user.id});};
+ const headers={cookie:signedIn()};
+ const result=await run({action:'profile-logo',operation:'upload',contentType:'image/png',encoded:'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+aA1sAAAAASUVORK5CYII='},{headers,client,transport});
+ assert.equal(result.code,200);assert.ok(calls[0].startsWith(user.id+'/'));
+ const saved=await run({action:'account'},{headers,client});assert.equal(saved.code,200);assert.equal(saved.data.profile.logo_url,'https://storage.example.test/signed');assert.equal(saved.data.profile.has_logo,true);
+ assert.equal((await run({action:'profile-logo',operation:'remove'},{headers,client,transport})).code,200);
+ assert.equal(metadata.logo_path,null);
+ const removed=await run({action:'account'},{headers,client});assert.equal(removed.data.profile.has_logo,undefined);
 });

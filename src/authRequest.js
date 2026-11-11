@@ -2,7 +2,7 @@ export async function authRequest(action, fields = {}) {
   let response;
   try {
     response = await fetch('/api/auth', {
-      method: 'POST', credentials: 'same-origin', headers: { 'Content-Type': 'application/json' },
+      method: 'POST', credentials: 'same-origin', cache: 'no-store', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ action, ...fields }),
     });
   } catch { throw new Error('Unable to connect. Check your connection and try again.'); }

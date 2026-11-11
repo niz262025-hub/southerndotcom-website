@@ -288,7 +288,7 @@ test('registration provisions the server-owned account type, insert-only, and ne
   const run = async (identities, accountType) => {
     const res = { setHeader() {}, status(code) { this.code = code; return this; }, json(data) { this.data = data; return this; } };
     const req = { method: 'POST', headers: { host: 'trusted-preview.vercel.app', origin, 'content-type': 'application/json' },
-      body: { action: 'register', email: 'a@example.com', password: 'p'.repeat(14), accountType, displayName: 'Name' } };
+      body: { action: 'register', email: 'a@example.com', password: 'p'.repeat(14), accountType, displayName: 'Name', contactNumber: '+60123456789', address: 'Johor Bahru', ...(accountType === 'business' ? { companyName: 'Company', ssmNumber: '202303050959', companyEmail: 'office@example.test', personInCharge: 'Name' } : {}) } };
     await createAuthHandler({ env, clientFactory: (url, key) => (key.startsWith('sb_secret_') ? state.client : signUp(identities)), now: () => NOW })(req, res);
     return res;
   };
@@ -440,4 +440,26 @@ test('live bill and callback use live credentials with independent confirmation 
   assert.equal((await hook(fields, { ledgerState: state, transport: verified.transport, extraEnv: liveEnv })).code, 400);
   assert.equal(verified.requests.length, before);
   assert.equal((await hook(callbackFields(order), { ledgerState: state, transport: verified.transport, extraEnv: liveEnv })).code, 400);
+});
+test('production auth checkout is gated and passes only live configuration to payment transport', async () => {
+  const state = ledger(); const original = state.client.rpc;
+  state.client.rpc = async (name, args) => {
+    const result = await original(name, args);
+    if (name === 'myops_create_payment') {
+      result.data.gateway = 'toyyibpay_live';
+      state.payments.get(result.data.order_ref).gateway = 'toyyibpay_live';
+    }
+    return result;
+  };
+  const headers = { host: 'www.myops.com.my', origin: 'https://www.myops.com.my' };
+  const extraEnv = { ...liveEnv, MYOPS_ENABLE_PRODUCTION_AUTH: 'true' };
+  const g = gateway();
+  assert.equal((await authRun({ action: 'checkout', plan: 'founders_lifetime' }, { headers, ledgerState: state,
+    transport: g.transport, extraEnv: { ...extraEnv, MYOPS_ENABLE_LIVE_PAYMENTS: '' } })).code, 404);
+  assert.equal(g.requests.length, 0);
+  const result = await authRun({ action: 'checkout', plan: 'founders_lifetime' }, { headers, ledgerState: state, transport: g.transport, extraEnv });
+  assert.equal(result.code, 200);
+  assert.equal(result.data.next, 'https://toyyibpay.com/abc123XY');
+  assert.equal(g.requests[0].body.userSecretKey, liveEnv.TOYYIBPAY_LIVE_SECRET_KEY);
+  assert.equal((await authRun({ action: 'founders' }, { headers, ledgerState: state, extraEnv })).data.capacity, 100);
 });

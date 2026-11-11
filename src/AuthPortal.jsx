@@ -2,6 +2,8 @@ import { useEffect, useRef, useState } from 'react';
 import PropTypes from 'prop-types';
 import { authRequest as request } from './authRequest';
 import { jumpToFounders } from './foundersNav';
+import { ProfileLogo } from './ProfileLogo';
+import { FreeTrial } from './FreeTrial';
 
 const productLabels = { opsp: 'OpsPS', opsfinance: 'OpsFinance', opsflow: 'OpsFlow', opswms: 'OpsWMS', opshr: 'OpsHR' };
 
@@ -10,7 +12,7 @@ export function AuthPortal({ mode, production = false }) {
   const [busy, setBusy] = useState(false);
   const [account, setAccount] = useState(null);
   const [trialInfo,setTrialInfo]=useState(null);
-  const [accountType, setAccountType] = useState('personal');
+  const [accountType, setAccountType] = useState('business');
   const started = useRef(false);
   const [verifyEmail, setVerifyEmail] = useState(() => new URLSearchParams(window.location.search).get('email') || '');
   const [resendAt, setResendAt] = useState(0);
@@ -35,7 +37,7 @@ export function AuthPortal({ mode, production = false }) {
         .catch((error) => setMessage(error.message)).finally(() => setBusy(false));
     } else if (mode === 'dashboard' || mode === 'reset') {
       setBusy(true);
-      request('account').then((data) => { setAccount(data); setAccountType(data.profile?.account_type || 'personal'); if(data.trialAvailable&&!data.lifetime&&!production) request('trial_status').then(setTrialInfo).catch(error=>setMessage(error.message)); }).catch((error) => {
+      request('account').then((data) => { setAccount(data); setAccountType(data.profile?.account_type || 'business'); if(data.trialAvailable&&!data.lifetime&&!production) request('trial_status').then(setTrialInfo).catch(error=>setMessage(error.message)); }).catch((error) => {
         if (error.status === 401) window.location.replace('/login');
         else setMessage(error.message);
       }).finally(() => setBusy(false));
@@ -99,8 +101,11 @@ export function AuthPortal({ mode, production = false }) {
       </div>
       <div className="account-preview-panel account-form-panel">
         <p role="status" aria-live="polite">{busy ? 'Please wait…' : message}</p>
+        {mode === 'register' && <p><strong>Free 7-Day Trial — RM0.</strong> Verify your email to access your MYOPS account. MYOPS applications: OpsPS, OpsFinance, OpsFlow and OpsHR. Free-trial access is available only for applications confirmed as eligible in your account; registration does not automatically activate every application. No card or auto-renewal for eligible trials.</p>}
         {mode === 'dashboard' && account && <>
+          <FreeTrial />
           <p>Signed in as {account.email}</p>
+          <ProfileLogo profile={account.profile} refresh={async () => { const data = await request('account'); setAccount(data); }} />
           {account.profile?.company_name && <p>{account.profile.company_name}</p>}
           {account.profile && <p>{account.profile.display_name} · {account.profile.account_type === 'business' ? 'Business' : 'Personal'}</p>}
           <p>Open applications from the <a href="/">MYOPS homepage</a>; access is checked by the server on every launch.</p>
@@ -134,10 +139,10 @@ export function AuthPortal({ mode, production = false }) {
               <p>Other packages: First 100 Subscribers · Normal Subscription (2 apps) · All Apps. New paid checkout is not enabled by this trial test.</p>
             </section>}
             {account.lifetime && <p>Founders 100 lifetime access: active (all current and future MYOPS apps).</p>}
-            <p>{production ? 'Subscriptions and application access are not available for purchase yet.' : 'Preview payments use the ToyyibPay sandbox only. Application access is granted only after the server confirms a verified payment or active subscription.'}</p>
+            <p>{production ? 'View subscription availability and pricing on the MYOPS homepage. Access is granted after payment verification.' : 'Preview payments use the ToyyibPay sandbox only. Application access is granted only after the server confirms a verified payment or active subscription.'}</p>
           </section>
           <p>Applications open through your MYOPS login. This site signs you out after 15 minutes of inactivity.</p>
-          <button type="button" className="btn btn-primary" disabled={busy} onClick={logout}>Sign out</button>
+          <button type="button" className="btn btn-primary" disabled={busy} onClick={logout}>Log keluar semua aplikasi</button>
           <p><a href="/forgot-password">Change password</a></p>
         </>}
         {mode === 'verify' && <p>Enter the 6- or 8-digit code from your MYOPS confirmation email. After verification you will be signed in automatically.</p>}
@@ -152,12 +157,13 @@ export function AuthPortal({ mode, production = false }) {
           <form onSubmit={submit} aria-busy={busy}>
             {(mode === 'register' || mode === 'dashboard') && <>
               <input type="hidden" name="profileVersion" value="1" />
-              <h2>{mode === 'dashboard' ? 'Complete your profile' : 'Account details'}</h2>
-              {mode === 'dashboard' && <p>Save your name and company here once. Applications use these details when setting up your account; existing application data is preserved.</p>}
+              <h2>{mode === 'dashboard' ? 'Complete your profile' : 'Account and company details'}</h2>
+              {mode === 'dashboard' && <p>Save your company details centrally in MYOPS. Connected applications can use these details during account setup; existing application data is preserved.</p>}
               <label>Full name<input name="displayName" autoComplete="name" defaultValue={account?.profile?.display_name || ''} required maxLength={100} disabled={busy} /></label>
               {accountType !== 'business' && <label>Company name<input name="companyName" autoComplete="organization" defaultValue={account?.profile?.company_name || ''} maxLength={200} disabled={busy} /></label>}
+              <p>Company name, SSM registration number and business address are saved in your central MYOPS profile for connected applications. Select Business to enter mandatory SSM details.</p>
               <label>Account type<select name="accountType" value={accountType} onChange={(e) => setAccountType(e.target.value)} disabled={busy}>
-                <option value="personal">Personal / Individual</option><option value="business">Business</option>
+                <option value="business">Business / Company (SSM)</option><option value="personal">Personal / Individual</option>
               </select></label>
               {accountType === 'business' && <>
                 <label>Company name<input name="companyName" autoComplete="organization" defaultValue={account?.profile?.company_name || ''} maxLength={200} required disabled={busy} /></label>

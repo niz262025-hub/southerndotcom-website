@@ -59,10 +59,11 @@ const products = [
     name: 'OpsHR',
     tag: ['Human Resources', 'Management'],
     icon: 'HR',
-    accent: 'orange',
+    accent: 'teal',
     art: 'opshr',
-    comingSoon: true,
-    summary: 'Manage employee records, attendance and leave.',
+    href: '/solutions/opshr',
+    badgeFormat: 'svg',
+    summary: 'Employee records with MYOPS access. Live UAT; other HR modules are in development.',
   },
   {
     slug: 'opswms',
@@ -147,6 +148,7 @@ const routes = {
   '/solutions/opsp': SolutionPage,
   '/solutions/opsfinance': SolutionPage,
   '/solutions/opsflow': SolutionPage,
+  '/solutions/opshr': SolutionPage,
   '/solutions/business-website-application-development': BusinessWebsiteDevelopmentPage,
   '/services/web-and-business-applications': BusinessWebsiteDevelopmentPage,
   '/pricing': PricingPage,
@@ -508,7 +510,7 @@ function LandingPage() {
                     height="248"
                   />
                 </div>
-                <img className="product-badge" src={`/images/${product.art}-card-badge.${product.comingSoon ? 'svg' : 'png'}`} alt="" width="88" height="88" />
+                <img className="product-badge" src={`/images/${product.art}-card-badge.${product.badgeFormat || (product.comingSoon ? 'svg' : 'png')}`} alt="" width="88" height="88" />
                 <h3>{product.name}</h3>
                 <p className="product-tagline">
                   {product.tag.map((line) => (
@@ -705,6 +707,14 @@ function SolutionPage({ route }) {
   const product = products.find((item) => item.href === route || item.slug === route.replace('/solutions/', '')) || products[0];
 
   const solutionMeta = {
+    opshr: {
+      name: 'OpsHR',
+      accent: 'teal',
+      summary: 'Employee management is available for Live UAT through your MYOPS account. Attendance, leave, payroll, documents and reports are in development.',
+      bullets: ['Create and update employee profiles', 'Department, designation and employment status', 'Central MYOPS login and subscription access', 'Personal and company data isolation'],
+      ctaLabel: 'Open MYOPS Account',
+      ctaHref: '/account',
+    },
     opsp: {
       name: 'OpsPS',
       accent: 'pink',
@@ -778,6 +788,7 @@ const routePageMap = {
   '/solutions/opsp': () => <SolutionPage route="/solutions/opsp" />,
   '/solutions/opsfinance': () => <SolutionPage route="/solutions/opsfinance" />,
   '/solutions/opsflow': () => <SolutionPage route="/solutions/opsflow" />,
+  '/solutions/opshr': () => <SolutionPage route="/solutions/opshr" />,
   '/solutions/business-website-application-development': () => <BusinessWebsiteDevelopmentPage />,
   '/services/web-and-business-applications': () => <BusinessWebsiteDevelopmentPage />,
 };
@@ -796,54 +807,40 @@ function PricingPage() {
       </PageShell>
     );
   }
+  const plans = [
+    { name: 'Starter', price: 'RM9.90', tag: 'Entry', summary: 'Limited-use tier for lighter operational requirements.', cta: 'Talk to Us' },
+    { name: 'Single', price: 'RM19.90', tag: 'Focused', summary: 'Choose one MYOPS product for a targeted rollout.', cta: 'Talk to Us' },
+    { name: 'Duo', price: 'RM29.90', tag: 'Bundle', summary: 'Access any two paid MYOPS products in one plan.', cta: 'Talk to Us' },
+    { name: 'Complete', price: 'RM39.90', tag: 'Full bundle', summary: 'Unlock the complete MYOPS bundle for your business.', cta: 'Talk to Us', highlight: true },
+    { name: 'OpsHub', price: 'RM0', tag: 'Seller', summary: 'Seller access is free. GMV commissions apply at 3% / 2% / 1.5% tiers.', cta: 'Request quote' },
+  ];
+
   return (
     <PageShell pageClass="page-shell-plain">
       <section className="page-hero">
         <div className="container narrow-content">
-          <SectionIntro label="Pricing" title="Simple product access for modern operations" text="Explore the MYOPS ecosystem with a 7-day free trial for eligible new accounts. The trial is offered centrally through MYOPS for available applications, including OpsFinance, OpsFlow, OpsPS and OpsHR. Paid subscription plans apply after the trial. Custom development services are quoted separately." />
+          <SectionIntro
+            label="Pricing"
+            title="MYOPS product pricing"
+            text="Approved monthly pricing in MYR. All paid plans include a 14-day trial, default manual renewal, and no card-based recurring debit checkout. Custom development services are quoted separately."
+          />
           <div className="pricing-grid">
-            <article className="pricing-card highlight">
-              <span className="pricing-tag">OpsFinance</span>
-              <h3>Accounting &amp; Financial Management</h3>
-              <div className="price-line">
-                <strong>RM29</strong>
-                <span>/month/company</span>
-              </div>
-              <ul>
-                <li>Included in the MYOPS 7-day free trial for eligible new accounts</li>
-                <li>Core accounting and operational visibility</li>
-                <li>Business financial coordination</li>
-              </ul>
-              <a href="/contact" className="btn btn-primary">Talk to Us</a>
-            </article>
-            <article className="pricing-card">
-              <span className="pricing-tag">MYOPS</span>
-              <h3>Product ecosystem</h3>
-              <div className="price-line">
-                <strong>Custom</strong>
-                <span>pricing</span>
-              </div>
-              <ul>
-                <li>Multi-solution access</li>
-                <li>Business coordination and workflows</li>
-                <li>Tailored setup guidance</li>
-              </ul>
-              <a href="/contact" className="btn btn-secondary">Request quote</a>
-            </article>
-            <article className="pricing-card">
-              <span className="pricing-tag">Services</span>
-              <h3>Website &amp; application solutions</h3>
-              <div className="price-line">
-                <strong>Custom</strong>
-                <span>quote</span>
-              </div>
-              <ul>
-                <li>Website design and build</li>
-                <li>Business applications and integration</li>
-                <li>Project scoping and consultation</li>
-              </ul>
-              <a href="/contact" className="btn btn-primary">Get a Quote</a>
-            </article>
+            {plans.map((plan) => (
+              <article key={plan.name} className={`pricing-card${plan.highlight ? ' highlight' : ''}`}>
+                <span className="pricing-tag">{plan.tag}</span>
+                <h3>{plan.name}</h3>
+                <div className="price-line">
+                  <strong>{plan.price}</strong>
+                  <span>/month</span>
+                </div>
+                <ul>
+                  <li>{plan.summary}</li>
+                  {plan.name === 'OpsHub' ? <li>Commission tiers: 3% under RM1,000 GMV, 2% from RM1,000 to RM9,999.99, 1.5% above RM10,000.</li> : <li>14-day trial included on paid plans.</li>}
+                  <li>Manual renewal by default. No unsupported recurring debit claims.</li>
+                </ul>
+                <a href="/contact" className="btn btn-primary">{plan.cta}</a>
+              </article>
+            ))}
           </div>
         </div>
       </section>
@@ -1030,6 +1027,7 @@ export default function App() {
     pathname === '/solutions/opsp' ||
     pathname === '/solutions/opsfinance' ||
     pathname === '/solutions/opsflow' ||
+    pathname === '/solutions/opshr' ||
     pathname === '/solutions/business-website-application-development' ||
     pathname === '/services/web-and-business-applications'
   ) {

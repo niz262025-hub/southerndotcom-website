@@ -1,6 +1,7 @@
 import { loadEligibleTrial, trialAppsForEnvironment } from './trial-access.js';
 import { consumeVerifiedTrialQuota } from './trial-quota.js';
 import { loadAppProfile } from './app-profile.js';
+import { loadCentralProfile } from './central-profile.js';
 import { createHash, createHmac, createPublicKey, randomBytes, verify } from 'node:crypto';
 import { createClient } from '@supabase/supabase-js';
 import { resolveProductStates, isPlatformAdmin } from './entitlements.js';
@@ -21,7 +22,10 @@ const USER_ID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-
 export const hashTicket = (ticket) => createHash('sha256').update(ticket).digest('hex');
 function receivesCentralLabels(product,env) {
   if(product==='opsflow')return true;
-  if(env.VERCEL_ENV!=='preview'||env.MYOPS_ENVIRONMENT!=='staging')return false;
+  const staging=env.VERCEL_ENV==='preview'&&env.MYOPS_ENVIRONMENT==='staging';
+  const production=env.VERCEL_ENV==='production'&&env.MYOPS_ENVIRONMENT==='production'
+    &&env.MYOPS_ENABLE_PRODUCTION_APP_ACCESS==='true';
+  if(!staging&&!production)return false;
   return (product==='opsfinance'&&env.MYOPS_FINANCE_PROVISIONING_READY==='true')
     ||(product==='opsp'&&env.MYOPS_OPSPS_PROVISIONING_READY==='true');
 }
@@ -130,11 +134,12 @@ async function loadEntitlementSnapshot(client, userId, now, env = {}) {
     grants: grants.data || [],
     lifetime: lifetime.data || [],
     platformAdmin: isPlatformAdmin(userId, env),
+    trial, trialApps: trialAppsForEnvironment(env),
     now,
   };
   return {
     products: resolveProductStates({ ...inputs, trial, trialApps: trialAppsForEnvironment(env) }),
-    paidProducts: resolveProductStates(inputs),
+    paidProducts: resolveProductStates({ ...inputs, trial: null, trialApps: [] }),
     trial,
   };
 }
@@ -234,6 +239,17 @@ export function createAppAccess({ env = process.env, adminFactory = createClient
     } catch (error) {
       return unavailable('rpc', error.code);
     }
+  }
+
+  // Read only: satellite activity already updates this same bound durable login.
+  async function loginLive(userId, loginSessionId) {
+    if (!configured(env) || !USER_ID.test(String(userId)) || !USER_ID.test(String(loginSessionId))) return false;
+    const admin = client();
+    if (!admin) return null;
+    try {
+      const live = await rpc(admin, 'myops_login_live', { p_id: loginSessionId, p_user_id: userId });
+      return typeof live === 'boolean' ? live : null;
+    } catch { return null; }
   }
 
   // Records MYOPS user activity (throttled to 30 s in SQL). false = login no longer live; null = unknown.
@@ -406,10 +422,11 @@ export function createAppAccess({ env = process.env, adminFactory = createClient
       auth = await authenticate(req, res, 'entitlement');
       if (!auth || typeof auth.statusCode === 'number') return auth;
       const { admin, appId, clientData, body, reply } = auth;
-      if (Object.keys(body).some((key) => !['session_id', 'product', 'sensitive', 'activity'].includes(key))
+      if (Object.keys(body).some((key) => !['session_id', 'product', 'sensitive', 'activity', 'profile'].includes(key))
           || !SESSION_ID.test(body.session_id || '') || body.product !== clientData.product_slug
           || (body.sensitive !== undefined && typeof body.sensitive !== 'boolean')
           || (body.activity !== undefined && typeof body.activity !== 'boolean')
+          || (body.profile !== undefined && typeof body.profile !== 'boolean')
           || (body.sensitive === true && body.activity !== true)) {
         return reply(400, { error: 'Invalid request.' });
       }
@@ -445,6 +462,7 @@ export function createAppAccess({ env = process.env, adminFactory = createClient
         }
       }
       return reply(200, { entitled: true, session_active: true, ...mode, checked_at: new Date(now()).toISOString(),
+        ...(body.profile === true ? { central_profile: await loadCentralProfile(admin, appSession.user_id) } : {}),
         ...(body.product === 'opsflow' && body.sensitive === true ? { onboarding_profile: await loadAppProfile(admin, appSession.user_id) } : {}) });
     } catch {
       return res.status(503).json({ error: 'Application access could not be verified.' });
@@ -471,5 +489,5 @@ export function createAppAccess({ env = process.env, adminFactory = createClient
     } catch { return res.status(503).json({ allowed:false }); }
   }
 
-  return { issueTicket, startLogin, touchLogin, processRevocations, queueRevocation, pendingRevocations, revokeUserSessions, redeem, entitlement, trialQuota };
+  return { issueTicket, startLogin, touchLogin, loginLive, processRevocations, queueRevocation, pendingRevocations, revokeUserSessions, redeem, entitlement, trialQuota };
 }

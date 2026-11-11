@@ -13,19 +13,22 @@ const SessionContext = createContext({ ...SignedOut, enabled: false, refresh: as
 export function SessionProvider({ enabled, children }) {
   const [state, setState] = useState(enabled ? { status: 'loading', signedIn: false, products: null, lifetime: false } : SignedOut);
   const lastActivity = useRef(0);
+  const refreshSequence = useRef(0);
   const logoutPending = useRef(false);
   const [logoutBusy, setLogoutBusy] = useState(false);
   const [logoutError, setLogoutError] = useState('');
 
   const refresh = useCallback(async (activity = true) => {
     if (!enabled) return;
+    const sequence = ++refreshSequence.current;
     try {
       const result = await authRequest('session', { activity });
+      if (sequence !== refreshSequence.current) return;
       setState(result.signedIn
         ? { status: 'ready', signedIn: true, email: result.email, products: result.products, lifetime: Boolean(result.lifetime), platformAdmin: result.platformAdmin === true }
         : SignedOut);
     } catch {
-      setState(SignedOut);
+      if (sequence === refreshSequence.current) setState(previous => ({ ...previous, status: 'unavailable', products: null }));
     }
   }, [enabled]);
 
@@ -58,7 +61,7 @@ export function SessionProvider({ enabled, children }) {
       const result = await authRequest('logout');
       window.location.replace(result.next);
     } catch (error) {
-      setLogoutError(`Sign out could not be confirmed. ${error.message} Please retry Logout.`);
+      setLogoutError(`Sign out could not be confirmed. ${error.message} Sila cuba Log keluar semua aplikasi sekali lagi.`);
     } finally {
       logoutPending.current = false;
       setLogoutBusy(false);
@@ -78,12 +81,13 @@ export function useSession() {
 export function AuthNav() {
   const session = useSession();
   if (!session.enabled || session.status === 'loading') return null;
+  if (session.status === 'unavailable') return <div className="nav-auth" role="status">Session check unavailable. <button className="btn btn-secondary" onClick={() => session.refresh(false)}>Retry</button></div>;
   if (session.signedIn || session.logoutError) {
     return (
       <div className="nav-auth">
         <a href="/account" className="btn btn-secondary">My Account</a>
         {session.platformAdmin && <a href="/admin/audit" className="btn btn-secondary">Admin</a>}
-        <button type="button" className="btn btn-primary" disabled={session.logoutBusy} onClick={session.logout}>{session.logoutBusy ? 'Signing out…' : 'Logout'}</button>
+        <button type="button" className="btn btn-primary" disabled={session.logoutBusy} onClick={session.logout}>{session.logoutBusy ? 'Sedang log keluar…' : 'Log keluar semua aplikasi'}</button>
         {session.logoutError && <p role="alert">{session.logoutError}</p>}
       </div>
     );
@@ -102,6 +106,7 @@ export function ProductAction({ product, arrow = false }) {
   const [busy, setBusy] = useState(false);
   if (!session.enabled) return null;
   if (product.comingSoon) return null;
+  if (session.status === 'unavailable') return <p role="status">Access verification is temporarily unavailable. Please retry.</p>;
 
   const state = session.signedIn ? session.products?.[product.slug] : 'none';
   async function open() {
