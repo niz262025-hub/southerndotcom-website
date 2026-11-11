@@ -21,7 +21,9 @@ After access is restored: verify backups/recovery; inspect staging trigger/schem
 - Lint and production build passed.
 - Signed redemption regression includes production readiness off/on and invalid signatures.
 - Finance companion patch includes database tests for auth-trigger compatibility, retry idempotency, membership isolation and browser-role denial.
-- No authenticated end-to-end PASS is claimed.
+- GitHub Actions runs 43005426833 and 43005426710 passed for the MYOPS candidate. Finance run 43005430272 passed, including its signed-out desktop browser suite.
+- Existing six production entry URLs returned HTTP 200 (Finance login redirects to MYOPS login). This does not verify authenticated workflows.
+- Secure browser credential submission did not produce a visible signed-in session; authenticated end-to-end remains unverified.
 
 ## Inventory and release dashboard
 
