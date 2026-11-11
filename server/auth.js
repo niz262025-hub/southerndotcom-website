@@ -263,8 +263,11 @@ export function createAuthHandler({ env = process.env, clientFactory = createCli
     if (env.VERCEL_ENV !== 'preview' && !(production && env.MYOPS_ENABLE_PRODUCTION_AUTH === 'true')) {
       return reply(404, { error: 'Authentication is not enabled for this deployment.' });
     }
-    const origin = production ? 'https://www.myops.com.my'
-      : env.VERCEL_BRANCH_URL ? `https://${env.VERCEL_BRANCH_URL}` : '';
+    // Both immutable deployment URLs and branch aliases are Vercel-owned inputs.
+    // Never accept an arbitrary Preview host or use the caller's Origin as trust.
+    const trustedOrigins = production ? ['https://www.myops.com.my']
+      : [env.VERCEL_BRANCH_URL, env.VERCEL_URL].filter(Boolean).map(host => `https://${host}`);
+    const origin = trustedOrigins.find(value => req.headers.host === new URL(value).host);
     if (!origin || req.headers.host !== new URL(origin).host) {
       return reply(403, { error: 'Use the trusted MYOPS website URL.' });
     }

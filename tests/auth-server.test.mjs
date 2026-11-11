@@ -60,6 +60,14 @@ test('reject wrong project, missing key and service-role/secret key shape', asyn
   }
   assert.equal((await run(login, { env: { VITE_SUPABASE_URL: 'https://other.supabase.co' } })).code, 503);
 });
+test('immutable Preview URL supports login with exact same-origin enforcement', async () => {
+  const host = 'immutable-preview.vercel.app';
+  const options = { env: { VERCEL_URL: host }, headers: { host, origin: `https://${host}` } };
+  assert.equal((await run(login, options)).code, 200);
+  assert.equal((await run(login, { ...options, headers: { host, origin } })).code, 403);
+  assert.equal((await run(login, { ...options, headers: { host: 'untrusted.vercel.app', origin: 'https://untrusted.vercel.app' } })).code, 403);
+  assert.equal((await run(login, { ...options, env: { VERCEL_URL: host, VERCEL_ENV: 'production', MYOPS_ENABLE_PRODUCTION_AUTH: 'true' } })).code, 403);
+});
 test('confirmed login saves only HttpOnly secure bounded access cookie, no tokens in JSON', async () => {
   const result = await run(login);
   assert.equal(result.code, 200);
