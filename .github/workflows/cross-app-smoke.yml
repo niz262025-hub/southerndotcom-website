@@ -21,6 +21,11 @@ jobs:
             "https://opsflow.myops.com.my/"
             "https://opshr.myops.com.my/"
             "https://opshub.myops.com.my/"
+            "https://southerndotcom-website-n8mbkbwf3-mohd-syaiful-nizam1.vercel.app/"
+            "https://opsfinance-ecior985q-mohd-syaiful-nizam1.vercel.app/"
+            "https://opsflow-staging-gzofesy26-mohd-syaiful-nizam1.vercel.app/"
+            "https://opsp-mobile-r1-kegpw4g34-mohd-syaiful-nizam1.vercel.app/"
+            "https://opshr-b5p8ig20m-mohd-syaiful-nizam1.vercel.app/"
           )
           failed=0
           for url in "${urls[@]}"; do
