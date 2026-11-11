@@ -37,6 +37,70 @@ async function run(body, options = {}) {
 const registrationDetails = { contactNumber: '+60123456789', address: 'Johor Bahru' };
 const login = { action: 'login', email: user.email, password: 'staging-password' };
 
+test('signup TAC accepts six/eight digits and creates only a verified central session', async () => {
+  for (const token of ['123456', '12345678']) {
+    let received;
+    const result = await run({ action: 'verify_signup_otp', email: user.email, token }, {
+      client: mock({ verifyOtp: async args => { received = args; return { data: { session }, error: null }; } }),
+      appAccessFactory: () => ({}),
+    });
+    assert.deepEqual(received, { email: user.email, token, type: 'signup' });
+    assert.equal(result.code, 200);
+    assert.deepEqual(result.data, { next: '/account' });
+    assert.ok(result.headers['Set-Cookie'].some(value => value.startsWith('__Host-myops-login=')));
+    assert.ok(result.headers['Set-Cookie'].every(value => /HttpOnly; Secure; SameSite=Lax/.test(value)));
+    assert.ok(!JSON.stringify(result.data).includes(token));
+    assert.ok(!JSON.stringify(result.data).includes(session.access_token));
+  }
+});
+
+test('malformed, expired, replayed and unconfirmed signup TAC cannot establish a session', async () => {
+  for (const token of ['12345', '1234567', '123456789', 'abcdef', '123 456', 123456]) {
+    const result = await run({ action: 'verify_signup_otp', email: user.email, token }, {
+      client: mock({ verifyOtp: () => assert.fail('malformed token must not reach Auth') }),
+    });
+    assert.equal(result.code, 400);
+    assert.equal(result.headers['Set-Cookie'], undefined);
+  }
+  for (const client of [
+    mock({ verifyOtp: async () => ({ data: {}, error: { code: 'otp_expired', message: 'private upstream detail' } }) }),
+    mock({ verifyOtp: async () => ({ data: { session }, error: null }), getUser: async () => ({ data: { user: { ...user, email_confirmed_at: null } }, error: null }) }),
+  ]) {
+    const result = await run({ action: 'verify_signup_otp', email: user.email, token: '12345678' }, { client });
+    assert.equal(result.code, 400);
+    assert.equal(result.headers['Set-Cookie'], undefined);
+    assert.ok(!JSON.stringify(result.data).includes('private upstream detail'));
+  }
+  let used = false;
+  const client = mock({ verifyOtp: async () => {
+    if (used) return { data: {}, error: { code: 'otp_expired' } };
+    used = true; return { data: { session }, error: null };
+  } });
+  assert.equal((await run({ action: 'verify_signup_otp', email: user.email, token: '12345678' }, { client })).code, 200);
+  assert.equal((await run({ action: 'verify_signup_otp', email: user.email, token: '12345678' }, { client })).code, 400);
+});
+
+test('TAC verification and resend preserve same-origin checks, rate limits and privacy', async () => {
+  assert.equal((await run({ action: 'verify_signup_otp', email: user.email, token: '12345678' }, {
+    headers: { origin: 'https://other.example' }, client: mock({ verifyOtp: () => assert.fail('cross-origin') }),
+  })).code, 403);
+  assert.equal((await run({ action: 'verify_signup_otp', email: user.email, token: '12345678' }, {
+    client: mock({ verifyOtp: async () => ({ error: { status: 429 } }) }),
+  })).code, 429);
+  let received;
+  const resent = await run({ action: 'resend_signup_otp', email: user.email }, {
+    client: mock({ resend: async args => { received = args; return { error: null }; } }),
+  });
+  assert.equal(resent.code, 200);
+  assert.equal(resent.headers['Set-Cookie'], undefined);
+  assert.deepEqual(received, { type: 'signup', email: user.email, options: { emailRedirectTo: `${origin}/auth/callback` } });
+  for (const [status, expected] of [[429, 429], [500, 503]]) {
+    const result = await run({ action: 'resend_signup_otp', email: user.email }, { client: mock({ resend: async () => ({ error: { status, message: 'private SMTP detail' } }) }) });
+    assert.equal(result.code, expected);
+    assert.ok(!JSON.stringify(result.data).includes('private SMTP detail'));
+  }
+});
+
 test('anonymous session probes cannot delete cookies issued by a concurrent login', async () => {
   const result=await run({action:'session',activity:false});
   assert.equal(result.code,200);
@@ -75,6 +139,14 @@ test('reject wrong project, missing key and service-role/secret key shape', asyn
     assert.equal((await run(login, { env: { VITE_SUPABASE_PUBLISHABLE_KEY: value } })).code, 503);
   }
   assert.equal((await run(login, { env: { VITE_SUPABASE_URL: 'https://other.supabase.co' } })).code, 503);
+});
+test('immutable Preview URL supports login with exact same-origin enforcement', async () => {
+  const host = 'immutable-preview.vercel.app';
+  const options = { env: { VERCEL_URL: host }, headers: { host, origin: `https://${host}` } };
+  assert.equal((await run(login, options)).code, 200);
+  assert.equal((await run(login, { ...options, headers: { host, origin } })).code, 403);
+  assert.equal((await run(login, { ...options, headers: { host: 'untrusted.vercel.app', origin: 'https://untrusted.vercel.app' } })).code, 403);
+  assert.equal((await run(login, { ...options, env: { VERCEL_URL: host, VERCEL_ENV: 'production', MYOPS_ENABLE_PRODUCTION_AUTH: 'true' } })).code, 403);
 });
 test('confirmed login saves only HttpOnly secure bounded access cookie, no tokens in JSON', async () => {
   const result = await run(login);

@@ -22,7 +22,10 @@ const USER_ID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-
 export const hashTicket = (ticket) => createHash('sha256').update(ticket).digest('hex');
 function receivesCentralLabels(product,env) {
   if(product==='opsflow')return true;
-  if(env.VERCEL_ENV!=='preview'||env.MYOPS_ENVIRONMENT!=='staging')return false;
+  const staging=env.VERCEL_ENV==='preview'&&env.MYOPS_ENVIRONMENT==='staging';
+  const production=env.VERCEL_ENV==='production'&&env.MYOPS_ENVIRONMENT==='production'
+    &&env.MYOPS_ENABLE_PRODUCTION_APP_ACCESS==='true';
+  if(!staging&&!production)return false;
   return (product==='opsfinance'&&env.MYOPS_FINANCE_PROVISIONING_READY==='true')
     ||(product==='opsp'&&env.MYOPS_OPSPS_PROVISIONING_READY==='true');
 }

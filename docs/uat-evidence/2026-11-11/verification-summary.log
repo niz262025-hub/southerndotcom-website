@@ -1,0 +1,45 @@
+=== tests ===
+✔ loader binds verified user and rechecks company ownership and single active member (1.611925ms)
+✔ activation binds user/login/company to server identity and retry retains original trial (3.913449ms)
+✔ no trial starts for paid access, missing login, forged identity or multi-company (0.770006ms)
+✔ status is passive, expired trial cannot restart, production and wrong project are disabled (0.955838ms)
+✔ central trial: exact 168h, one use, no billing/grants, RLS and passive login validity (4722.439006ms)
+✔ MYOPS account activates trial through central API and shows expiry/open app without payment fields (579.599878ms)
+✔ lifetime customers see paid access without trial limits or trial-status requests (58.069002ms)
+✔ trial adapter binds quota to verified identity and stable operation, returns only bounded metadata (2.86891ms)
+✔ invalid identities, premium and unknown apps never call database (0.427794ms)
+✔ expiry, exhausted limits, upstream failure and malformed response all fail closed (0.586896ms)
+ℹ tests 241
+ℹ suites 0
+ℹ pass 205
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 36
+ℹ todo 0
+ℹ duration_ms 7899.146575
+
+=== lint ===
+npm warn Unknown env config "http-proxy". This will stop working in the next major version of npm.
+
+> myops@1.0.0 lint
+> eslint . --ext js,jsx --max-warnings 0
+
+Warning: React version not specified in eslint-plugin-react settings. See https://github.com/jsx-eslint/eslint-plugin-react#configuration .
+
+=== build ===
+npm warn Unknown env config "http-proxy". This will stop working in the next major version of npm.
+
+> myops@1.0.0 build
+> node scripts/build.mjs
+
+vite v5.4.21 building for production...
+transforming...
+✓ 50 modules transformed.
+rendering chunks...
+computing gzip size...
+dist/index.html                   1.52 kB │ gzip:  0.60 kB
+dist/assets/index-CumKa9fy.css   23.56 kB │ gzip:  5.37 kB
+dist/assets/index-DB5yh6H4.js   317.25 kB │ gzip: 94.91 kB
+✓ built in 1.32s
+
+Authenticated staging UAT: NOT RUN; staging project access missing. Production deployment: NOT RUN, release gates not passed.
