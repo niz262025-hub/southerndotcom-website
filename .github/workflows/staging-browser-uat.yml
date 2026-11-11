@@ -1,0 +1,29 @@
+name: MYOPS staging browser UAT smoke
+on:
+  push:
+    branches: [fix/staging-qa-gates-20261111]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  browser-smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: '22'
+      - name: Install isolated Playwright browser runner
+        run: |
+          mkdir -p /tmp/myops-browser-uat
+          cd /tmp/myops-browser-uat
+          npm init -y
+          npm install --save-exact playwright@1.56.1
+          npx playwright install --with-deps chromium
+      - name: Run staging browser smoke
+        run: node tests/staging-browser-smoke.mjs
+        env:
+          NODE_PATH: /tmp/myops-browser-uat/node_modules
