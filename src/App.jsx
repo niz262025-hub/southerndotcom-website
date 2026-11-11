@@ -524,7 +524,7 @@ function LandingPage() {
               <article className={`product-card ${product.accent}`} key={product.name}>
                 <div className="product-art">
                   {(product.slug === 'opshome' || product.slug === 'opsclinic') ? (
-                    <div style={{ display: 'grid', placeItems: 'center', height: '100%', minHeight: 220 }}><svg viewBox="0 0 64 64" width="88" height="88" role="img" aria-label="Coming soon application icon" xmlns="http://www.w3.org/2000/svg"><path d="M10 29 32 11l22 18v25H39V38H25v16H10V29Z" fill="none" stroke="currentColor" strokeWidth="4" strokeLinejoin="round" strokeLinecap="round"/><path d="M23 54h18" stroke="currentColor" strokeWidth="4" strokeLinecap="round"/></svg></div>
+                    <div style={{ display: 'grid', placeItems: 'center', height: '100%', minHeight: 220 }}><span aria-label={`${product.name} icon`} style={{ fontSize: 64, fontWeight: 700, color: "inherit" }}>{product.icon}</span></div>
                   ) : (
                     <img src={`/images/${product.art}-card-art.png`} alt={`${product.name} illustration`} width="380" height="248" />
                   )}
