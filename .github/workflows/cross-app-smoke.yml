@@ -1,0 +1,31 @@
+name: MYOPS cross-app staging smoke
+on:
+  push:
+    branches: [fix/staging-qa-gates-20261111]
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  public-smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Verify MYOPS app entrypoints are reachable
+        shell: bash
+        run: |
+          set -euo pipefail
+          urls=(
+            "https://www.myops.com.my/"
+            "https://app.myops.com.my/"
+            "https://opsflow.myops.com.my/"
+            "https://opshr.myops.com.my/"
+            "https://opshub.myops.com.my/"
+          )
+          failed=0
+          for url in "${urls[@]}"; do
+            status=$(curl --silent --show-error --location --max-time 25 --output /dev/null --write-out '%{http_code}' "$url") || status=000
+            echo "$url -> HTTP $status"
+            if [[ "$status" == "000" || "$status" == 5* || "$status" == 4* ]]; then failed=1; fi
+          done
+          exit "$failed"
