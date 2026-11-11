@@ -24,11 +24,14 @@ try {
       const title = await page.title();
       const text = (await page.locator('body').innerText({ timeout: 10000 })).slice(0, 300);
       const visible = text.trim().length > 0;
-      const protection = /Authentication Required|Vercel Authentication|Deployment Protection/i.test(title + ' ' + text);
-      console.log(JSON.stringify({ name, status, title, visible, protection, pageErrors: errors.slice(0, 5), finalUrl: page.url() }));
+      const finalUrl = new URL(page.url());
+      const protection = finalUrl.hostname === 'vercel.com' || /Authentication Required|Vercel Authentication|Deployment Protection|Login – Vercel/i.test(title + ' ' + text);
+      const redirectedOffApp = finalUrl.hostname !== new URL(url).hostname;
+      console.log(JSON.stringify({ name, status, title, visible, protection, redirectedOffApp, pageErrors: errors.slice(0, 5), finalUrl: page.url() }));
       assert.ok(status >= 200 && status < 400, name + ' HTTP ' + status);
       assert.ok(visible, name + ' rendered empty body');
       assert.ok(!protection, name + ' requires Vercel protection bypass for UAT');
+      assert.ok(!redirectedOffApp, name + ' redirected away from intended app to ' + finalUrl.hostname);
       assert.deepEqual(errors, [], name + ' browser JavaScript exceptions');
     } catch (error) {
       failed++;
