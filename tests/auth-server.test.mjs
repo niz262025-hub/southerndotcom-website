@@ -162,6 +162,7 @@ test('wrong credentials and unconfirmed login cannot save a session', async () =
     mock({ getUser: async () => ({ data: { user: { ...user, email_confirmed_at: null } }, error: null }) })]) {
     const result = await run(login, { client });
     assert.equal(result.code, 401);
+    assert.equal(result.data.error, 'Email or password is incorrect. Try again, register an account or reset your password.');
     assert.equal(result.headers['Set-Cookie'], undefined);
   }
 });

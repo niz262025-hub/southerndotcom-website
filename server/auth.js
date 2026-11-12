@@ -476,7 +476,7 @@ export function createAuthHandler({ env = process.env, clientFactory = createCli
       if (action === 'login') {
         if (!validEmail || typeof body.password !== 'string' || body.password.length > 128) return reply(400, { error: 'Invalid email or password.' });
         const { data, error } = await client.auth.signInWithPassword({ email: body.email, password: body.password });
-        if (error || !await saveSession(data?.session, appAccess)) return reply(401, { error: 'Invalid credentials or email not confirmed.' });
+        if (error || !await saveSession(data?.session, appAccess)) return reply(401, { error: 'Email or password is incorrect. Try again, register an account or reset your password.' });
         return reply(200, { next: '/' });
       }
       if (action === 'forgot') {
