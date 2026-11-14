@@ -1182,15 +1182,32 @@ select {
 .account-form-panel select, .account-form-panel textarea { box-sizing: border-box; min-width: 0; width: 100%; padding: 13px 14px; border: 1px solid #cbd3e0; border-radius: 10px; background: #f4f6fa; color: #071b49; font: inherit; }
 .account-form-panel textarea { min-height: 110px; resize: vertical; }
 
-/* Locked MYOPS applications design */
-@media (min-width: 1200px) {
-.apps-section .product-grid { grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 16px; }
-.apps-section .product-card { min-height: 380px; border-radius: 22px; }
-.apps-section .product-art { height: 150px; }
-.apps-section .product-badge { top: 126px; left: 12px; width: 58px; height: 58px; border-radius: 14px; }
-.apps-section .product-card h3 { margin: 43px 12px 0; font-size: clamp(1.15rem, 1.5vw, 1.65rem); }
-.apps-section .product-tagline { margin: 8px 12px 0; padding-right: 0; font-size: .88rem; }
-.apps-section .product-desc { margin: 8px 12px 0; padding-right: 0; font-size: .76rem; line-height: 1.4; }
+/* Approved application artwork: five cards above four on desktop. */
+.apps-section .product-grid { grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 20px; align-items: stretch; }
+.apps-section .product-card { min-width: 0; min-height: 420px; padding-bottom: 90px; border-radius: 24px; background: linear-gradient(150deg, #fffaff, #f0edfb); border: 1px solid #e3ddef; box-shadow: 0 8px 24px #19124b08; }
+.apps-section .product-art { height: auto; aspect-ratio: 1.5; }
+.apps-section .product-art img { display: block; width: 100%; height: 100%; object-fit: contain; object-position: center top; filter: none; opacity: 1; }
+.apps-section .product-card h3 { margin: 8px 16px 0; font-size: clamp(1rem, 1.7vw, 1.6rem); letter-spacing: -.045em; overflow-wrap: anywhere; }
+.apps-section .product-tagline { margin: 8px 16px 0; padding: 0; font-size: 1rem; line-height: 1.4; gap: 0; }
+.apps-section .product-desc { display: none; }
+.apps-section .product-action { left: 16px; right: 16px; bottom: 18px; max-width: none; }
+.apps-section .product-action .btn { text-align: center; border: 1px solid #d6c9ee; border-radius: 999px; color: #5426a5; background: #ffffffb3; }
+.apps-section .product-action .btn-primary { background: linear-gradient(120deg, #ff397d, #8145f3); color: white; }
+.apps-section .coming-soon-label { left: 16px; right: 16px; bottom: 18px; text-align: center; background: transparent; color: #6332d9; border: 1px solid #b593ed; padding: 10px 5px; }
+.access-retry { border: 0; background: transparent; color: #6332d9; font: inherit; font-size: .72rem; cursor: pointer; text-decoration: underline; }
+@media (max-width: 1199px) {
+  .apps-section .product-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .apps-section .product-card h3 { font-size: 1.5rem; }
 }
-.apps-section .product-art img { filter: none; opacity: 1; }
-.apps-section .coming-soon-label { left: 12px; right: 12px; text-align: center; background: transparent; color: #6332d9; border: 2px solid #8145f3; padding: 7px 5px; }
+@media (max-width: 800px) {
+  .apps-section .product-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
+  .apps-section .product-card { min-height: 370px; }
+  .apps-section .product-card h3 { font-size: clamp(1rem, 3vw, 1.4rem); }
+  .apps-section .product-tagline { font-size: .88rem; }
+}
+@media (max-width: 420px) {
+  .apps-section .product-grid { grid-template-columns: minmax(0, 1fr); }
+  .apps-section .product-card { min-height: 0; padding-bottom: 90px; }
+  .apps-section .product-card h3 { font-size: 1.6rem; }
+  .apps-section .product-tagline { font-size: 1rem; }
+}

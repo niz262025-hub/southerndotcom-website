@@ -104,9 +104,13 @@ export function ProductAction({ product, arrow = false }) {
   const session = useSession();
   const [message, setMessage] = useState('');
   const [busy, setBusy] = useState(false);
-  if (!session.enabled) return null;
   if (product.comingSoon) return null;
-  if (session.status === 'unavailable') return <p role="status">Access verification is temporarily unavailable. Please retry.</p>;
+  if (!session.enabled) return arrow
+    ? <a className="card-link" href="/login" aria-label={`Subscribe to ${product.slug}`}><span aria-hidden="true">→</span></a>
+    : <div className="product-action"><a className="btn btn-secondary" href="/login">Subscribe</a></div>;
+  if (session.status === 'unavailable') return arrow
+    ? <a className="card-link" href="/login" aria-label={`Subscribe to ${product.slug}`}><span aria-hidden="true">→</span></a>
+    : <div className="product-action"><a className="btn btn-secondary" href="/login">Subscribe</a><button type="button" className="access-retry" onClick={() => session.refresh(false)}>Retry access check</button></div>;
 
   const state = session.signedIn ? session.products?.[product.slug] : 'none';
   async function open() {

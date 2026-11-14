@@ -171,7 +171,9 @@ test('network or server failure shows a retry state, never an unlocked app', asy
   const { cleanup } = await mount(() => { throw new TypeError('Failed to fetch'); });
   try {
     assert.deepEqual(nav(), ['Retry']);
-    assert.equal(document.querySelector('.product-action button'), null);
+    assert.equal(document.querySelector('.product-action .btn-primary'), null);
+    assert.equal(document.querySelector('#opsp a').getAttribute('href'), '/login');
+    assert.equal(text('#opsp .access-retry'), 'Retry access check');
   } finally { await cleanup(); }
 });
 test('temporary session failure can recover without presenting a confirmed logout',async()=>{
@@ -186,12 +188,13 @@ test('temporary session failure can recover without presenting a confirmed logou
  }finally{await cleanup();}
 });
 
-test('outside Preview auth builds no auth controls and no requests are made', async () => {
+test('public marketing builds keep Subscribe visible without making auth requests', async () => {
   const { calls, cleanup } = await mount(() => Response.json(signedInState()), false);
   try {
     assert.equal(calls.length, 0);
     assert.equal(document.querySelector('.nav-auth'), null);
-    assert.equal(document.querySelector('.product-action'), null);
+    assert.equal(text('#opsp .product-action'), 'Subscribe');
+    assert.equal(document.querySelector('#opsp a').getAttribute('href'), '/login');
   } finally { await cleanup(); }
 });
 
@@ -218,5 +221,21 @@ test('logout failure stays visible and retryable, including after a signed-out p
     await act(async () => finishLogout(Response.json({ error: 'Retry later.' }, { status: 503 })));
     assert.match(text('[role=alert]'), /Retry later/);
     assert.equal(dom.window.location.href, 'https://trusted-preview.vercel.app/');
+  } finally { await cleanup(); }
+});
+
+ test('all nine approved cards retain their order, PNG assets and five Coming Soon statuses during an outage', async () => {
+  const { cleanup } = await mountHome(() => Response.json({error: 'Unavailable'}, {status: 503}));
+  try {
+    const cards = [...document.querySelectorAll('#applications article')];
+    assert.deepEqual(cards.map(card => card.querySelector('h3').textContent), ['OpsFinance','OpsFlow','OpsPS','OpsHR','OpsWMS','OpsSmartHome','OpsClinic','OpsRental','OpsLife']);
+    assert.equal(cards.filter(card => card.querySelector('.coming-soon-label')).length, 5);
+    assert.equal(cards.flatMap(card => [...card.querySelectorAll('a')]).filter(a => a.textContent === 'Subscribe' && a.getAttribute('href') === '/login').length, 4);
+    const { existsSync } = await import('node:fs');
+    for (const img of document.querySelectorAll('#applications img')) {
+      assert.match(img.getAttribute('src'), /^\/images\/approved\/.+\.png$/);
+      assert.ok(existsSync(new URL('../public' + img.getAttribute('src'), import.meta.url)));
+    }
+    assert.ok(!/\bNEW\b|\bLIVE\b/.test(document.querySelector('#applications').textContent));
   } finally { await cleanup(); }
 });
