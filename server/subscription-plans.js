@@ -3,9 +3,12 @@
 export const TRIAL_DURATION_MS = 7 * 24 * 60 * 60 * 1000;
 export const SUBSCRIPTION_OPTIONS = Object.freeze([
   Object.freeze({ id:'free_trial', name:'Free Trial', amountCents:0, durationDays:7, cardRequired:false, autoRenew:false }),
-  Object.freeze({ id:'founders_lifetime', name:'First 100 Subscribers', amountCents:2900, billingCycle:'lifetime', capacity:100 }),
-  Object.freeze({ id:'two_apps_monthly', name:'Normal Subscription', amountCents:4900, billingCycle:'monthly', selectedApps:2 }),
-  Object.freeze({ id:'all_apps_monthly', name:'All Apps', amountCents:7900, billingCycle:'monthly', allAvailableApps:true }),
+  // Published MYOPS prices. These descriptors do not enable payment or grant access.
+  // Legacy payment identifiers remain in the settlement ledger for existing orders.
+  Object.freeze({ id:'starter_monthly', name:'Starter', amountCents:990, billingCycle:'monthly', checkoutEnabled:false }),
+  Object.freeze({ id:'single_monthly', name:'Single', amountCents:1990, billingCycle:'monthly', selectedApps:1, checkoutEnabled:false }),
+  Object.freeze({ id:'duo_monthly', name:'Duo', amountCents:2990, billingCycle:'monthly', selectedApps:2, checkoutEnabled:false }),
+  Object.freeze({ id:'complete_monthly', name:'Complete', amountCents:3990, billingCycle:'monthly', allAvailableApps:true, checkoutEnabled:false }),
 ]);
 const POLICY = Object.freeze({
   opsfinance:Object.freeze({ transactions:30, users:1, companies:1, bankStatements:2, invoiceReceiptDocuments:5, reconciliation:'preview', profitAndLoss:'preview', balanceSheet:'preview', exportPdf:false, exportExcel:false }),

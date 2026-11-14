@@ -117,7 +117,7 @@ export function AuthPortal({ mode, production = false }) {
                 {Object.entries(productLabels).map(([slug, label]) => (
                   <li id={`subscription-${slug}`} key={slug}>
                     {label}: {!account.lifetime && account.products[slug]==='active' && trialInfo?.trial.status==='active' && trialInfo.availableApps.includes(slug) ? 'Free trial active' : ({ active: 'Active subscription', none: 'No subscription', coming_soon: 'Coming soon' })[account.products[slug]]}
-                    {account.products[slug] === 'none' && <> — <a className="btn btn-secondary" href="/#founders" onClick={jumpToFounders}>View Founders 100 and All Apps offer</a></>}
+                    {account.products[slug] === 'none' && <> — <a className="btn btn-secondary" href="/#founders" onClick={jumpToFounders}>View MYOPS plans and pricing</a></>}
                   </li>
                 ))}
               </ul>
@@ -136,7 +136,7 @@ export function AuthPortal({ mode, production = false }) {
                 {trialInfo.trial.status==='active' && trialInfo.availableApps.map(product=><button key={product} type="button" className="btn btn-primary" disabled={busy} onClick={()=>openTrialApp(product)}>Open {productLabels[product]}</button>)}
                 {!trialInfo.canStart && trialInfo.trial.status==='not_started' && <p>Your existing access is already active; no trial is needed.</p>}
               </> : <p>Checking trial eligibility…</p>}
-              <p>Other packages: First 100 Subscribers · Normal Subscription (2 apps) · All Apps. New paid checkout is not enabled by this trial test.</p>
+              <p>MYOPS plans: Starter · Single · Duo · Complete. View current prices on the MYOPS pricing page. New paid checkout is not enabled by this trial test.</p>
             </section>}
             {account.lifetime && <p>Founders 100 lifetime access: active (all current and future MYOPS apps).</p>}
             <p>{production ? 'View subscription availability and pricing on the MYOPS homepage. Access is granted after payment verification.' : 'Preview payments use the ToyyibPay sandbox only. Application access is granted only after the server confirms a verified payment or active subscription.'}</p>

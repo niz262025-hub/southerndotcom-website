@@ -13,8 +13,8 @@ export function paymentGateway(env, project) {
   return { host: 'https://dev.toyyibpay.com', ledger: 'toyyibpay_sandbox',
     secret: env.TOYYIBPAY_SANDBOX_SECRET_KEY, category: env.TOYYIBPAY_SANDBOX_CATEGORY_CODE };
 }
-// Only these plans can be purchased. Two-app (RM49), all-app (RM79) and Business plans are
-// proposed and stay disabled here and in the database until the owner approves them.
+// Legacy checkout identifiers. Published monthly offers are defined in subscription-plans.js;
+// they require their own validated settlement implementation before checkout is enabled.
 const PLANS = ['founders_lifetime', 'single_app_monthly'];
 const SLUG = /^[a-z0-9_]{1,32}$/;
 const REF = /^MYOPS-[A-Za-z0-9_-]{8,64}$/;
