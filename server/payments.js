@@ -1,3 +1,4 @@
+import { MONTHLY_PLANS, monthlySelection } from './monthly-plans.js';
 import { PRODUCTION_PROJECT } from './project.js';
 import { serverServiceKey } from './service-key.js';
 import { createHash, randomBytes, timingSafeEqual } from 'node:crypto';
@@ -13,8 +14,8 @@ export function paymentGateway(env, project) {
   return { host: 'https://dev.toyyibpay.com', ledger: 'toyyibpay_sandbox',
     secret: env.TOYYIBPAY_SANDBOX_SECRET_KEY, category: env.TOYYIBPAY_SANDBOX_CATEGORY_CODE };
 }
-// Only these plans can be purchased. Two-app (RM49), all-app (RM79) and Business plans are
-// proposed and stay disabled here and in the database until the owner approves them.
+// Legacy checkout identifiers. Published monthly offers are defined in subscription-plans.js;
+// they require their own validated settlement implementation before checkout is enabled.
 const PLANS = ['founders_lifetime', 'single_app_monthly'];
 const SLUG = /^[a-z0-9_]{1,32}$/;
 const REF = /^MYOPS-[A-Za-z0-9_-]{8,64}$/;
@@ -130,20 +131,27 @@ export function createPayments({ env, transport, adminFactory, project }) {
     return { capacity: status.capacity, allocated: status.allocated, remaining: status.remaining, available: status.remaining > 0 };
   }
 
-  async function checkout({ userId, plan, product, origin }) {
+  async function checkout({ userId, plan, product, products, origin }) {
     const client = admin();
     if (!client || !gatewayConfigured()) return { status: 503, body: { error: 'Checkout is not configured.' } };
     if (gateway.ledger === 'toyyibpay_live' && origin !== 'https://www.myops.com.my') {
       return { status: 400, body: { error: 'Invalid payment origin.' } };
     }
-    if (!PLANS.includes(plan)) return { status: 403, body: { error: 'This plan is not available yet.' } };
-    if ((plan === 'single_app_monthly') !== (product !== undefined && product !== null)
-        || (product !== undefined && product !== null && !(typeof product === 'string' && SLUG.test(product)))) {
+    const monthly = Object.hasOwn(MONTHLY_PLANS,plan);
+    if (monthly) {
+      if(env.VERCEL_ENV!=='preview'||env.MYOPS_ENABLE_MONTHLY_SANDBOX!=='true') return {status:403,body:{error:'Monthly checkout is not available yet.'}};
+      products=monthlySelection(plan,products);
+      if(!products || product!==undefined) return {status:400,body:{error:'Select the applications included in this plan.'}};
+    }
+    if (!monthly && !PLANS.includes(plan)) return { status: 403, body: { error: 'This plan is not available yet.' } };
+    if (!monthly && ((plan === 'single_app_monthly') !== (product !== undefined && product !== null)
+        || (product !== undefined && product !== null && !(typeof product === 'string' && SLUG.test(product))))) {
       return { status: 400, body: { error: plan === 'single_app_monthly' ? 'Select one application.' : 'Invalid request.' } };
     }
     const ref = `MYOPS-${randomBytes(12).toString('base64url')}`;
-    const created = await rpc(client, 'myops_create_payment', { p_user_id: userId, p_plan: plan, p_product_slug: product ?? null, p_order_ref: ref, p_reservation_minutes: 30 });
+    const created = monthly ? await rpc(client,'myops_create_monthly_payment',{p_user_id:userId,p_plan:plan,p_products:products,p_order_ref:ref}) : await rpc(client, 'myops_create_payment', { p_user_id: userId, p_plan: plan, p_product_slug: product ?? null, p_order_ref: ref, p_reservation_minutes: 30 });
     const refused = {
+      selection_conflict: [409, 'A checkout for a different selection is already pending.'],
       unconfirmed_user: [403, 'Confirm your email before purchasing.'],
       already_lifetime: [409, 'You already have lifetime access.'],
       sold_out: [409, 'All Founders 100 places are taken.'],
@@ -160,11 +168,12 @@ export function createPayments({ env, transport, adminFactory, project }) {
       await rpc(client, 'myops_abort_checkout', { p_order_ref: created.order_ref });
       return { status: 503, body: { error: 'Payment ledger is not ready.' } };
     }
+    if(monthly && (created.amount_cents!==MONTHLY_PLANS[plan]||created.gateway!=='toyyibpay_sandbox')) throw new Error('rpc_shape');
     let billCode = created.bill_code;
     if (!billCode) {
       try {
         billCode = await createBill({ orderRef: created.order_ref, origin, cents: created.amount_cents,
-          name: plan === 'founders_lifetime' ? 'MYOPS Founders 100' : 'MYOPS single app' });
+          name: monthly ? `MYOPS ${plan.replace('_monthly','')}` : plan === 'founders_lifetime' ? 'MYOPS Founders 100' : 'MYOPS single app' });
       } catch (error) {
         const reason = error instanceof Error && /^(gateway_(timeout|network|invalid_json|ETIMEDOUT|ENOTFOUND|ECONNRESET|ECONNREFUSED|UND_ERR_CONNECT_TIMEOUT|http_[1-5][0-9]{2})|gateway_bill|gateway_field_(userSecretKey|categoryCode|billName|billDescription|billEmail|billPhone|billAmount|billPaymentChannel))$/.test(error.message) ? error.message : 'gateway_transport';
         console.error('myops_checkout_failed', reason);
@@ -238,7 +247,7 @@ export function createPayments({ env, transport, adminFactory, project }) {
       cents = paid.cents;
       if (paid.ref) txn = paid.ref;
     }
-    const result = await rpc(client, 'myops_settle_payment', {
+    const result = await rpc(client, Object.hasOwn(MONTHLY_PLANS,payment.plan) ? 'myops_settle_monthly_payment' : 'myops_settle_payment', {
       p_order_ref: f.order_id, p_bill_code: f.billcode, p_txn_ref: txn, p_amount_cents: cents, p_outcome: outcome, p_event_key: key,
     });
     const ok = ['settled', 'already_settled', 'failed', 'canceled'].includes(result.status);
