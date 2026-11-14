@@ -75,6 +75,58 @@ const products = [
     comingSoon: true,
     summary: 'Track warehouse stock, locations and movements.',
   },
+  {
+    "slug": "opssmarthome",
+    "name": "OpsSmartHome",
+    "tag": [
+      "Smart Home",
+      "Management & Automation"
+    ],
+    "icon": "SH",
+    "accent": "purple",
+    "art": "opssmarthome",
+    "comingSoon": true,
+    "summary": "Manage connected home devices and routines."
+  },
+  {
+    "slug": "opsclinic",
+    "name": "OpsClinic",
+    "tag": [
+      "Clinic Management",
+      "System"
+    ],
+    "icon": "CL",
+    "accent": "pink",
+    "art": "opsclinic",
+    "comingSoon": true,
+    "summary": "Plan clinic workflows, visits and patient operations."
+  },
+  {
+    "slug": "opsrental",
+    "name": "OpsRental",
+    "tag": [
+      "Property & Tenancy",
+      "Management"
+    ],
+    "icon": "RN",
+    "accent": "purple",
+    "art": "opsrental",
+    "comingSoon": true,
+    "summary": "Manage rentals, agreements, payments and maintenance tickets."
+  },
+  {
+    "slug": "opslife",
+    "name": "OpsLife",
+    "tag": [
+      "Your Personal",
+      "Life Manager"
+    ],
+    "icon": "LF",
+    "accent": "pink",
+    "art": "opslife",
+    "comingSoon": true,
+    "summary": "Keep personal finances, tasks, shopping and events organized."
+  },
 ];
 
 const topNavItems = [
