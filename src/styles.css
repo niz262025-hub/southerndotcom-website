@@ -1181,3 +1181,16 @@ select {
 .profile-logo-actions button { min-height: 44px; border: 1px solid #cbd3e0; border-radius: 10px; background: #fff5ef; color: #071b49; padding: 10px 16px; font: inherit; cursor: pointer; }
 .account-form-panel select, .account-form-panel textarea { box-sizing: border-box; min-width: 0; width: 100%; padding: 13px 14px; border: 1px solid #cbd3e0; border-radius: 10px; background: #f4f6fa; color: #071b49; font: inherit; }
 .account-form-panel textarea { min-height: 110px; resize: vertical; }
+
+/* Locked MYOPS applications design */
+@media (min-width: 1200px) {
+.apps-section .product-grid { grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 16px; }
+.apps-section .product-card { min-height: 380px; border-radius: 22px; }
+.apps-section .product-art { height: 150px; }
+.apps-section .product-badge { top: 126px; left: 12px; width: 58px; height: 58px; border-radius: 14px; }
+.apps-section .product-card h3 { margin: 43px 12px 0; font-size: clamp(1.15rem, 1.5vw, 1.65rem); }
+.apps-section .product-tagline { margin: 8px 12px 0; padding-right: 0; font-size: .88rem; }
+.apps-section .product-desc { margin: 8px 12px 0; padding-right: 0; font-size: .76rem; line-height: 1.4; }
+}
+.apps-section .product-art img { filter: none; opacity: 1; }
+.apps-section .coming-soon-label { left: 12px; right: 12px; text-align: center; background: transparent; color: #6332d9; border: 2px solid #8145f3; padding: 7px 5px; }
