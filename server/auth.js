@@ -573,7 +573,7 @@ export function createAuthHandler({ env = process.env, clientFactory = createCli
       if (action === 'checkout') {
         // Eligibility (Individual-only) is decided inside the database from the server-owned
         // profile; user-editable auth metadata is never consulted.
-        const result = await payments.checkout({ userId: identity.user.id, plan: body.plan, product: body.product, origin });
+        const result = await payments.checkout({ userId: identity.user.id, plan: body.plan, product: body.product, products: body.products, origin });
         return reply(result.status, result.body);
       }
       if (action === 'admin_audit') {
