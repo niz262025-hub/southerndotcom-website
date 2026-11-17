@@ -851,14 +851,15 @@ function PricingPage() {
   return (
     <PageShell pageClass="page-shell-plain">
       <section className="page-hero">
-        <div className="container narrow-content">
+        <div className="container">
           <SectionIntro
             label="Pricing"
             title="Simple, transparent MYOPS pricing"
             text="Choose a plan that fits your business. All prices are in MYR; subscription activation is currently handled manually. No automatic card charges."
           />
-          <div className="pricing-grid pricing-grid-refined">
-            {plans.map((plan) => (
+          <div className="pricing-trial-strip"><div><span className="pricing-tag">Free Trial</span><h3>Try MYOPS for 7 days</h3><p>RM0 · Eligible applications only · No automatic renewal</p></div><a className="btn btn-secondary" href="/contact">Start Free Trial</a></div>
+          <div className="pricing-grid pricing-grid-refined pricing-grid-four">
+            {plans.filter((plan) => plan.price !== 'RM0').map((plan) => (
               <article key={plan.name} className={`pricing-card${plan.highlight ? ' highlight' : ''}`}>
                 <span className="pricing-tag">{plan.tag}</span>
                 <h3>{plan.name}</h3>
