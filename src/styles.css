@@ -1225,3 +1225,16 @@ select {
 .pricing-grid-refined .pricing-card .btn { margin-top: auto; text-align: center; justify-content: center; }
 @media (max-width: 1024px) { .pricing-grid-refined { grid-template-columns: repeat(2,minmax(0,1fr)); } }
 @media (max-width: 640px) { .pricing-grid-refined { grid-template-columns: 1fr; } .pricing-grid-refined .pricing-card { min-height: 0; } }
+
+/* Pricing hierarchy: trial banner followed by four comparable paid plans. */
+.pricing-trial-strip { display:flex; align-items:center; justify-content:space-between; gap:24px; margin:24px 0 28px; padding:22px 28px; border:1px solid #ded8f0; border-radius:22px; background:linear-gradient(110deg,#f9f6ff,#fff); }
+.pricing-trial-strip h3 { margin:8px 0 4px; font-size:1.35rem; }
+.pricing-trial-strip p { margin:0; color:var(--muted); }
+.pricing-trial-strip .btn { flex-shrink:0; }
+.pricing-grid-refined.pricing-grid-four { grid-template-columns:repeat(4,minmax(0,1fr)); gap:16px; }
+.pricing-grid-four .pricing-card { min-height:410px; padding:24px 20px; }
+.pricing-grid-four .pricing-card h3 { font-size:1.35rem; }
+.pricing-grid-four .pricing-summary { min-height:5em; }
+.pricing-grid-four .price-line strong { font-size:clamp(1.6rem,2.3vw,2.25rem); }
+@media(max-width:1100px) { .pricing-grid-refined.pricing-grid-four { grid-template-columns:repeat(2,minmax(0,1fr)); } }
+@media(max-width:640px) { .pricing-trial-strip { flex-direction:column; align-items:flex-start; } .pricing-grid-refined.pricing-grid-four { grid-template-columns:1fr; } .pricing-grid-four .pricing-card { min-height:0; } .pricing-grid-four .pricing-summary { min-height:0; } }
