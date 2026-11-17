@@ -32,10 +32,10 @@ export function FoundersPromo({ production = false }) {
   if (!session.enabled || session.status === 'loading') return null;
 
   const plans = [
-    { name: 'Single App', price: 'RM19', period: '/ month', description: 'Choose one MYOPS app for a focused rollout.', actionLabel: 'Checkout opening soon', featured: false },
-    { name: 'Duo', price: 'RM29', period: '/ month', description: 'Access any two paid MYOPS apps in one bundle.', actionLabel: 'Checkout opening soon', featured: false },
-    { name: 'Triple', price: 'RM39', period: '/ month', description: 'Unlock three MYOPS apps for broader business operations.', actionLabel: 'Checkout opening soon', featured: true },
-    { name: 'All Apps', price: 'RM49', period: '/ month', description: 'Access the complete MYOPS suite for your business.', actionLabel: 'Checkout opening soon', featured: false },
+    { name: 'Single App', price: 'RM19.90', period: '/ month', description: 'Choose one MYOPS app for a focused rollout.', actionLabel: 'Checkout opening soon', featured: false },
+    { name: 'Duo', price: 'RM29.90', period: '/ month', description: 'Access any two paid MYOPS apps in one bundle.', actionLabel: 'Checkout opening soon', featured: false },
+    { name: 'Triple', price: 'RM39.90', period: '/ month', description: 'Unlock three MYOPS apps for broader business operations.', actionLabel: 'Checkout opening soon', featured: true },
+    { name: 'All Apps', price: 'RM49.90', period: '/ month', description: 'Access the complete MYOPS suite for your business.', actionLabel: 'Checkout opening soon', featured: false },
   ];
 
   return (
@@ -43,10 +43,12 @@ export function FoundersPromo({ production = false }) {
       <div className="container">
         <p className="section-label">Subscription &amp; Pricing</p>
         <h2 id="founders-title">Choose your MYOPS plan</h2>
-        <div className="pricing-cards">
+        <div className="pricing-trial-feature">
           <FreeTrial />
+        </div>
+        <div className="pricing-cards pricing-cards-four">
           {plans.map((plan) => (
-            <article key={plan.name} className={`price-card${plan.featured ? ' price-card-featured' : ''}`}>
+            <article key={plan.name} className={`price-card price-card-plan${plan.featured ? ' price-card-highlight' : ''}`}>
               <h3>{plan.name}</h3>
               <p className="price-amount">{plan.price} <span>{plan.period}</span></p>
               <p>{plan.description}</p>
