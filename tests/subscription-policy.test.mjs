@@ -29,11 +29,11 @@ test('two-app plan requires exactly two distinct available apps',()=>{
 
 test('published prices replace legacy offers without enabling unvalidated checkout',()=>{
  const paid=SUBSCRIPTION_OPTIONS.slice(1);
- assert.deepEqual(paid.map(({name,amountCents})=>[name,amountCents]),[['Starter',990],['Single',1990],['Duo',2990],['Complete',3990]]);
+ assert.deepEqual(paid.map(({name,amountCents})=>[name,amountCents]),[['Single App',1990],['Duo',2990],['Triple',3990],['All Apps',4990]]);
  for(const plan of paid) {
   assert.equal(plan.billingCycle,'monthly');
   assert.equal(plan.checkoutEnabled,false);
   assert.equal(Object.isFrozen(plan),true);
  }
- assert.equal(SUBSCRIPTION_OPTIONS.some(p=>['founders_lifetime','triple_monthly','all_apps_monthly'].includes(p.id)),false);
+ assert.equal(SUBSCRIPTION_OPTIONS.some(p=>['founders_lifetime','starter_monthly','complete_monthly'].includes(p.id)),false);
 });
