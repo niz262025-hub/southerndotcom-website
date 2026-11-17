@@ -36,14 +36,14 @@ test('public pricing shows the approved MYOPS plans, OpsHub fees, and free trial
   try {
     const cards = [...document.querySelectorAll('.pricing-cards .price-card')];
     assert.deepEqual(cards.map((card) => card.querySelector('h3').textContent), [
-      'Free 7-Day Trial · Percubaan Percuma 7 Hari', 'Starter', 'Single', 'Duo', 'Complete', 'OpsHub',
+      '7 Days Free', 'Single App', 'Duo', 'Triple', 'All Apps', 'OpsHub',
     ]);
     assert.deepEqual(cards.map((card) => card.querySelector('.price-amount').textContent), [
-      'RM0 / 7 hari', 'RM9.90 / month', 'RM19.90 / month', 'RM29.90 / month', 'RM39.90 / month', 'RM0 / month',
+      'RM0 / 7 days', 'RM19 / month', 'RM29 / month', 'RM39 / month', 'RM49 / month', 'RM0 / month',
     ]);
     assert.match(document.querySelector('#founders').textContent, /Choose your MYOPS plan/);
-    assert.match(document.querySelector('#founders').textContent, /14-day trial/);
-    assert.match(document.querySelector('#founders').textContent, /manual monthly renewal/);
+    assert.match(document.querySelector('#founders').textContent, /7-day trial/);
+    assert.match(document.querySelector('#founders').textContent, /monthly and manual renewal is not yet open/);
     assert.match(document.querySelector('#founders').textContent, /3% \/ 2% \/ 1\.5%/);
     const monthly = [...document.querySelectorAll('.pricing-cards button')].filter((button) => !button.closest('#free-trial'));
     assert.deepEqual(monthly.map((button) => button.textContent), ['Checkout opening soon', 'Checkout opening soon', 'Checkout opening soon', 'Checkout opening soon']);
@@ -55,7 +55,7 @@ test('signed-in visitors see current plans without obsolete Founders checkout co
   const { cleanup } = await mount((body) => Response.json(body.action === 'founders' ? founders(5) : signedIn()));
   try {
     assert.deepEqual(buttons(), []);
-    assert.match(document.querySelector('#founders').textContent, /Starter/);
+    assert.match(document.querySelector('#founders').textContent, /Single App/);
     assert.doesNotMatch(document.querySelector('#founders').textContent, /Claim lifetime access|Founders 100/);
   } finally { await cleanup(); }
 });

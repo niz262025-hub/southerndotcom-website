@@ -32,10 +32,10 @@ export function FoundersPromo({ production = false }) {
   if (!session.enabled || session.status === 'loading') return null;
 
   const plans = [
-    { name: 'Starter', price: 'RM9.90', period: '/ month', description: 'Limited-use entry tier for lighter operating needs.', actionLabel: 'Checkout opening soon', featured: false },
-    { name: 'Single', price: 'RM19.90', period: '/ month', description: 'Choose one MYOPS product for a focused rollout.', actionLabel: 'Checkout opening soon', featured: false },
-    { name: 'Duo', price: 'RM29.90', period: '/ month', description: 'Access any two paid MYOPS products in one bundle.', actionLabel: 'Checkout opening soon', featured: false },
-    { name: 'Complete', price: 'RM39.90', period: '/ month', description: 'Unlock the complete MYOPS bundle for your business.', actionLabel: 'Checkout opening soon', featured: true },
+    { name: 'Single App', price: 'RM19', period: '/ month', description: 'Choose one MYOPS app for a focused rollout.', actionLabel: 'Checkout opening soon', featured: false },
+    { name: 'Duo', price: 'RM29', period: '/ month', description: 'Access any two paid MYOPS apps in one bundle.', actionLabel: 'Checkout opening soon', featured: false },
+    { name: 'Triple', price: 'RM39', period: '/ month', description: 'Unlock three MYOPS apps for broader business operations.', actionLabel: 'Checkout opening soon', featured: true },
+    { name: 'All Apps', price: 'RM49', period: '/ month', description: 'Access the complete MYOPS suite for your business.', actionLabel: 'Checkout opening soon', featured: false },
     { name: 'OpsHub', price: 'RM0', period: '/ month', description: 'Seller account is free; GMV commission tiers are 3% / 2% / 1.5%.', actionLabel: null, featured: false },
   ];
 
@@ -60,7 +60,7 @@ export function FoundersPromo({ production = false }) {
           ))}
         </div>
         {waiting && <p role="status">Confirming your payment…</p>}
-        <p className="founders-note">All paid plans include a 14-day trial and manual monthly renewal.</p>
+        <p className="founders-note">All paid plans are monthly and manual renewal is not yet open for checkout.</p>
         <p className="founders-note">Monthly subscriptions are not open for purchase yet.</p>
         <p className="founders-note">{production ? 'Payments are not available yet.' : 'Sandbox payments only: no real money is charged in Preview. Payments are verified server-side before access is granted.'}</p>
       </div>
