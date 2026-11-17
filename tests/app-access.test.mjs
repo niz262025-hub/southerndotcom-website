@@ -14,7 +14,7 @@ const loginSessionId = '7c1f0a52-3b6e-4d58-9a41-0e2d5b8c9f13';
 const sessionId = '3bc79d9a-e917-4bab-bf29-b318a4f5542c';
 const { publicKey, privateKey } = generateKeyPairSync('ed25519');
 const publicPem = publicKey.export({ type: 'spki', format: 'pem' });
-const baseEnv = {
+const baseEnv = { MYOPS_RELEASE_UAT_USER_IDS: userId,
   VERCEL_ENV: 'preview',
   MYOPS_ENVIRONMENT: 'staging',
   VERCEL_BRANCH_URL: 'myops-preview.vercel.app',
@@ -205,12 +205,12 @@ test('current subscription expiry, revocation and Founder lifetime use the centr
     };
     return query;
   } };
-  const denied = await loadCurrentEntitlements(client, userId, now);
+  const denied = await loadCurrentEntitlements(client, userId, now, baseEnv);
   assert.equal(denied.opsp, 'active');
   assert.equal(denied.opsfinance, 'none');
   assert.equal(denied.opsfuture, 'none');
   tables.myops_lifetime_entitlements = [{ user_id: userId, scope: 'all_apps', status: 'active' }];
-  const lifetime = await loadCurrentEntitlements(client, userId, now);
+  const lifetime = await loadCurrentEntitlements(client, userId, now, baseEnv);
   assert.deepEqual(lifetime, { opsp: 'active', opsfinance: 'active', opsfuture: 'active', opsflow: 'coming_soon', opswms: 'coming_soon', opshr: 'coming_soon' });
 });
 
@@ -537,4 +537,14 @@ test('snapshot retains company trial isolation and never grants Coming Soon appl
   f.trial.organization_id = null;
   f.tables.myops_products[0].launch_status = 'coming_soon';
   assert.equal((await call(f.handler.entitlement, f.request())).statusCode, 403);
+});
+
+test('Coming Soon rejects signed redemption and provisioning even with a paid resolver; admin/UAT is separate',async()=>{
+ const {handler,calls}=make({env:{...baseEnv,MYOPS_RELEASE_UAT_USER_IDS:''}});
+ assert.equal(await handler.issueTicket({userId,product:'opsp',loginSessionId}),null);
+ const redemption=await call(handler.redeem,signedRequest({path:'/api/app/redeem',body:{ticket:Buffer.alloc(32,9).toString('base64url')}}));
+ assert.equal(redemption.statusCode,403);assert.equal(redemption.body.onboarding_profile,undefined);
+ const entitlement=await call(handler.entitlement,signedRequest({path:'/api/app/entitlement',body:{session_id:sessionId,product:'opsp'},nonce:'unreleased-nonce-123456789'}));
+ assert.equal(entitlement.statusCode,403);assert.equal(entitlement.body.entitled,false);
+ assert.ok(calls.some(([name])=>name==='myops_revoke_app_session'));
 });

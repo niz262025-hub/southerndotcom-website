@@ -1,4 +1,5 @@
 import PropTypes from 'prop-types';
+import { isAppLive } from './appRelease';
 import { AccountPreview } from './AccountPreview';
 import { AuthPortal } from './AuthPortal';
 import { AuthNav, ProductAction, SessionProvider } from './session';
@@ -570,13 +571,7 @@ function LandingPage() {
                 <p className="product-desc">
                   {product.summary}
                 </p>
-                {product.comingSoon ? (
-                  <span className="coming-soon-label">Coming Soon</span>
-                ) : (
-                  <>
-                    <ProductAction product={product} />
-                  </>
-                )}
+                <ProductAction product={product} />
               </article>
             ))}
           </div>
@@ -694,7 +689,7 @@ function SolutionsPage() {
                 </div>
                 <h3>{product.name}</h3>
                 <p>{product.summary}</p>
-                {product.comingSoon ? <span className="text-link">Coming Soon</span> : <a href={product.href} className="text-link">Learn more →</a>}
+                {!isAppLive(product.slug) ? <span className="text-link">Coming Soon</span> : <a href={product.href} className="text-link">Learn more →</a>}
               </article>
             ))}
             <article className="solution-tile service-tile">

@@ -1,3 +1,5 @@
+import { canPurchaseApps } from './release-policy.js';
+import { APP_RELEASES } from '../src/appRelease.js';
 import { MONTHLY_PLANS, monthlySelection } from './monthly-plans.js';
 import { PRODUCTION_PROJECT } from './project.js';
 import { serverServiceKey } from './service-key.js';
@@ -36,7 +38,7 @@ const toCents = (value) => {
   return /^\d{1,7}(\.\d{1,2})?$/.test(text) ? Math.round(Number(text) * 100) : null;
 };
 
-export function createPayments({ env, transport, adminFactory, project }) {
+export function createPayments({ env, transport, adminFactory, project, releases = APP_RELEASES }) {
   const gateway = paymentGateway(env, project);
   const gatewayConfigured = () => Boolean(gateway?.secret && /^[A-Za-z0-9]{4,40}$/.test(gateway.category || ''));
   const adminKey = () => serverServiceKey(env.MYOPS_SERVICE_ROLE_KEY, project);
@@ -132,6 +134,10 @@ export function createPayments({ env, transport, adminFactory, project }) {
   }
 
   async function checkout({ userId, plan, product, products, origin }) {
+    // Gate before any payment row, reservation, gateway call or provisioning side effect.
+    if (['founders_lifetime', 'single_app_monthly'].includes(plan)) return { status: 403, body: { error: 'This plan is no longer offered.' } };
+    const requestedApps = plan === 'single_app_monthly' ? [product] : products;
+    if (!canPurchaseApps(requestedApps, releases)) return { status: 403, body: { error: 'Selected applications are Coming Soon.', reason: 'app_not_released' } };
     const client = admin();
     if (!client || !gatewayConfigured()) return { status: 503, body: { error: 'Checkout is not configured.' } };
     if (gateway.ledger === 'toyyibpay_live' && origin !== 'https://www.myops.com.my') {

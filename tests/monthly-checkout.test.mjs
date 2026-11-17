@@ -59,7 +59,7 @@ test('monthly payment adapter remains preview-only and uses server-priced sandbo
  const calls=[];const requests=[];
  const adminFactory=()=>({rpc:async(name,args)=>{calls.push({name,args});return {data:name==='myops_create_monthly_payment'?{status:'created',order_ref:args.p_order_ref,amount_cents:2990,gateway:'toyyibpay_sandbox'}:true,error:null};}});
  const transport=async(url,init)=>{requests.push({url,fields:Object.fromEntries(new URLSearchParams(init.body))});return {ok:true,json:async()=>[{BillCode:'sandbox01'}]};};
- const run=(env)=>createPayments({env,project,adminFactory,transport}).checkout({userId:'user-a',plan:'duo_monthly',products:['opsp','opsflow'],origin:'https://preview.vercel.app'});
+ const run=(env)=>createPayments({env,project,adminFactory,transport,releases:Object.fromEntries(['opsp','opsflow'].map(app=>[app,{status:'live',acceptance:{commit:'fixture',deployment:'fixture',evidence:'isolated accepted release fixture'}}]))}).checkout({userId:'user-a',plan:'duo_monthly',products:['opsp','opsflow'],origin:'https://preview.vercel.app'});
  assert.equal((await run({...base,MYOPS_ENABLE_MONTHLY_SANDBOX:'false'})).status,403);
  assert.equal((await run({...base,VERCEL_ENV:'production'})).status,503);
  assert.equal(calls.length,0);

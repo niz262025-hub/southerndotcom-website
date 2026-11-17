@@ -36,15 +36,15 @@ test('public pricing shows the approved MYOPS plans, OpsHub fees, and free trial
   try {
     const cards = [...document.querySelectorAll('.pricing-cards .price-card')];
     assert.deepEqual(cards.map((card) => card.querySelector('h3').textContent), [
-      'Free 7-Day Trial · Percubaan Percuma 7 Hari', 'Starter', 'Single', 'Duo', 'Complete', 'OpsHub',
+      'Free 7-Day Trial · Percubaan Percuma 7 Hari', 'Starter', 'Single', 'Duo', 'Complete',
     ]);
     assert.deepEqual(cards.map((card) => card.querySelector('.price-amount').textContent), [
-      'RM0 / 7 hari', 'RM9.90 / month', 'RM19.90 / month', 'RM29.90 / month', 'RM39.90 / month', 'RM0 / month',
+      'RM0 / 7 hari', 'RM9.90 / month', 'RM19.90 / month', 'RM29.90 / month', 'RM39.90 / month',
     ]);
     assert.match(document.querySelector('#founders').textContent, /Choose your MYOPS plan/);
     assert.match(document.querySelector('#founders').textContent, /14-day trial/);
     assert.match(document.querySelector('#founders').textContent, /manual monthly renewal/);
-    assert.match(document.querySelector('#founders').textContent, /3% \/ 2% \/ 1\.5%/);
+    assert.doesNotMatch(document.querySelector('#founders').textContent, /OpsHub|Founders 100/);
     const monthly = [...document.querySelectorAll('.pricing-cards button')].filter((button) => !button.closest('#free-trial'));
     assert.deepEqual(monthly.map((button) => button.textContent), ['Checkout opening soon', 'Checkout opening soon', 'Checkout opening soon', 'Checkout opening soon']);
     assert.ok(monthly.every((button) => button.disabled));
@@ -60,10 +60,7 @@ test('signed-in visitors see current plans without obsolete Founders checkout co
   } finally { await cleanup(); }
 });
 
-test('OpsHub pricing note makes the commission tiers explicit', async () => {
-  const { cleanup } = await mount((body) => Response.json(body.action === 'founders' ? founders(1) : { signedIn: false }));
-  try {
-    assert.match(document.querySelector('#founders').textContent, /Seller account is free/);
-    assert.match(document.querySelector('#founders').textContent, /3% \/ 2% \/ 1\.5%/);
-  } finally { await cleanup(); }
+test('excluded app has no public pricing or checkout entry',async()=>{
+ const {cleanup}=await mount(()=>Response.json({signedIn:false}));
+ try{assert.doesNotMatch(document.querySelector('#founders').textContent,/OpsHub|3%/);}finally{await cleanup();}
 });

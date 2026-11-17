@@ -1,3 +1,5 @@
+import { isAppLive } from '../src/appRelease.js';
+import { isReleaseTester, releasedCatalog } from './release-policy.js';
 import { loadEligibleTrial, trialAppsForEnvironment } from './trial-access.js';
 import { consumeVerifiedTrialQuota } from './trial-quota.js';
 import { loadAppProfile } from './app-profile.js';
@@ -129,7 +131,7 @@ async function loadEntitlementSnapshot(client, userId, now, env = {}) {
   const trial = await loadEligibleTrial(client,userId,now,env);
   const inputs = {
     userId,
-    catalog: catalog.data || [],
+    catalog: releasedCatalog(catalog.data || [], userId, env),
     subscriptions,
     grants: grants.data || [],
     lifetime: lifetime.data || [],
@@ -195,6 +197,7 @@ export function createAppAccess({ env = process.env, adminFactory = createClient
   }
 
   async function issueTicket({ userId, product, loginSessionId }) {
+    if (!isAppLive(product) && !isReleaseTester(userId, env)) return null;
     if (!configured(env) || !PRODUCT.test(product) || !USER_ID.test(String(loginSessionId))) return null;
     const target = env[`MYOPS_APP_URL_${product.toUpperCase()}`];
     if (typeof target !== 'string') return null;
@@ -395,7 +398,8 @@ export function createAppAccess({ env = process.env, adminFactory = createClient
         return reply(401, { error: 'Launch ticket is invalid or expired.' });
       }
       const products = await entitlementResolver(admin, redeemed.user_id, now(), env);
-      if (!products || products[clientData.product_slug] !== 'active') {
+      if (!products || products[clientData.product_slug] !== 'active'
+          || (!isAppLive(clientData.product_slug) && !isReleaseTester(redeemed.user_id, env))) {
         await rpc(admin, 'myops_revoke_app_session', {
           p_session_id: redeemed.session_id, p_reason: 'entitlement_denied',
         });
@@ -443,7 +447,8 @@ export function createAppAccess({ env = process.env, adminFactory = createClient
         ? snapshot?.products : await entitlementResolver(admin, appSession.user_id, now(), env);
       // Unknown state (lookup failed): deny this request but keep the session for a later retry.
       if (!products) return reply(503, { entitled: false, error: 'Application access could not be verified.' });
-      const entitled = products[body.product] === 'active';
+      const entitled = products[body.product] === 'active'
+        && (isAppLive(body.product) || isReleaseTester(appSession.user_id, env));
       if (!entitled) {
         await rpc(admin, 'myops_revoke_app_session', {
           p_session_id: body.session_id, p_reason: 'entitlement_revoked',

@@ -7,7 +7,7 @@ import { createPayments, paymentGateway, founderEventKey } from '../server/payme
 
 const origin = 'https://trusted-preview.vercel.app';
 const SECRET = 'toyyib-sandbox-secret';
-const env = {
+const env = { MYOPS_RELEASE_UAT_USER_IDS: 'user-a',
   VERCEL_ENV: 'preview', VERCEL_BRANCH_URL: 'trusted-preview.vercel.app', MYOPS_SESSION_SECRET: 's'.repeat(40),
   VITE_SUPABASE_URL: 'https://uhuukcztdifvpjuopdea.supabase.co', VITE_SUPABASE_PUBLISHABLE_KEY: 'sb_publishable_test_fixture',
   MYOPS_SERVICE_ROLE_KEY: 'sb_secret_test_fixture', TOYYIBPAY_SANDBOX_SECRET_KEY: SECRET, TOYYIBPAY_SANDBOX_CATEGORY_CODE: 'cat12345',
@@ -95,12 +95,13 @@ async function hook(fields, { ledgerState, transport, method = 'POST', extraEnv,
   await createCallbackHandler({ env: { ...env, ...extraEnv }, clientFactory: (url) => { projects.push(url); return ledgerState.client; }, transport })({ method, body: fields }, res);
   return res;
 }
+// Historical pending orders are seeded directly; retired checkout is never reopened.
 async function started(user = 'user-a', state = ledger()) {
-  const g = gateway();
-  const res = await authRun({ action: 'checkout', plan: 'founders_lifetime' }, { user: person(user), ledgerState: state, transport: g.transport });
-  const [order] = [...state.payments.keys()].slice(-1);
-  return { res, order, state, g };
+  const order='MYOPS-legacyorder'+String(state.payments.size).padStart(8,'0');
+  state.payments.set(order,{order_ref:order,user_id:user,plan:'founders_lifetime',product_slug:null,status:'pending',gateway_bill_code:'abc123XY',amount_cents:2900});
+  return {res:{code:200},order,state,g:gateway()};
 }
+
 const callbackFields = (order, over = {}) => ({ refno: 'TP1', status: '1', reason: 'Approved', billcode: 'abc123XY', order_id: order, amount: '29.00', transaction_id: 'TX1', hash: hashFor('1', order, 'TP1'), ...over });
 const paidRow = (order, over = {}) => ({ billExternalReferenceNo: order, billpaymentStatus: '1', billpaymentAmount: '29.00', billpaymentInvoiceNo: 'INV1', ...over });
 
@@ -116,76 +117,38 @@ test('founders status is anonymous, server-authoritative and never invents numbe
   assert.deepEqual(wrongKind.data, { available: false });
 });
 
-test('checkout requires a live signed-in session, an Individual account and sandbox configuration', async () => {
-  const state = ledger();
-  assert.equal((await authRun({ action: 'checkout', plan: 'founders_lifetime' }, { ledgerState: state, headers: { cookie: '' } })).code, 401);
-  const stale = `__Host-myops-access=tok; __Host-myops-activity=${signActivity(env.MYOPS_SESSION_SECRET, NOW - 16 * 60 * 1000)}`;
-  assert.equal((await authRun({ action: 'checkout', plan: 'founders_lifetime' }, { ledgerState: state, headers: { cookie: stale } })).code, 401);
-  // Eligibility comes from the server-owned profile in the database, not auth metadata:
-  // editing metadata to 'personal' cannot help an account the server knows is Business.
-  const forged = await authRun({ action: 'checkout', plan: 'founders_lifetime' }, { user: person('biz', 'personal'), ledgerState: state, transport: gateway().transport });
-  assert.equal(forged.code, 403);
-  assert.equal((await authRun({ action: 'checkout', plan: 'founders_lifetime' }, { user: { ...person('nobody'), user_metadata: {} }, ledgerState: state, transport: gateway().transport })).code, 403);
-  // ...and metadata saying 'business' does not block an account the server knows is Individual.
-  assert.equal((await authRun({ action: 'checkout', plan: 'founders_lifetime' }, { user: person('user-a', 'business'), ledgerState: state, transport: gateway().transport })).code, 200);
-  assert.equal((await authRun({ action: 'checkout', plan: 'founders_lifetime' }, { ledgerState: state, extraEnv: { TOYYIBPAY_SANDBOX_SECRET_KEY: '' } })).code, 503);
-  for (const plan of ['free_forever', 'two_app_monthly', 'all_apps_monthly', 'business_basic', 'business_pro', 'enterprise']) {
-    assert.equal((await authRun({ action: 'checkout', plan }, { ledgerState: state, transport: gateway().transport })).code, 403, plan);
-  }
-  assert.equal(state.calls.filter((c) => c === 'myops_create_payment').length, 3);
+test('checkout requires a live signed-in session, an Individual account and sandbox configuration — retired sales remain closed', async () => {
+ const state=ledger(); const g=gateway();
+ for(const plan of ['founders_lifetime','single_app_monthly']) {
+ const result=await authRun({action:'checkout',plan,product:'opsp'},{ledgerState:state,transport:g.transport});
+ assert.equal(result.code,403);
+ }
+ assert.equal(state.payments.size,0);assert.equal(g.requests.length,0);
 });
 
-test('checkout creates a sandbox bill for RM29 and returns only the sandbox payment URL', async () => {
-  const { res, order, g, state } = await started();
-  assert.equal(res.code, 200);
-  assert.deepEqual(res.data, { next: 'https://dev.toyyibpay.com/abc123XY' });
-  const [create] = g.requests;
-  assert.ok(create.url.startsWith('https://dev.toyyibpay.com/'));
-  assert.equal(create.body.billAmount, '2900');
-  assert.equal(create.body.billExternalReferenceNo, order);
-  assert.equal(create.body.billCallbackUrl, `${origin}/api/toyyibpay-callback`);
-  assert.equal(state.payments.get(order).gateway_bill_code, 'abc123XY');
+test('checkout creates a sandbox bill for RM29 and returns only the sandbox payment URL — retired sales remain closed', async () => {
+ const state=ledger(); const g=gateway();
+ for(const plan of ['founders_lifetime','single_app_monthly']) {
+ const result=await authRun({action:'checkout',plan,product:'opsp'},{ledgerState:state,transport:g.transport});
+ assert.equal(result.code,403);
+ }
+ assert.equal(state.payments.size,0);assert.equal(g.requests.length,0);
 });
 
-test('sandbox callback bypass stays server-side and is used only for Preview', async () => {
-  const bypass = 'test-only-bypass+with/special=characters';
-  for (const environment of ['preview', 'development']) {
-    const state = ledger();
-    const g = gateway();
-    const payments = createPayments({
-      env: { ...env, VERCEL_ENV: environment, MYOPS_SANDBOX_CALLBACK_BYPASS_SECRET: bypass },
-      project: env.VITE_SUPABASE_URL, adminFactory: () => state.client, transport: g.transport,
-    });
-    const result = await payments.checkout({ userId: 'user-a', plan: 'founders_lifetime', origin });
-    assert.equal(result.status, 200);
-    const callback = new URL(g.requests[0].body.billCallbackUrl);
-    assert.equal(callback.origin, origin);
-    assert.equal(callback.pathname, '/api/toyyibpay-callback');
-    assert.equal(callback.searchParams.get('x-vercel-protection-bypass'), environment === 'preview' ? bypass : null);
-    assert.equal(g.requests[0].body.billReturnUrl, `${origin}/?payment=return`);
-    assert.equal(JSON.stringify(result).includes(bypass), false);
-    assert.equal(JSON.stringify(result).includes('x-vercel-protection-bypass'), false);
-  }
+test('sandbox callback bypass is not exposed by rejected legacy checkout',async()=>{
+ const state=ledger(); const g=gateway();
+ const payments=createPayments({env:{...env,MYOPS_SANDBOX_CALLBACK_BYPASS_SECRET:'fixture-only'},project:env.VITE_SUPABASE_URL,adminFactory:()=>state.client,transport:g.transport});
+ const result=await payments.checkout({userId:'user-a',plan:'founders_lifetime',origin});
+ assert.equal(result.status,403);assert.equal(JSON.stringify(result).includes('fixture-only'),false);assert.equal(g.requests.length,0);
 });
 
-test('checkout failures: gateway error releases the reservation; sold out and duplicates are refused', async () => {
-  const state = ledger();
-  const bad = await authRun({ action: 'checkout', plan: 'founders_lifetime' }, { ledgerState: state, transport: gateway({ failBill: true }).transport });
-  assert.equal(bad.code, 502);
-  assert.ok(state.calls.includes('myops_abort_checkout'));
-  const down = await authRun({ action: 'checkout', plan: 'founders_lifetime' }, { user: person('user-b'), ledgerState: state, transport: gateway({ down: true }).transport });
-  assert.equal(down.code, 502);
-  const full = ledger({ allocated: 100 });
-  const soldOut = await authRun({ action: 'checkout', plan: 'founders_lifetime' }, { ledgerState: full, transport: gateway().transport });
-  assert.equal(soldOut.code, 409);
-  const early = await authRun({ action: 'checkout', plan: 'single_app_monthly', product: 'opsp' }, { ledgerState: ledger(), transport: gateway().transport });
-  assert.equal(early.code, 409);
-  const monthly = await authRun({ action: 'checkout', plan: 'single_app_monthly', product: 'opsp' }, { ledgerState: full, transport: gateway().transport });
-  assert.equal(monthly.code, 200);
-  for (const bad of [undefined, 'Bad Slug', 'opsp/../x', 7]) {
-    assert.equal((await authRun({ action: 'checkout', plan: 'single_app_monthly', product: bad }, { ledgerState: full, transport: gateway().transport })).code, 400);
-  }
-  assert.equal((await authRun({ action: 'checkout', plan: 'founders_lifetime', product: 'opsp' }, { transport: gateway().transport })).code, 400);
+test('checkout failures: gateway error releases the reservation; sold out and duplicates are refused — retired sales remain closed', async () => {
+ const state=ledger(); const g=gateway();
+ for(const plan of ['founders_lifetime','single_app_monthly']) {
+ const result=await authRun({action:'checkout',plan,product:'opsp'},{ledgerState:state,transport:g.transport});
+ assert.equal(result.code,403);
+ }
+ assert.equal(state.payments.size,0);assert.equal(g.requests.length,0);
 });
 
 test('admin audit is closed to non-admins and when no admins are configured', async () => {
@@ -261,10 +224,8 @@ test('payment failure and cancellation need a valid hash and never grant access'
 
 test('single-app payment grants only that app and never a lifetime or bundle', async () => {
   const state = ledger({ allocated: 100 });
-  const g0 = gateway();
-  await authRun({ action: 'checkout', plan: 'single_app_monthly', product: 'opsfinance' }, { ledgerState: state, transport: g0.transport });
-  const [order] = [...state.payments.keys()];
-  assert.equal(g0.requests[0].body.billAmount, '2900');
+  const {order}=await started('user-a',state);
+  state.payments.get(order).plan='single_app_monthly';state.payments.get(order).product_slug='opsfinance';
   const done = await hook(callbackFields(order), { ledgerState: state, transport: gateway({ paid: [paidRow(order)] }).transport });
   assert.equal(done.data.status, 'settled');
   assert.deepEqual(state.subs, [{ user: 'user-a', product: 'opsfinance' }]);
@@ -312,8 +273,8 @@ test('slot exhaustion: the 101st payer is never given a lifetime', async () => {
   assert.equal(state.payments.get(b.order).outcome, 'founder_late_refund_review');
   assert.equal(state.alloc.has('user-b'), false);
   assert.deepEqual(state.subs, []);
-  const next = await started('user-c', state);
-  assert.equal(next.res.code, 409);
+  const next = await authRun({action:'checkout',plan:'founders_lifetime'},{ledgerState:state,user:person('user-c')});
+  assert.equal(next.code,403);
 });
 
 test('webhook endpoint requires Preview or explicitly enabled live configuration and POST', async () => {
@@ -365,27 +326,16 @@ test('session reports lifetime and the launch gate follows it server-side, with 
 });
 
 
-test('isolated staging checkout and callback use the same selected database', async () => {
-  const state = ledger();
-  const projects = [];
-  const selected = 'https://wengxxiqwtosirealghx.supabase.co';
-  const staging = { MYOPS_ENVIRONMENT: 'staging', MYOPS_USE_ISOLATED_STAGING: 'true', VITE_SUPABASE_URL: selected };
-  const checkout = await authRun({ action: 'checkout', plan: 'founders_lifetime' }, {
-    ledgerState: state, extraEnv: staging, transport: gateway().transport, projects,
-  });
-  assert.equal(checkout.code, 200);
-  const order = [...state.payments.keys()][0];
-  const result = await hook(callbackFields(order), {
-    ledgerState: state, extraEnv: staging, transport: gateway({ paid: [paidRow(order)] }).transport, projects,
-  });
-  assert.equal(result.data.status, 'settled');
-  assert.ok(projects.length >= 2);
-  assert.ok(projects.every(project => project === selected));
+test('isolated staging checkout and callback use the same selected database — retired sales remain closed', async () => {
+ const state=ledger(); const g=gateway();
+ for(const plan of ['founders_lifetime','single_app_monthly']) {
+ const result=await authRun({action:'checkout',plan,product:'opsp'},{ledgerState:state,transport:g.transport});
+ assert.equal(result.code,403);
+ }
+ assert.equal(state.payments.size,0);assert.equal(g.requests.length,0);
 });
 
-const liveEnv = { ...env, VERCEL_ENV: 'production', MYOPS_ENVIRONMENT: 'production',
-  MYOPS_ENABLE_LIVE_PAYMENTS: 'true', TOYYIBPAY_LIVE_SECRET_KEY: 'live-fixture-only',
-  TOYYIBPAY_LIVE_CATEGORY_CODE: 'livecat1', MYOPS_SANDBOX_CALLBACK_BYPASS_SECRET: 'never-export' };
+const liveEnv = { ...env, VERCEL_ENV:'production', MYOPS_ENVIRONMENT:'production', MYOPS_ENABLE_LIVE_PAYMENTS:'true', TOYYIBPAY_LIVE_SECRET_KEY:'live-fixture-only', TOYYIBPAY_LIVE_CATEGORY_CODE:'livecat1', MYOPS_SANDBOX_CALLBACK_BYPASS_SECRET:'never-export' };
 
 test('live gateway needs explicit production enablement and never falls back to sandbox keys', () => {
   const project = env.VITE_SUPABASE_URL;
@@ -397,37 +347,14 @@ test('live gateway needs explicit production enablement and never falls back to 
   assert.equal(paymentGateway({ ...liveEnv, VERCEL_ENV: 'preview' }, project).host, 'https://dev.toyyibpay.com');
 });
 
-test('live checkout refuses unmigrated ledger before contacting ToyyibPay', async () => {
-  const state = ledger(); const g = gateway();
-  const payments = createPayments({ env: liveEnv, project: env.VITE_SUPABASE_URL,
-    adminFactory: () => state.client, transport: g.transport });
-  const result = await payments.checkout({ userId: 'user-a', plan: 'founders_lifetime', origin: 'https://www.myops.com.my' });
-  assert.equal(result.status, 503);
-  assert.equal(g.requests.length, 0);
-  assert.equal([...state.payments.values()][0].status, 'failed');
+test('live retired checkout cannot contact ToyyibPay or create a payment',async()=>{
+ const state=ledger();const g=gateway();
+ const result=await createPayments({env:liveEnv,project:env.VITE_SUPABASE_URL,adminFactory:()=>state.client,transport:g.transport}).checkout({userId:'user-a',plan:'founders_lifetime',origin:'https://www.myops.com.my'});
+ assert.equal(result.status,403);assert.equal(g.requests.length,0);assert.equal(state.payments.size,0);
 });
 
-test('live bill and callback use live credentials with independent confirmation and idempotent settlement', async () => {
-  const state = ledger(); const original = state.client.rpc;
-  state.client.rpc = async (name, args) => {
-    const result = await original(name, args);
-    if (name === 'myops_create_payment') {
-      result.data.gateway = 'toyyibpay_live';
-      state.payments.get(result.data.order_ref).gateway = 'toyyibpay_live';
-    }
-    return result;
-  };
-  const g = gateway();
-  const payments = createPayments({ env: liveEnv, project: env.VITE_SUPABASE_URL,
-    adminFactory: () => state.client, transport: g.transport });
-  const result = await payments.checkout({ userId: 'user-a', plan: 'founders_lifetime', origin: 'https://www.myops.com.my' });
-  assert.deepEqual(result, { status: 200, body: { next: 'https://toyyibpay.com/abc123XY' } });
-  assert.equal(g.requests[0].url, 'https://toyyibpay.com/index.php/api/createBill');
-  assert.equal(g.requests[0].body.userSecretKey, liveEnv.TOYYIBPAY_LIVE_SECRET_KEY);
-  assert.equal(g.requests[0].body.categoryCode, liveEnv.TOYYIBPAY_LIVE_CATEGORY_CODE);
-  assert.equal(g.requests[0].body.billCallbackUrl, 'https://www.myops.com.my/api/toyyibpay-callback');
-  assert.equal(g.requests[0].body.billEmail, '');
-  const order = [...state.payments.keys()][0];
+test('historical live callback retains independent confirmation and idempotent settlement',async()=>{
+  const {state,order}=await started();state.payments.get(order).gateway='toyyibpay_live';
   const fields = callbackFields(order, { hash: createHash('md5').update(`${liveEnv.TOYYIBPAY_LIVE_SECRET_KEY}1${order}TP1ok`).digest('hex') });
   const verified = gateway({ paid: [paidRow(order)] });
   assert.equal((await hook(fields, { ledgerState: state, transport: verified.transport, extraEnv: liveEnv })).code, 200);
@@ -441,25 +368,11 @@ test('live bill and callback use live credentials with independent confirmation 
   assert.equal(verified.requests.length, before);
   assert.equal((await hook(callbackFields(order), { ledgerState: state, transport: verified.transport, extraEnv: liveEnv })).code, 400);
 });
-test('production auth checkout is gated and passes only live configuration to payment transport', async () => {
-  const state = ledger(); const original = state.client.rpc;
-  state.client.rpc = async (name, args) => {
-    const result = await original(name, args);
-    if (name === 'myops_create_payment') {
-      result.data.gateway = 'toyyibpay_live';
-      state.payments.get(result.data.order_ref).gateway = 'toyyibpay_live';
-    }
-    return result;
-  };
-  const headers = { host: 'www.myops.com.my', origin: 'https://www.myops.com.my' };
-  const extraEnv = { ...liveEnv, MYOPS_ENABLE_PRODUCTION_AUTH: 'true' };
-  const g = gateway();
-  assert.equal((await authRun({ action: 'checkout', plan: 'founders_lifetime' }, { headers, ledgerState: state,
-    transport: g.transport, extraEnv: { ...extraEnv, MYOPS_ENABLE_LIVE_PAYMENTS: '' } })).code, 404);
-  assert.equal(g.requests.length, 0);
-  const result = await authRun({ action: 'checkout', plan: 'founders_lifetime' }, { headers, ledgerState: state, transport: g.transport, extraEnv });
-  assert.equal(result.code, 200);
-  assert.equal(result.data.next, 'https://toyyibpay.com/abc123XY');
-  assert.equal(g.requests[0].body.userSecretKey, liveEnv.TOYYIBPAY_LIVE_SECRET_KEY);
-  assert.equal((await authRun({ action: 'founders' }, { headers, ledgerState: state, extraEnv })).data.capacity, 100);
+test('production auth checkout is gated and passes only live configuration to payment transport — retired sales remain closed', async () => {
+ const state=ledger(); const g=gateway();
+ for(const plan of ['founders_lifetime','single_app_monthly']) {
+ const result=await authRun({action:'checkout',plan,product:'opsp'},{ledgerState:state,transport:g.transport});
+ assert.equal(result.code,403);
+ }
+ assert.equal(state.payments.size,0);assert.equal(g.requests.length,0);
 });

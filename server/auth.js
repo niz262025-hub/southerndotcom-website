@@ -1,3 +1,4 @@
+import { releasedCatalog } from './release-policy.js';
 import { trialAction } from './trial-activation.js';
 import { serverServiceKey } from './service-key.js';
 import { loadEligibleTrial, trialAppsForEnvironment } from './trial-access.js';
@@ -221,7 +222,7 @@ async function loadEntitlements(client, userId, now, env = {}) {
   const trialKey=trialAppsForEnvironment(env).length ? serverServiceKey(env.MYOPS_SERVICE_ROLE_KEY,trialProject) : null;
   const trial=trialKey ? await loadEligibleTrial(createClient(trialProject,trialKey,{auth:{persistSession:false,autoRefreshToken:false}}),userId,now,env) : null;
   return {
-    products: resolveProductStates({ userId, catalog: catalog.data || [], subscriptions: subscriptions.data || [], grants: grants.data || [], lifetime: rows, platformAdmin: isPlatformAdmin(userId, env), trial, trialApps:trialAppsForEnvironment(env), now }),
+    products: resolveProductStates({ userId, catalog: releasedCatalog(catalog.data || [], userId, env), subscriptions: subscriptions.data || [], grants: grants.data || [], lifetime: rows, platformAdmin: isPlatformAdmin(userId, env), trial, trialApps:trialAppsForEnvironment(env), now }),
     lifetime: hasLifetime(userId, rows),
   };
 }

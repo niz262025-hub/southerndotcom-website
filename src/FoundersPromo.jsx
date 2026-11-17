@@ -1,3 +1,4 @@
+import { liveApps } from './appRelease';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import PropTypes from 'prop-types';
 import { authRequest } from './authRequest';
@@ -9,14 +10,15 @@ const POLL_MAX = 10;
 // Display only. Slot counts come from the server and access is re-checked server-side.
 export function FoundersPromo({ production = false }) {
   const session = useSession();
-  const sandboxCheckout = !production && import.meta.env?.VITE_MYOPS_MONTHLY_SANDBOX === 'true';
+  const releasedApps = liveApps().filter(app => ['opsfinance','opsflow','opsp'].includes(app));
+  const sandboxCheckout = releasedApps.length > 0 && !production && import.meta.env?.VITE_MYOPS_MONTHLY_SANDBOX === 'true';
   const [selection,setSelection]=useState({});
   const [busy,setBusy]=useState(false);
   const [error,setError]=useState('');
   async function checkout(plan) {
     if(busy) return;
     setBusy(true);setError('');
-    const products=plan==='complete_monthly'?['opsfinance','opsflow','opsp']:(selection[plan]||[]);
+    const products=plan==='complete_monthly'?releasedApps:(selection[plan]||[]);
     try {
       const result=await authRequest('checkout',{plan,products});
       const next=new URL(result.next);
@@ -51,7 +53,6 @@ export function FoundersPromo({ production = false }) {
     { id:'single_monthly', count:1, name: 'Single', price: 'RM19.90', period: '/ month', description: 'Choose one MYOPS product for a focused rollout.', actionLabel: 'Checkout opening soon', featured: false },
     { id:'duo_monthly', count:2, name: 'Duo', price: 'RM29.90', period: '/ month', description: 'Access any two paid MYOPS products in one bundle.', actionLabel: 'Checkout opening soon', featured: false },
     { id:'complete_monthly', count:3, name: 'Complete', price: 'RM39.90', period: '/ month', description: 'Unlock the complete MYOPS bundle for your business.', actionLabel: 'Checkout opening soon', featured: true },
-    { name: 'OpsHub', price: 'RM0', period: '/ month', description: 'Seller account is free; GMV commission tiers are 3% / 2% / 1.5%.', actionLabel: null, featured: false },
   ];
 
   return (
@@ -66,9 +67,9 @@ export function FoundersPromo({ production = false }) {
               <h3>{plan.name}</h3>
               <p className="price-amount">{plan.price} <span>{plan.period}</span></p>
               <p>{plan.description}</p>
-              {sandboxCheckout && plan.id ? <>
+              {sandboxCheckout && plan.id && releasedApps.length >= plan.count ? <>
                 {plan.count<3 && <fieldset disabled={busy}><legend>Choose {plan.count} application{plan.count>1?'s':''}</legend>
-                  {['opsfinance','opsflow','opsp'].map(app=><label key={app}><input type="checkbox" checked={(selection[plan.id]||[]).includes(app)} onChange={e=>setSelection(old=>({...old,[plan.id]:e.target.checked?[...(old[plan.id]||[]),app]:(old[plan.id]||[]).filter(x=>x!==app)}))}/>{({opsfinance:'OpsFinance',opsflow:'OpsFlow',opsp:'OpsPS'})[app]}</label>)}
+                  {releasedApps.map(app=><label key={app}><input type="checkbox" checked={(selection[plan.id]||[]).includes(app)} onChange={e=>setSelection(old=>({...old,[plan.id]:e.target.checked?[...(old[plan.id]||[]),app]:(old[plan.id]||[]).filter(x=>x!==app)}))}/>{({opsfinance:'OpsFinance',opsflow:'OpsFlow',opsp:'OpsPS'})[app]}</label>)}
                 </fieldset>}
                 <button type="button" className="btn btn-secondary" disabled={busy||!session.signedIn||session.lifetime||(plan.count<3&&(selection[plan.id]||[]).length!==plan.count)} onClick={()=>checkout(plan.id)}>Test sandbox checkout</button>
               </> : plan.actionLabel ? (

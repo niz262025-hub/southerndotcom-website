@@ -4,7 +4,7 @@ import { createAuthHandler, enforceWorkerRateLimit, signActivity, signIdentity, 
 import { createClient } from '@supabase/supabase-js';
 
 const origin = 'https://trusted-preview.vercel.app';
-const env = { VERCEL_ENV: 'preview', VERCEL_BRANCH_URL: 'trusted-preview.vercel.app', MYOPS_SESSION_SECRET: 's'.repeat(40),
+const env = { MYOPS_RELEASE_UAT_USER_IDS: 'test-user-a', VERCEL_ENV: 'preview', VERCEL_BRANCH_URL: 'trusted-preview.vercel.app', MYOPS_SESSION_SECRET: 's'.repeat(40),
   VITE_SUPABASE_URL: 'https://uhuukcztdifvpjuopdea.supabase.co', VITE_SUPABASE_PUBLISHABLE_KEY: 'sb_publishable_test_fixture' };
 const NOW = Date.now();
 const LOGIN_ID = '7c1f0a52-3b6e-4d58-9a41-0e2d5b8c9f13';

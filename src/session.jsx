@@ -1,3 +1,4 @@
+import { isAppLive } from './appRelease';
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import PropTypes from 'prop-types';
 import { authRequest } from './authRequest';
@@ -104,7 +105,9 @@ export function ProductAction({ product, arrow = false }) {
   const session = useSession();
   const [message, setMessage] = useState('');
   const [busy, setBusy] = useState(false);
-  if (product.comingSoon) return null;
+  const approvedForPublic = isAppLive(product.slug);
+  const testAccess = session.signedIn && session.products?.[product.slug] === 'active';
+  if (!approvedForPublic && !testAccess) return <button type="button" className="btn btn-secondary coming-soon-label" disabled>Coming Soon</button>;
   if (!session.enabled) return arrow
     ? <a className="card-link" href="/login" aria-label={`Subscribe to ${product.slug}`}><span aria-hidden="true">→</span></a>
     : <div className="product-action"><a className="btn btn-secondary" href="/login">Subscribe</a></div>;
@@ -124,7 +127,7 @@ export function ProductAction({ product, arrow = false }) {
       if (error.status === 401) session.refresh(false);
     } finally { setBusy(false); }
   }
-  if (state === 'coming_soon') return <span className="coming-soon-label">Coming Soon</span>;
+  if (state === 'coming_soon') return <button type="button" className="btn btn-secondary coming-soon-label" disabled>Coming Soon</button>;
   if (state === 'active') {
     if (arrow) return (
       <div className="product-action">
@@ -134,7 +137,8 @@ export function ProductAction({ product, arrow = false }) {
     );
     return (
       <div className="product-action">
-        <button type="button" className="btn btn-primary" disabled={busy} onClick={open}>Open App</button>
+        <button type="button" className="btn btn-primary" disabled={busy} onClick={open}>{approvedForPublic ? 'Open App' : 'Open UAT App'}</button>
+        {!approvedForPublic && <button type="button" className="btn btn-secondary coming-soon-label" disabled>Coming Soon</button>}
         <p role="status" aria-live="polite">{message}</p>
       </div>
     );

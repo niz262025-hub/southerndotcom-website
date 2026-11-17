@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {trialAction} from '../server/trial-activation.js';
-const env={VERCEL_ENV:'preview',MYOPS_ENVIRONMENT:'staging',MYOPS_USE_ISOLATED_STAGING:'true',VITE_SUPABASE_URL:'https://wengxxiqwtosirealghx.supabase.co',MYOPS_ENABLE_STAGING_TRIAL_ACCESS:'true',MYOPS_TRIAL_READY_APPS:'opsflow'};
+const env={MYOPS_RELEASE_UAT_USER_IDS:'verified-user',VERCEL_ENV:'preview',MYOPS_ENVIRONMENT:'staging',MYOPS_USE_ISOLATED_STAGING:'true',VITE_SUPABASE_URL:'https://wengxxiqwtosirealghx.supabase.co',MYOPS_ENABLE_STAGING_TRIAL_ACCESS:'true',MYOPS_TRIAL_READY_APPS:'opsflow'};
 function setup({paid=false,status='not_started',orgs=[],failure=false}={}) {
  const calls=[];let state={status};
  const client={from:table=>{const data=table==='myops_products'?[{slug:'opsflow',launch_status:'live'}]:table==='myops_subscriptions'&&paid?[{personal_user_id:'verified-user',status:'active',product_slug:'opsflow'}]:table==='myops_organizations'?orgs:[];

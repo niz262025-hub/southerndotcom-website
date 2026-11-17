@@ -1,8 +1,10 @@
+import { isAppLive } from '../src/appRelease.js';
+import { isReleaseTester } from './release-policy.js';
 import {loadCurrentEntitlements} from './app-access.js';
 import {trialAppsForEnvironment} from './trial-access.js';
 import {SUBSCRIPTION_OPTIONS} from './subscription-plans.js';
 export async function trialAction({client,userId,loginSessionId,action,body,env,now}) {
- const apps=trialAppsForEnvironment(env);
+ const apps=trialAppsForEnvironment(env).filter(app=>isAppLive(app)||isReleaseTester(userId,env));
  if(!apps.length) return {status:404,body:{error:'Trial is not enabled.'}};
  const allowed=action==='trial_start'?['action','confirm']:['action'];
  if(Object.keys(body).some(key=>!allowed.includes(key))||(action==='trial_start'&&body.confirm!==true)) return {status:400,body:{error:'Confirm trial activation.'}};

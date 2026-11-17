@@ -91,19 +91,9 @@ test('MYOPS root shows the original landing page before and after login', async 
   } finally { await signedInPage.cleanup(); }
 });
 
-test('signed-out visitors see Register and Login, and Subscribe on live cards', async () => {
-  const { cleanup } = await mount(() => Response.json(signedOut));
-  try {
-    assert.deepEqual(nav(), ['Register', 'Login']);
-    assert.equal(document.querySelector('.nav-auth a[href="/register"]').textContent, 'Register');
-    assert.equal(document.querySelector('.nav-auth a[href="/login"]').textContent, 'Login');
-    for (const slug of ['opsp', 'opsfinance', 'opsflow']) {
-      assert.equal(text(`#${slug} .product-action`), 'Subscribe');
-      assert.equal(document.querySelector(`#${slug} a`).getAttribute('href'), '/login');
-      assert.equal(document.querySelector(`#${slug} button`), null);
-    }
-    assert.equal(document.querySelector('#opswms').textContent, '');
-  } finally { await cleanup(); }
+test('signed-out visitors see Register and Login, and Subscribe on live cards — unreleased apps stay Coming Soon',async()=>{
+ const {cleanup}=await mount(()=>Response.json(signedOut));
+ try{for(const slug of ['opsp','opsfinance','opsflow','opswms']){assert.equal(document.querySelector(`#${slug} a`),null);assert.equal(document.querySelector(`#${slug} button`).disabled,true);assert.equal(text(`#${slug}`),'Coming Soon');}}finally{await cleanup();}
 });
 
 test('signed-in users see My Account and Logout instead of Register and Login', async () => {
@@ -115,30 +105,19 @@ test('signed-in users see My Account and Logout instead of Register and Login', 
   } finally { await cleanup(); }
 });
 
-test('signed-in subscribe links open the founders offer section instead of doing nothing', async () => {
-  const { cleanup, dom } = await mount(() => Response.json(signedInState()));
-  const original = Element.prototype.scrollIntoView;
-  let scrolled = false;
-  Element.prototype.scrollIntoView = function () { scrolled = true; };
-  try {
-    const link = document.querySelector('#opsfinance a');
-    assert.equal(link.getAttribute('href'), '/#founders');
-    await act(async () => link.dispatchEvent(new dom.window.MouseEvent('click', { bubbles: true, cancelable: true })));
-    assert.ok(scrolled || dom.window.location.hash === '#founders');
-  } finally {
-    Element.prototype.scrollIntoView = original;
-    await cleanup();
-  }
+test('signed-in subscribe links open the founders offer section instead of doing nothing — unreleased apps stay Coming Soon',async()=>{
+ const {cleanup}=await mount(()=>Response.json(signedOut));
+ try{for(const slug of ['opsp','opsfinance','opsflow','opswms']){assert.equal(document.querySelector(`#${slug} a`),null);assert.equal(document.querySelector(`#${slug} button`).disabled,true);assert.equal(text(`#${slug}`),'Coming Soon');}}finally{await cleanup();}
 });
 
 test('product cards reflect Active, No subscription and Coming Soon states from the server', async () => {
   const { cleanup } = await mount(() => Response.json(signedInState({ opsflow: 'coming_soon' })));
   try {
-    assert.equal(text('#opsp .product-action button'), 'Open App');
-    assert.equal(text('#opsfinance .product-action'), 'Subscribe');
-    assert.equal(document.querySelector('#opsfinance a').getAttribute('href'), '/#founders');
+    assert.equal(text('#opsp .product-action button'), 'Open UAT App');
+    assert.equal(text('#opsfinance'), 'Coming Soon');
+    assert.equal(document.querySelector('#opsfinance a'), null);
     assert.equal(text('#opsflow .coming-soon-label'), 'Coming Soon');
-    assert.equal(document.querySelector('#opsflow button'), null);
+    assert.equal(document.querySelector('#opsflow button').disabled, true);
   } finally { await cleanup(); }
 });
 
@@ -163,7 +142,7 @@ test('a passive probe after server-side inactivity logout returns the nav to sig
     await act(async () => document.querySelector('#passive').dispatchEvent(new dom.window.MouseEvent('click', { bubbles: true })));
     assert.deepEqual(calls.at(-1), { action: 'session', activity: false });
     assert.deepEqual(nav(), ['Register', 'Login']);
-    assert.equal(text('#opsp .product-action'), 'Subscribe');
+    assert.equal(text('#opsp'), 'Coming Soon');
   } finally { await cleanup(); }
 });
 
@@ -172,8 +151,8 @@ test('network or server failure shows a retry state, never an unlocked app', asy
   try {
     assert.deepEqual(nav(), ['Retry']);
     assert.equal(document.querySelector('.product-action .btn-primary'), null);
-    assert.equal(document.querySelector('#opsp a').getAttribute('href'), '/login');
-    assert.equal(text('#opsp .access-retry'), 'Retry access check');
+    assert.equal(document.querySelector('#opsp a'), null);
+    assert.equal(document.querySelector('#opsp button').disabled, true);
   } finally { await cleanup(); }
 });
 test('temporary session failure can recover without presenting a confirmed logout',async()=>{
@@ -188,14 +167,9 @@ test('temporary session failure can recover without presenting a confirmed logou
  }finally{await cleanup();}
 });
 
-test('public marketing builds keep Subscribe visible without making auth requests', async () => {
-  const { calls, cleanup } = await mount(() => Response.json(signedInState()), false);
-  try {
-    assert.equal(calls.length, 0);
-    assert.equal(document.querySelector('.nav-auth'), null);
-    assert.equal(text('#opsp .product-action'), 'Subscribe');
-    assert.equal(document.querySelector('#opsp a').getAttribute('href'), '/login');
-  } finally { await cleanup(); }
+test('public marketing builds keep Subscribe visible without making auth requests — unreleased apps stay Coming Soon',async()=>{
+ const {cleanup}=await mount(()=>Response.json(signedOut));
+ try{for(const slug of ['opsp','opsfinance','opsflow','opswms']){assert.equal(document.querySelector(`#${slug} a`),null);assert.equal(document.querySelector(`#${slug} button`).disabled,true);assert.equal(text(`#${slug}`),'Coming Soon');}}finally{await cleanup();}
 });
 
 test('logout failure stays visible and retryable, including after a signed-out probe', async () => {
@@ -215,7 +189,7 @@ test('logout failure stays visible and retryable, including after a signed-out p
     signedIn = false;
     await act(async () => click('#passive'));
     assert.equal(text('.nav-auth button'), 'Log keluar semua aplikasi');
-    assert.equal(document.querySelector('#opsp button'), null);
+    assert.equal(document.querySelector('#opsp button').disabled, true);
     await act(async () => click('.nav-auth button'));
     assert.equal(calls.filter((body) => body.action === 'logout').length, 2);
     await act(async () => finishLogout(Response.json({ error: 'Retry later.' }, { status: 503 })));
@@ -229,8 +203,8 @@ test('logout failure stays visible and retryable, including after a signed-out p
   try {
     const cards = [...document.querySelectorAll('#applications article')];
     assert.deepEqual(cards.map(card => card.querySelector('h3').textContent), ['OpsFinance','OpsFlow','OpsPS','OpsHR','OpsWMS','OpsSmartHome','OpsClinic','OpsRental','OpsLife']);
-    assert.equal(cards.filter(card => card.querySelector('.coming-soon-label')).length, 5);
-    assert.equal(cards.flatMap(card => [...card.querySelectorAll('a')]).filter(a => a.textContent === 'Subscribe' && a.getAttribute('href') === '/login').length, 4);
+    assert.equal(cards.filter(card => card.querySelector('.coming-soon-label')).length, 9);
+    assert.equal(cards.flatMap(card => [...card.querySelectorAll('a')]).filter(a => a.textContent === 'Subscribe' && a.getAttribute('href') === '/login').length, 0);
     const { existsSync } = await import('node:fs');
     for (const img of document.querySelectorAll('#applications img')) {
       assert.match(img.getAttribute('src'), /^\/images\/approved\/.+\.png$/);
