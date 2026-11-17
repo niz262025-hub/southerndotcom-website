@@ -1,3 +1,4 @@
+import { loadGrantedOrganizationSubscriptions } from './organization-entitlements.js';
 import { releasedCatalog } from './release-policy.js';
 import { trialAction } from './trial-activation.js';
 import { serverServiceKey } from './service-key.js';
@@ -207,7 +208,7 @@ export async function runRevocationWorker({ env, headers = {}, body = {}, appAcc
 export { PRODUCT_SLUGS, hasLifetime, resolveProductStates };
 const SLUG = /^[a-z0-9_]{1,32}$/;
 
-async function loadEntitlements(client, userId, now, env = {}) {
+async function loadEntitlements(client, userId, now, env = {}, clientFactory = createClient) {
   const [catalog, subscriptions, grants, lifetime] = await Promise.all([
     client.from('myops_products').select('slug,launch_status'),
     client.from('myops_subscriptions').select('personal_user_id,organization_id,product_slug,is_complete_bundle,status,current_period_end'),
@@ -215,6 +216,10 @@ async function loadEntitlements(client, userId, now, env = {}) {
     client.from('myops_lifetime_entitlements').select('user_id,scope,status').eq('user_id', userId),
   ]);
   if (catalog.error || subscriptions.error || grants.error) return null;
+  const organizationSubscriptions = await loadGrantedOrganizationSubscriptions({
+    client, userId, grants: grants.data || [], env, clientFactory,
+  });
+  if (organizationSubscriptions === null) return null;
   // A failed lifetime read fails closed (no lifetime), e.g. before the Phase 3 SQL is approved.
   const rows = lifetime.error ? [] : lifetime.data || [];
   // Company membership must be checked server-side: browser RLS hides other members.
@@ -222,13 +227,13 @@ async function loadEntitlements(client, userId, now, env = {}) {
   const trialKey=trialAppsForEnvironment(env).length ? serverServiceKey(env.MYOPS_SERVICE_ROLE_KEY,trialProject) : null;
   const trial=trialKey ? await loadEligibleTrial(createClient(trialProject,trialKey,{auth:{persistSession:false,autoRefreshToken:false}}),userId,now,env) : null;
   return {
-    products: resolveProductStates({ userId, catalog: releasedCatalog(catalog.data || [], userId, env), subscriptions: subscriptions.data || [], grants: grants.data || [], lifetime: rows, platformAdmin: isPlatformAdmin(userId, env), trial, trialApps:trialAppsForEnvironment(env), now }),
+    products: resolveProductStates({ userId, catalog: releasedCatalog(catalog.data || [], userId, env), subscriptions: [...(subscriptions.data || []), ...organizationSubscriptions], grants: grants.data || [], lifetime: rows, platformAdmin: isPlatformAdmin(userId, env), trial, trialApps:trialAppsForEnvironment(env), now }),
     lifetime: hasLifetime(userId, rows),
   };
 }
 
-async function loadProductStates(client, userId, now, env = {}) {
-  return (await loadEntitlements(client, userId, now, env))?.products ?? null;
+async function loadProductStates(client, userId, now, env = {}, clientFactory = createClient) {
+  return (await loadEntitlements(client, userId, now, env, clientFactory))?.products ?? null;
 }
 
 function profileFrom(user) {
@@ -561,7 +566,7 @@ export function createAuthHandler({ env = process.env, clientFactory = createCli
         }
       }
       if (action === 'session') {
-        const entitlements = await loadEntitlements(client, identity.user.id, now(), env);
+        const entitlements = await loadEntitlements(client, identity.user.id, now(), env, clientFactory);
         return reply(200, { signedIn: true, email: identity.user.email, products: entitlements?.products ?? null, lifetime: entitlements?.lifetime ?? false, ...(isPlatformAdmin(identity.user.id, env) ? { platformAdmin: true } : {}) });
       }
       if(action==='trial_start'||action==='trial_status') {
@@ -587,7 +592,7 @@ export function createAuthHandler({ env = process.env, clientFactory = createCli
       }
       if (action === 'launch') {
         if (typeof body.product !== 'string' || !SLUG.test(body.product)) return reply(400, { error: 'Unknown product.' });
-        const products = await loadProductStates(client, identity.user.id, now(), env);
+        const products = await loadProductStates(client, identity.user.id, now(), env, clientFactory);
         if (!products) return reply(503, { error: 'Subscription status is unavailable. Try again later.' });
         if (!products[body.product]) return reply(400, { error: 'Unknown product.' });
         if (products[body.product] !== 'active') return reply(403, { error: 'An active subscription is required for this application.' });
@@ -655,7 +660,7 @@ export function createAuthHandler({ env = process.env, clientFactory = createCli
         return reply(200, { next: '/account' });
       }
       // Auth metadata is user-editable and descriptive only; it never grants access.
-      const entitlements = await loadEntitlements(client, identity.user.id, now(), env);
+      const entitlements = await loadEntitlements(client, identity.user.id, now(), env, clientFactory);
       const profile = profileFrom(identity.user);
       if (profile && ownedLogoPath(identity.user.user_metadata?.logo_path, identity.user.id)) {
         profile.has_logo = true;

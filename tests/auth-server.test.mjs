@@ -1135,3 +1135,18 @@ test('logo upload and account readback keep the verified owner and expose only a
  assert.equal(metadata.logo_path,null);
  const removed=await run({action:'account'},{headers,client});assert.equal(removed.data.profile.has_logo,undefined);
 });
+
+test('organization manager session and launch use granted tenant subscriptions while browser billing stays hidden',async()=>{
+ const membership={organization_id:'uat-business-b',user_id:user.id,status:'active'};
+ const grant={organization_id:'uat-business-b',user_id:user.id,product_slug:'opsflow'};
+ const subscription={organization_id:'uat-business-b',personal_user_id:null,product_slug:'opsflow',status:'active',current_period_end:new Date(NOW+86400000).toISOString()};
+ const query=(rows)=>{const filters=[];const q={select:()=>q,eq:(key,value)=>{filters.push(row=>row[key]===value);return q;},in:(key,values)=>{filters.push(row=>values.includes(row[key]));return q;},then:resolve=>resolve({data:rows.filter(row=>filters.every(filter=>filter(row))),error:null})};return q;};
+ for(const active of [true,false]){
+  let billingReads=0;
+  const browser={...mock(),from:table=>query(({myops_products:catalog,myops_subscriptions:[],myops_app_grants:[grant],myops_memberships:active?[membership]:[],myops_lifetime_entitlements:[]})[table]||[])};
+  const factory=(project,key)=>key==='sb_secret_test_fixture'?{from:table=>{assert.equal(table,'myops_subscriptions');billingReads++;return query([subscription]);}}:browser;
+  const options={factory,env:{MYOPS_SERVICE_ROLE_KEY:'sb_secret_test_fixture'},headers:{cookie:signedIn()},appAccessFactory:()=>({issueTicket:async()=>({status:200,next:'https://opsflow.example.test/launch#opaque'})})};
+  const state=await run({action:'session'},options);assert.equal(state.code,200);assert.equal(state.data.products.opsflow,active?'active':'none');
+  const launched=await run({action:'launch',product:'opsflow'},options);assert.equal(launched.code,active?200:403);assert.equal(billingReads,active?2:0);
+ }
+});
