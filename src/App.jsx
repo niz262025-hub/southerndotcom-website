@@ -56,7 +56,6 @@ const products = [
   },
   {
     slug: 'opshr',
-    comingSoon: true,
     name: 'OpsHR',
     tag: ['Human Resources', 'Management'],
     icon: 'HR',
