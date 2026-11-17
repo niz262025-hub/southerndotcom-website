@@ -838,25 +838,12 @@ const routePageMap = {
 };
 
 function PricingPage() {
-  if (customerAuthEnabled) {
-    return (
-      <PageShell pageClass="page-shell-plain">
-        <FoundersPromo production={buildMode === 'production-auth'} />
-        <section className="content-section">
-          <div className="container narrow-content">
-            <SectionIntro label="Services" title="Website & application solutions" text="Custom website development, business applications and integrations are quoted separately based on project scope." />
-            <a href="/contact" className="btn btn-primary">Get a Quote</a>
-          </div>
-        </section>
-      </PageShell>
-    );
-  }
   const plans = [
-    { name: '7 Days Free', price: 'RM0', tag: 'Trial', summary: 'Explore eligible MYOPS apps before committing to a subscription.', cta: 'Talk to Us' },
-    { name: 'Single App', price: 'RM19', tag: 'Focused', summary: 'Choose one MYOPS app for a targeted rollout.', cta: 'Talk to Us' },
-    { name: 'Duo', price: 'RM29', tag: 'Bundle', summary: 'Access any two paid MYOPS apps in one plan.', cta: 'Talk to Us' },
-    { name: 'Triple', price: 'RM39', tag: 'Expanded', summary: 'Unlock three MYOPS apps for broader operations.', cta: 'Talk to Us', highlight: true },
-    { name: 'All Apps', price: 'RM49', tag: 'Full suite', summary: 'Unlock every MYOPS app for your business.', cta: 'Talk to Us' },
+    { name: '7 Days Free', price: 'RM0', period: '7 days', tag: 'Free trial', summary: 'Explore eligible MYOPS applications for seven days.', cta: 'Contact Us', features: ['Seven-day trial', 'Eligible MYOPS apps', 'No automatic renewal'] },
+    { name: 'Single App', price: 'RM19.90', period: '/month', tag: 'One application', summary: 'Choose one MYOPS application for your business.', cta: 'Enquire Now', features: ['One selected app', 'MYOPS central account', 'Manual activation'] },
+    { name: 'Duo', price: 'RM29.90', period: '/month', tag: 'Two applications', summary: 'Combine two MYOPS applications in one plan.', cta: 'Enquire Now', features: ['Two selected apps', 'MYOPS central account', 'Manual activation'] },
+    { name: 'Triple', price: 'RM39.90', period: '/month', tag: 'Three applications', summary: 'Connect three MYOPS applications.', cta: 'Enquire Now', features: ['Three selected apps', 'MYOPS central account', 'Manual activation'] },
+    { name: 'All Apps', price: 'RM49.90', period: '/month', tag: 'Best value', summary: 'Access all eligible MYOPS applications as they become available. OpsHub excluded.', cta: 'Enquire Now', highlight: true, features: ['All eligible available MYOPS apps', 'MYOPS central account', 'Manual activation'] },
   ];
 
   return (
@@ -865,22 +852,21 @@ function PricingPage() {
         <div className="container narrow-content">
           <SectionIntro
             label="Pricing"
-            title="MYOPS product pricing"
-            text="Approved monthly pricing in MYR. A 7-day free trial is available, with no card-based recurring debit checkout. Custom development services are quoted separately."
+            title="Simple, transparent MYOPS pricing"
+            text="Choose a plan that fits your business. All prices are in MYR; subscription activation is currently handled manually. No automatic card charges."
           />
-          <div className="pricing-grid">
+          <div className="pricing-grid pricing-grid-refined">
             {plans.map((plan) => (
               <article key={plan.name} className={`pricing-card${plan.highlight ? ' highlight' : ''}`}>
                 <span className="pricing-tag">{plan.tag}</span>
                 <h3>{plan.name}</h3>
+                <p className="pricing-summary">{plan.summary}</p>
                 <div className="price-line">
                   <strong>{plan.price}</strong>
-                  <span>/month</span>
+                  <span>{plan.period}</span>
                 </div>
                 <ul>
-                  <li>{plan.summary}</li>
-                  <li>14-day trial included on paid plans.</li>
-                  <li>Manual renewal by default. No unsupported recurring debit claims.</li>
+                  {plan.features.map((feature) => <li key={feature}>{feature}</li>)}
                 </ul>
                 <a href="/contact" className="btn btn-primary">{plan.cta}</a>
               </article>

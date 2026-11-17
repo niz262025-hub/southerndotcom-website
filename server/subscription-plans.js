@@ -5,10 +5,10 @@ export const SUBSCRIPTION_OPTIONS = Object.freeze([
   Object.freeze({ id:'free_trial', name:'7 Days Free', amountCents:0, durationDays:7, cardRequired:false, autoRenew:false }),
   // Published MYOPS prices. These descriptors do not enable payment or grant access.
   // Legacy payment identifiers remain in the settlement ledger for existing orders.
-  Object.freeze({ id:'single_app_monthly', name:'Single App', amountCents:1900, billingCycle:'monthly', selectedApps:1, checkoutEnabled:false }),
-  Object.freeze({ id:'duo_monthly', name:'Duo', amountCents:2900, billingCycle:'monthly', selectedApps:2, checkoutEnabled:false }),
-  Object.freeze({ id:'triple_monthly', name:'Triple', amountCents:3900, billingCycle:'monthly', selectedApps:3, checkoutEnabled:false }),
-  Object.freeze({ id:'all_apps_monthly', name:'All Apps', amountCents:4900, billingCycle:'monthly', allAvailableApps:true, checkoutEnabled:false }),
+  Object.freeze({ id:'single_app_monthly', name:'Single App', amountCents:1990, billingCycle:'monthly', selectedApps:1, checkoutEnabled:false }),
+  Object.freeze({ id:'duo_monthly', name:'Duo', amountCents:2990, billingCycle:'monthly', selectedApps:2, checkoutEnabled:false }),
+  Object.freeze({ id:'triple_monthly', name:'Triple', amountCents:3990, billingCycle:'monthly', selectedApps:3, checkoutEnabled:false }),
+  Object.freeze({ id:'all_apps_monthly', name:'All Apps', amountCents:4990, billingCycle:'monthly', allAvailableApps:true, checkoutEnabled:false }),
 ]);
 const POLICY = Object.freeze({
   opsfinance:Object.freeze({ transactions:30, users:1, companies:1, bankStatements:2, invoiceReceiptDocuments:5, reconciliation:'preview', profitAndLoss:'preview', balanceSheet:'preview', exportPdf:false, exportExcel:false }),
