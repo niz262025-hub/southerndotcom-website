@@ -46,7 +46,6 @@ const products = [
   },
   {
     slug: 'opsp',
-    comingSoon: true,
     name: 'OpsPS',
     tag: ['Personal Shopper', 'Operations'],
     icon: 'PS',
