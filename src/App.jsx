@@ -838,19 +838,6 @@ const routePageMap = {
 };
 
 function PricingPage() {
-  if (customerAuthEnabled) {
-    return (
-      <PageShell pageClass="page-shell-plain">
-        <FoundersPromo production={buildMode === 'production-auth'} />
-        <section className="content-section">
-          <div className="container narrow-content">
-            <SectionIntro label="Services" title="Website & application solutions" text="Custom website development, business applications and integrations are quoted separately based on project scope." />
-            <a href="/contact" className="btn btn-primary">Get a Quote</a>
-          </div>
-        </section>
-      </PageShell>
-    );
-  }
   const plans = [
     { name: 'Free Trial', price: 'RM0', period: '7 days', tag: 'Try MYOPS', summary: 'Explore eligible applications for seven days. No card required.', cta: 'Contact Us', features: ['Seven-day trial', 'Eligible MYOPS apps', 'No automatic renewal'] },
     { name: 'Starter', price: 'RM9.90', period: '/month', tag: 'Getting started', summary: 'An affordable entry point for small teams.', cta: 'Enquire Now', features: ['Starter-level access', 'MYOPS central account', 'Manual activation'] },
