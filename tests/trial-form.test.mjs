@@ -17,11 +17,11 @@ test('MYOPS account activates trial through central API and shows expiry/open ap
  throw Error('Unexpected action');};
  try {
   await act(async()=>root.render(createElement(AuthPortal,{mode:'dashboard',production:false})));
-  const start=[...document.querySelectorAll('button')].find(b=>b.textContent==='Activate free 7-day trial');assert.ok(start);
+  const start=[...document.querySelectorAll('button')].find(b=>b.textContent==='Activate 7 Days Free');assert.ok(start);
   assert.match(document.body.textContent,/No payment card/);assert.equal(document.querySelector('input[type=number]'),null);
   await act(async()=>start.click());assert.deepEqual(calls.find(c=>c.action==='trial_start'),{action:'trial_start',confirm:true});
   assert.match(document.body.textContent,/Trial status: active/);assert.match(document.body.textContent,/Expires:/);assert.ok([...document.querySelectorAll('button')].some(b=>b.textContent==='Open OpsFlow'));
-  assert.equal([...document.querySelectorAll('button')].some(b=>b.textContent==='Activate free 7-day trial'),false);
+  assert.equal([...document.querySelectorAll('button')].some(b=>b.textContent==='Activate 7 Days Free'),false);
  }finally{await act(async()=>root.unmount());Object.assign(globalThis,originals);dom.window.close();}
 });
 

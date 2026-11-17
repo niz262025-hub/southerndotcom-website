@@ -860,10 +860,11 @@ function PricingPage() {
     );
   }
   const plans = [
-    { name: 'Starter', price: 'RM9.90', tag: 'Entry', summary: 'Limited-use tier for lighter operational requirements.', cta: 'Talk to Us' },
-    { name: 'Single', price: 'RM19.90', tag: 'Focused', summary: 'Choose one MYOPS product for a targeted rollout.', cta: 'Talk to Us' },
-    { name: 'Duo', price: 'RM29.90', tag: 'Bundle', summary: 'Access any two paid MYOPS products in one plan.', cta: 'Talk to Us' },
-    { name: 'Complete', price: 'RM39.90', tag: 'Full bundle', summary: 'Unlock the complete MYOPS bundle for your business.', cta: 'Talk to Us', highlight: true },
+    { name: '7 Days Free', price: 'RM0', tag: 'Trial', summary: 'Explore eligible MYOPS apps before committing to a subscription.', cta: 'Talk to Us' },
+    { name: 'Single App', price: 'RM19', tag: 'Focused', summary: 'Choose one MYOPS app for a targeted rollout.', cta: 'Talk to Us' },
+    { name: 'Duo', price: 'RM29', tag: 'Bundle', summary: 'Access any two paid MYOPS apps in one plan.', cta: 'Talk to Us' },
+    { name: 'Triple', price: 'RM39', tag: 'Expanded', summary: 'Unlock three MYOPS apps for broader operations.', cta: 'Talk to Us', highlight: true },
+    { name: 'All Apps', price: 'RM49', tag: 'Full suite', summary: 'Unlock every MYOPS app for your business.', cta: 'Talk to Us' },
     { name: 'OpsHub', price: 'RM0', tag: 'Seller', summary: 'Seller access is free. GMV commissions apply at 3% / 2% / 1.5% tiers.', cta: 'Request quote' },
   ];
 
@@ -874,7 +875,7 @@ function PricingPage() {
           <SectionIntro
             label="Pricing"
             title="MYOPS product pricing"
-            text="Approved monthly pricing in MYR. All paid plans include a 14-day trial, default manual renewal, and no card-based recurring debit checkout. Custom development services are quoted separately."
+            text="Approved monthly pricing in MYR. A 7-day free trial is available, with no card-based recurring debit checkout. Custom development services are quoted separately."
           />
           <div className="pricing-grid">
             {plans.map((plan) => (
