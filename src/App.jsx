@@ -852,11 +852,11 @@ function PricingPage() {
     );
   }
   const plans = [
-    { name: '7 Days Free', price: 'RM0', tag: 'Trial', summary: 'Explore eligible MYOPS apps before committing to a subscription.', cta: 'Talk to Us' },
-    { name: 'Single App', price: 'RM19', tag: 'Focused', summary: 'Choose one MYOPS app for a targeted rollout.', cta: 'Talk to Us' },
-    { name: 'Duo', price: 'RM29', tag: 'Bundle', summary: 'Access any two paid MYOPS apps in one plan.', cta: 'Talk to Us' },
-    { name: 'Triple', price: 'RM39', tag: 'Expanded', summary: 'Unlock three MYOPS apps for broader operations.', cta: 'Talk to Us', highlight: true },
-    { name: 'All Apps', price: 'RM49', tag: 'Full suite', summary: 'Unlock every MYOPS app for your business.', cta: 'Talk to Us' },
+    { name: 'Free Trial', price: 'RM0', period: '7 days', tag: 'Try MYOPS', summary: 'Explore eligible applications for seven days. No card required.', cta: 'Contact Us', features: ['Seven-day trial', 'Eligible MYOPS apps', 'No automatic renewal'] },
+    { name: 'Starter', price: 'RM9.90', period: '/month', tag: 'Getting started', summary: 'An affordable entry point for small teams.', cta: 'Enquire Now', features: ['Starter-level access', 'MYOPS central account', 'Manual activation'] },
+    { name: 'Single', price: 'RM19.90', period: '/month', tag: 'One application', summary: 'Focus on the one MYOPS application your business needs.', cta: 'Enquire Now', features: ['One selected app', 'MYOPS central account', 'Manual activation'] },
+    { name: 'Duo', price: 'RM29.90', period: '/month', tag: 'Two applications', summary: 'Bring two MYOPS applications together.', cta: 'Enquire Now', features: ['Two selected apps', 'MYOPS central account', 'Manual activation'] },
+    { name: 'Complete', price: 'RM39.90', period: '/month', tag: 'Best value', summary: 'The complete MYOPS bundle for connected operations.', cta: 'Enquire Now', highlight: true, features: ['Complete available bundle', 'MYOPS central account', 'Manual activation'] },
   ];
 
   return (
@@ -865,22 +865,21 @@ function PricingPage() {
         <div className="container narrow-content">
           <SectionIntro
             label="Pricing"
-            title="MYOPS product pricing"
-            text="Approved monthly pricing in MYR. A 7-day free trial is available, with no card-based recurring debit checkout. Custom development services are quoted separately."
+            title="Simple, transparent MYOPS pricing"
+            text="Choose a plan that fits your business. All prices are in MYR; subscription activation is currently handled manually. No automatic card charges."
           />
-          <div className="pricing-grid">
+          <div className="pricing-grid pricing-grid-refined">
             {plans.map((plan) => (
               <article key={plan.name} className={`pricing-card${plan.highlight ? ' highlight' : ''}`}>
                 <span className="pricing-tag">{plan.tag}</span>
                 <h3>{plan.name}</h3>
+                <p className="pricing-summary">{plan.summary}</p>
                 <div className="price-line">
                   <strong>{plan.price}</strong>
-                  <span>/month</span>
+                  <span>{plan.period}</span>
                 </div>
                 <ul>
-                  <li>{plan.summary}</li>
-                  <li>14-day trial included on paid plans.</li>
-                  <li>Manual renewal by default. No unsupported recurring debit claims.</li>
+                  {plan.features.map((feature) => <li key={feature}>{feature}</li>)}
                 </ul>
                 <a href="/contact" className="btn btn-primary">{plan.cta}</a>
               </article>
