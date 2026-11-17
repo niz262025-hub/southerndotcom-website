@@ -104,8 +104,8 @@ export function ProductAction({ product, arrow = false }) {
   const session = useSession();
   const [message, setMessage] = useState('');
   const [busy, setBusy] = useState(false);
+  if (product.comingSoon) return <div className="product-action"><span className="coming-soon-label">Coming Soon</span></div>;
   if (!session.enabled) return null;
-  if (product.comingSoon) return null;
   if (session.status === 'unavailable') return arrow ? <a className="card-link" href="/login" aria-label={`Subscribe to ${product.slug}`}><span aria-hidden="true">→</span></a> : <div className="product-action"><a className="btn btn-secondary" href="/login">Subscribe</a></div>;
 
   const state = session.signedIn ? session.products?.[product.slug] : 'none';
