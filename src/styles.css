@@ -1238,3 +1238,25 @@ select {
 .pricing-grid-four .price-line strong { font-size:clamp(1.6rem,2.3vw,2.25rem); }
 @media(max-width:1100px) { .pricing-grid-refined.pricing-grid-four { grid-template-columns:repeat(2,minmax(0,1fr)); } }
 @media(max-width:640px) { .pricing-trial-strip { flex-direction:column; align-items:flex-start; } .pricing-grid-refined.pricing-grid-four { grid-template-columns:1fr; } .pricing-grid-four .pricing-card { min-height:0; } .pricing-grid-four .pricing-summary { min-height:0; } }
+
+/* MYOPS pricing: trial is a separate full-width banner; paid tiers align in one row. */
+.founders-promo .pricing-trial-feature { margin: 24px 0 22px; }
+.founders-promo .pricing-trial-feature .price-card-featured { min-height: 0; display: grid; grid-template-columns: minmax(0, 1fr) auto; column-gap: 28px; row-gap: 8px; align-items: center; padding: 24px 30px; }
+.founders-promo .pricing-trial-feature .price-card-featured > h3,
+.founders-promo .pricing-trial-feature .price-card-featured > .price-amount,
+.founders-promo .pricing-trial-feature .price-card-featured > p,
+.founders-promo .pricing-trial-feature .price-card-featured > h4,
+.founders-promo .pricing-trial-feature .price-card-featured > ul { grid-column: 1; }
+.founders-promo .pricing-trial-feature .price-card-featured > .founders-actions,
+.founders-promo .pricing-trial-feature .price-card-featured > button { grid-column: 2; grid-row: 1 / span 6; align-self: center; }
+.founders-promo .pricing-trial-feature .price-card-featured > p[role="status"] { grid-column: 1 / -1; }
+.founders-promo .pricing-trial-feature .price-card-featured ul { display: flex; flex-wrap: wrap; gap: 6px 22px; padding-left: 20px; margin: 4px 0; }
+.founders-promo .pricing-cards-four { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); align-items: stretch; gap: 16px; }
+.founders-promo .pricing-cards-four .price-card-plan { min-width: 0; min-height: 265px; padding: 24px 20px; display: flex; flex-direction: column; align-items: flex-start; gap: 12px; background: #fff; border: 1px solid rgba(7,27,73,.13); box-shadow: 0 8px 24px rgba(7,27,73,.055); opacity: 1; }
+.founders-promo .pricing-cards-four .price-card-plan h3 { margin: 0; }
+.founders-promo .pricing-cards-four .price-card-plan .price-amount { font-size: clamp(1.55rem, 2.3vw, 2rem); white-space: nowrap; }
+.founders-promo .pricing-cards-four .price-card-plan > p:not(.price-amount) { flex: 1; }
+.founders-promo .pricing-cards-four .price-card-plan .btn { width: 100%; justify-content: center; margin-top: auto; }
+.founders-promo .pricing-cards-four .price-card-highlight { border: 2px solid #a365d6; background: #faf6ff; }
+@media (max-width: 1100px) { .founders-promo .pricing-cards-four { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 680px) { .founders-promo .pricing-trial-feature .price-card-featured { display: flex; flex-direction: column; align-items: flex-start; padding: 22px; } .founders-promo .pricing-trial-feature .price-card-featured ul { display: block; } .founders-promo .pricing-cards-four { grid-template-columns: 1fr; } .founders-promo .pricing-cards-four .price-card-plan { min-height: 0; } }

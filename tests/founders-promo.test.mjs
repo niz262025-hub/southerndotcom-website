@@ -34,12 +34,16 @@ const founders = (remaining) => ({ capacity: 100, allocated: 100 - remaining, re
 test('public pricing shows the approved MYOPS plans and free trial without OpsHub', async () => {
   const { cleanup } = await mount((body) => Response.json(body.action === 'founders' ? founders(63) : { signedIn: false }));
   try {
-    const cards = [...document.querySelectorAll('.pricing-cards .price-card')];
+    const trial = document.querySelector('.pricing-trial-feature #free-trial');
+    assert.ok(trial, 'free trial must appear in its own banner');
+    assert.equal(trial.querySelector('h3').textContent, '7 Days Free');
+    assert.equal(trial.querySelector('.price-amount').textContent, 'RM0 / 7 days');
+    const cards = [...document.querySelectorAll('.pricing-cards-four .price-card-plan')];
     assert.deepEqual(cards.map((card) => card.querySelector('h3').textContent), [
-      '7 Days Free', 'Single App', 'Duo', 'Triple', 'All Apps',
+      'Single App', 'Duo', 'Triple', 'All Apps',
     ]);
     assert.deepEqual(cards.map((card) => card.querySelector('.price-amount').textContent), [
-      'RM0 / 7 days', 'RM19 / month', 'RM29 / month', 'RM39 / month', 'RM49 / month',
+      'RM19.90 / month', 'RM29.90 / month', 'RM39.90 / month', 'RM49.90 / month',
     ]);
     assert.match(document.querySelector('#founders').textContent, /Choose your MYOPS plan/);
     assert.match(document.querySelector('#founders').textContent, /7-day trial/);
