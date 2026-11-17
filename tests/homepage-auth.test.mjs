@@ -102,7 +102,7 @@ test('signed-out visitors see Register and Login, and Subscribe on live cards', 
       assert.equal(document.querySelector(`#${slug} a`).getAttribute('href'), '/login');
       assert.equal(document.querySelector(`#${slug} button`), null);
     }
-    assert.equal(document.querySelector('#opswms').textContent, '');
+    assert.equal(text('#opswms .coming-soon-label'), 'Coming Soon');
   } finally { await cleanup(); }
 });
 
