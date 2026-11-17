@@ -36,7 +36,6 @@ export function FoundersPromo({ production = false }) {
     { name: 'Duo', price: 'RM29', period: '/ month', description: 'Access any two paid MYOPS apps in one bundle.', actionLabel: 'Checkout opening soon', featured: false },
     { name: 'Triple', price: 'RM39', period: '/ month', description: 'Unlock three MYOPS apps for broader business operations.', actionLabel: 'Checkout opening soon', featured: true },
     { name: 'All Apps', price: 'RM49', period: '/ month', description: 'Access the complete MYOPS suite for your business.', actionLabel: 'Checkout opening soon', featured: false },
-    { name: 'OpsHub', price: 'RM0', period: '/ month', description: 'Seller account is free; GMV commission tiers are 3% / 2% / 1.5%.', actionLabel: null, featured: false },
   ];
 
   return (

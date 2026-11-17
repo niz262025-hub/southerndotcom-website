@@ -865,7 +865,6 @@ function PricingPage() {
     { name: 'Duo', price: 'RM29', tag: 'Bundle', summary: 'Access any two paid MYOPS apps in one plan.', cta: 'Talk to Us' },
     { name: 'Triple', price: 'RM39', tag: 'Expanded', summary: 'Unlock three MYOPS apps for broader operations.', cta: 'Talk to Us', highlight: true },
     { name: 'All Apps', price: 'RM49', tag: 'Full suite', summary: 'Unlock every MYOPS app for your business.', cta: 'Talk to Us' },
-    { name: 'OpsHub', price: 'RM0', tag: 'Seller', summary: 'Seller access is free. GMV commissions apply at 3% / 2% / 1.5% tiers.', cta: 'Request quote' },
   ];
 
   return (
@@ -888,7 +887,7 @@ function PricingPage() {
                 </div>
                 <ul>
                   <li>{plan.summary}</li>
-                  {plan.name === 'OpsHub' ? <li>Commission tiers: 3% under RM1,000 GMV, 2% from RM1,000 to RM9,999.99, 1.5% above RM10,000.</li> : <li>14-day trial included on paid plans.</li>}
+                  <li>14-day trial included on paid plans.</li>
                   <li>Manual renewal by default. No unsupported recurring debit claims.</li>
                 </ul>
                 <a href="/contact" className="btn btn-primary">{plan.cta}</a>
