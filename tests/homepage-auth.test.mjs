@@ -91,7 +91,7 @@ test('MYOPS root shows the original landing page before and after login', async 
   } finally { await signedInPage.cleanup(); }
 });
 
-test('signed-out visitors see Register and Login, and Subscribe on live cards', async () => {
+test('signed-out visitors see Register and Login, Subscribe on live cards and Coming Soon on pending cards', async () => {
   const { cleanup } = await mount(() => Response.json(signedOut));
   try {
     assert.deepEqual(nav(), ['Register', 'Login']);
@@ -103,6 +103,8 @@ test('signed-out visitors see Register and Login, and Subscribe on live cards', 
       assert.equal(document.querySelector(`#${slug} button`), null);
     }
     assert.equal(text('#opswms .coming-soon-label'), 'Coming Soon');
+    assert.equal(document.querySelector('#opswms a'), null);
+    assert.equal(document.querySelector('#opswms button'), null);
   } finally { await cleanup(); }
 });
 
@@ -191,7 +193,12 @@ test('outside Preview auth builds no auth controls and no requests are made', as
   try {
     assert.equal(calls.length, 0);
     assert.equal(document.querySelector('.nav-auth'), null);
-    assert.equal(document.querySelector('.product-action'), null);
+    for (const slug of ['opsp', 'opsfinance', 'opsflow']) {
+      assert.equal(document.querySelector(`#${slug} .product-action`), null);
+    }
+    assert.equal(text('#opswms .coming-soon-label'), 'Coming Soon');
+    assert.equal(document.querySelector('#opswms a'), null);
+    assert.equal(document.querySelector('#opswms button'), null);
   } finally { await cleanup(); }
 });
 
