@@ -66,6 +66,19 @@ const products = [
     summary: 'Employee records with MYOPS access. Live UAT; other HR modules are in development.',
   },
   {
+    "slug": "opsrental",
+    "name": "OpsRental",
+    "tag": [
+      "Property & Tenancy",
+      "Management"
+    ],
+    "icon": "RN",
+    "accent": "purple",
+    "art": "opsrental",
+    "comingSoon": true,
+    "summary": "Manage rentals, agreements, payments and maintenance tickets."
+  },
+  {
     slug: 'opswms',
     name: 'OpsWMS',
     tag: ['Warehouse', 'Management System'],
@@ -100,19 +113,6 @@ const products = [
     "art": "opsclinic",
     "comingSoon": true,
     "summary": "Plan clinic workflows, visits and patient operations."
-  },
-  {
-    "slug": "opsrental",
-    "name": "OpsRental",
-    "tag": [
-      "Property & Tenancy",
-      "Management"
-    ],
-    "icon": "RN",
-    "accent": "purple",
-    "art": "opsrental",
-    "comingSoon": true,
-    "summary": "Manage rentals, agreements, payments and maintenance tickets."
   },
   {
     "slug": "opslife",
