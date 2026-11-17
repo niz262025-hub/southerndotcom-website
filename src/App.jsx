@@ -46,6 +46,7 @@ const products = [
   },
   {
     slug: 'opsp',
+    comingSoon: true,
     name: 'OpsPS',
     tag: ['Personal Shopper', 'Operations'],
     icon: 'PS',
@@ -56,6 +57,7 @@ const products = [
   },
   {
     slug: 'opshr',
+    comingSoon: true,
     name: 'OpsHR',
     tag: ['Human Resources', 'Management'],
     icon: 'HR',
