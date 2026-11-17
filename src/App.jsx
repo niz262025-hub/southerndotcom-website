@@ -839,11 +839,11 @@ const routePageMap = {
 
 function PricingPage() {
   const plans = [
-    { name: 'Free Trial', price: 'RM0', period: '7 days', tag: 'Try MYOPS', summary: 'Explore eligible applications for seven days. No card required.', cta: 'Contact Us', features: ['Seven-day trial', 'Eligible MYOPS apps', 'No automatic renewal'] },
-    { name: 'Starter', price: 'RM9.90', period: '/month', tag: 'Getting started', summary: 'An affordable entry point for small teams.', cta: 'Enquire Now', features: ['Starter-level access', 'MYOPS central account', 'Manual activation'] },
-    { name: 'Single', price: 'RM19.90', period: '/month', tag: 'One application', summary: 'Focus on the one MYOPS application your business needs.', cta: 'Enquire Now', features: ['One selected app', 'MYOPS central account', 'Manual activation'] },
-    { name: 'Duo', price: 'RM29.90', period: '/month', tag: 'Two applications', summary: 'Bring two MYOPS applications together.', cta: 'Enquire Now', features: ['Two selected apps', 'MYOPS central account', 'Manual activation'] },
-    { name: 'Complete', price: 'RM39.90', period: '/month', tag: 'Best value', summary: 'The complete MYOPS bundle for connected operations.', cta: 'Enquire Now', highlight: true, features: ['Complete available bundle', 'MYOPS central account', 'Manual activation'] },
+    { name: '7 Days Free', price: 'RM0', period: '7 days', tag: 'Free trial', summary: 'Explore eligible MYOPS applications for seven days.', cta: 'Contact Us', features: ['Seven-day trial', 'Eligible MYOPS apps', 'No automatic renewal'] },
+    { name: 'Single App', price: 'RM19.90', period: '/month', tag: 'One application', summary: 'Choose one MYOPS application for your business.', cta: 'Enquire Now', features: ['One selected app', 'MYOPS central account', 'Manual activation'] },
+    { name: 'Duo', price: 'RM29.90', period: '/month', tag: 'Two applications', summary: 'Combine two MYOPS applications in one plan.', cta: 'Enquire Now', features: ['Two selected apps', 'MYOPS central account', 'Manual activation'] },
+    { name: 'Triple', price: 'RM39.90', period: '/month', tag: 'Three applications', summary: 'Connect three MYOPS applications.', cta: 'Enquire Now', features: ['Three selected apps', 'MYOPS central account', 'Manual activation'] },
+    { name: 'All Apps', price: 'RM49.90', period: '/month', tag: 'Best value', summary: 'Access all eligible MYOPS applications as they become available. OpsHub excluded.', cta: 'Enquire Now', highlight: true, features: ['All eligible available MYOPS apps', 'MYOPS central account', 'Manual activation'] },
   ];
 
   return (
