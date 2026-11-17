@@ -553,16 +553,15 @@ function LandingPage() {
 
           <div className="product-grid">
             {products.map((product) => (
-              <article className={`product-card ${product.accent}`} key={product.name}>
+              <article className={`product-card ${product.accent}`} key={product.name} data-application={product.slug}>
                 <div className="product-art">
                   <img
-                    src={`/images/${product.art}-card-art.${product.comingSoon && product.slug !== 'opswms' ? 'svg' : 'png'}`}
+                    src={`/images/approved/${product.art}-art.png`}
                     alt={`${product.name} illustration`}
-                    width="380"
-                    height="248"
+                    width="322"
+                    height="210"
                   />
                 </div>
-                <img className="product-badge" src={`/images/${product.art}-card-badge.${product.badgeFormat || (product.comingSoon ? 'svg' : 'png')}`} alt="" width="88" height="88" />
                 <h3>{product.name}</h3>
                 <p className="product-tagline">
                   {product.tag.map((line) => (
@@ -572,14 +571,7 @@ function LandingPage() {
                 <p className="product-desc">
                   {product.summary}
                 </p>
-                {product.comingSoon ? (
-                  <span className="coming-soon-label">Coming Soon</span>
-                ) : (
-                  <>
-                    <ProductAction product={product} arrow />
-                    <ProductAction product={product} />
-                  </>
-                )}
+                <ProductAction product={product} />
               </article>
             ))}
           </div>
