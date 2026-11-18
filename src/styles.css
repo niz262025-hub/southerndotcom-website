@@ -955,8 +955,7 @@ select {
   .about-grid,
   .contact-panel,
   .footer-grid,
-  .cards-grid,
-  .product-grid {
+  .cards-grid {
     grid-template-columns: 1fr 1fr;
   }
 
