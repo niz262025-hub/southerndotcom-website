@@ -1,10 +1,11 @@
 import { createClient } from '@supabase/supabase-js';
 import { verifiedLogin } from './auth.js';
+import { createAppAccess } from './app-access.js';
 import { projectForEnvironment } from './project.js';
 
 // Read-only bridge to the existing MYOPS web session. A signed cookie is NOT
 // sufficient authentication: Supabase must verify the access JWT as well.
-export async function verifyMobileBrowserSession(req, { env = process.env, clientFactory = createClient, now = Date.now } = {}) {
+export async function verifyMobileBrowserSession(req, { env = process.env, clientFactory = createClient, appAccessFactory = createAppAccess, now = Date.now } = {}) {
   const expectedOrigin = env.VERCEL_ENV === 'production'
     ? 'https://www.myops.com.my'
     : env.VERCEL_ENV === 'preview' && env.VERCEL_BRANCH_URL
@@ -26,7 +27,9 @@ export async function verifyMobileBrowserSession(req, { env = process.env, clien
     const client = clientFactory(url, key, { auth: { persistSession: false, autoRefreshToken: false } });
     const { data, error } = await client.auth.getUser(token);
     if (error || !data?.user?.email_confirmed_at || data.user.id !== login.userId) return null;
-    // Login record revocation/expiry must also be checked before issuing a code.
-    return { userId: login.userId, loginSessionId: login.loginSessionId, verifiedJwt: true, durableLoginVerified: false };
+    const appAccess = appAccessFactory({ env, now });
+    const live = await appAccess.loginLive(login.userId, login.loginSessionId);
+    if (live !== true) return null;
+    return { userId: login.userId, loginSessionId: login.loginSessionId, verifiedJwt: true, durableLoginVerified: true };
   } catch { return null; }
 }
