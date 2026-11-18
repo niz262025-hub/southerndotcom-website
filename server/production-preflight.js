@@ -3,6 +3,7 @@ import { serverServiceKey } from './service-key.js';
 
 // Checks configuration only. Never return credential values or certify live UAT.
 const REQUIRED_PRODUCTION_APP_URLS = [
+  ['MYOPS_APP_URL_MASTER', 'https://www.myops.com.my'],
   ['MYOPS_APP_URL_OPSFINANCE', 'https://app.myops.com.my'],
   ['MYOPS_APP_URL_OPSFLOW', 'https://opsflow.myops.com.my'],
   ['MYOPS_APP_URL_OPSP', 'https://opsps.myops.com.my'],
