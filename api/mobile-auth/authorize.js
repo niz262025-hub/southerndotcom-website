@@ -31,7 +31,8 @@ export function createMobileAuthorizeHandler({env=process.env,clientFactory=crea
    const redirect=new URL('myops://auth/callback');
    redirect.searchParams.set('code',code);
    redirect.searchParams.set('state',params.state);
-   return res.status(302).setHeader('Location',redirect.toString()).end();
+   res.setHeader('Location',redirect.toString());
+   return res.status(302).end();
   }catch{return res.status(503).json({error:'mobile_auth_unavailable'});}
  };
 }
