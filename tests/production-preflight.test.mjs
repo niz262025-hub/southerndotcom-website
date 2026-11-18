@@ -10,6 +10,7 @@ const configured = {
   VITE_SUPABASE_PUBLISHABLE_KEY: 'sb_publishable_fixture',
   MYOPS_SERVICE_ROLE_KEY: 'sb_secret_fixture',
   MYOPS_SESSION_SECRET: 's'.repeat(40), MYOPS_APP_USER_REF_SECRET: 'u'.repeat(40),
+  MYOPS_APP_URL_MASTER: 'https://www.myops.com.my/',
   MYOPS_APP_URL_OPSFINANCE: 'https://app.myops.com.my/',
   MYOPS_APP_URL_OPSFLOW: 'https://opsflow.myops.com.my/',
   MYOPS_APP_URL_OPSP: 'https://opsps.myops.com.my/',
@@ -23,6 +24,7 @@ test('production SSO requires aligned auth, project, server credential and all l
     assert.ok(productionSsoPreflight({...configured,[key]:''}).errors.includes(key),key);
   }
   for (const [key, target] of Object.entries({
+    MYOPS_APP_URL_MASTER: 'https://www.myops.com.my/path',
     MYOPS_APP_URL_OPSFINANCE: 'https://app.myops.com.my/path',
     MYOPS_APP_URL_OPSFLOW: 'https://opsflow.myops.com.my/?x=1',
     MYOPS_APP_URL_OPSP: 'https://opsps.myops.com.my/#ticket',
