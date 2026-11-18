@@ -1,5 +1,5 @@
 import { createClient } from '@supabase/supabase-js';
-import { hashCode, validCode, verifyCodeChallenge, mobileClient } from '../../server/mobile-oauth.js';
+import { validCode, mobileClient } from '../../server/mobile-oauth.js';
 import { projectForEnvironment } from '../../server/project.js';
 import { serverServiceKey } from '../../server/service-key.js';
 
@@ -15,7 +15,7 @@ export function createMobileTokenHandler({ env = process.env, clientFactory = cr
   if (!body || Array.isArray(body) || JSON.stringify(body).length > 4096) return res.status(400).json({error:'invalid_request'});
   const { code, code_verifier, client_id, redirect_uri, grant_type } = body;
   if (grant_type !== 'authorization_code' || client_id !== mobileClient.id || redirect_uri !== mobileClient.redirect ||
-      !validCode(code) || !verifyCodeChallenge(code_verifier, body.code_challenge)) {
+      !validCode(code) || !/^[A-Za-z0-9_-]{43,128}$/.test(code_verifier || '')) {
    return res.status(400).json({error:'invalid_grant'});
   }
   // The client must NOT supply a trusted challenge. The expected challenge must be
@@ -26,7 +26,7 @@ export function createMobileTokenHandler({ env = process.env, clientFactory = cr
   // Database RPC: myops_mobile_redeem_code(p_code_hash,p_code_challenge,p_client_id,p_redirect_uri).
   // DO NOT invoke until a server-owned challenge lookup and atomic credential issuance
   // are available; otherwise valid codes could be burned without issuing credentials.
-  void clientFactory; void hashCode;
+  void clientFactory;
   return res.status(503).json({error:'mobile_credential_issuance_not_configured'});
  };
 }
