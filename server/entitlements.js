@@ -3,7 +3,7 @@ export function isPlatformAdmin(userId, env = {}) {
   return typeof userId === 'string' && userId.length > 0 && String(env.MYOPS_ADMIN_USER_IDS || '').split(',').map(id => id.trim()).filter(Boolean).includes(userId);
 }
 
-export const PRODUCT_SLUGS = ['opsp', 'opsfinance', 'opsflow', 'opswms', 'opshr'];
+export const PRODUCT_SLUGS = ['opsp', 'opsfinance', 'opsflow', 'opswms', 'opshr', 'opsrental'];
 
 const SLUG = /^[a-z0-9_]{1,32}$/;
 

@@ -4,7 +4,7 @@ import { isPlatformAdmin, resolveProductStates } from '../server/entitlements.js
 import { createPayments } from '../server/payments.js';
 import { createAuthHandler } from '../server/auth.js';
 
-const input = { userId: 'owner-id', catalog: [{ slug: 'opsfinance', launch_status: 'live' }, { slug: 'opsflow', launch_status: 'live' }, { slug: 'opshr', launch_status: 'coming_soon' }], subscriptions: [], grants: [], lifetime: [], now: Date.now() };
+const input = { userId: 'owner-id', catalog: [{ slug: 'opsfinance', launch_status: 'live' }, { slug: 'opsflow', launch_status: 'live' }, { slug: 'opsrental', launch_status: 'live' }, { slug: 'opshr', launch_status: 'coming_soon' }], subscriptions: [], grants: [], lifetime: [], now: Date.now() };
 test('platform admin requires the exact server allowlisted identity', () => {
   assert.equal(isPlatformAdmin('owner-id', { MYOPS_ADMIN_USER_IDS: ' owner-id ' }), true);
   assert.equal(isPlatformAdmin('other-user', { MYOPS_ADMIN_USER_IDS: 'owner-id' }), false);
@@ -16,6 +16,7 @@ test('admin access needs no paid subscription and preserves coming-soon locks', 
   assert.equal(state.opsfinance, 'active');
   assert.equal(state.opsflow, 'active');
   assert.equal(state.opshr, 'coming_soon');
+  assert.equal(state.opsrental, 'active');
 });
 test('ordinary accounts remain denied without valid subscription', () => {
   assert.equal(resolveProductStates(input).opsfinance, 'none');
