@@ -75,7 +75,7 @@ const products = [
     "icon": "RN",
     "accent": "purple",
     "art": "opsrental",
-    "comingSoon": true,
+    "href": "https://opsrental.myops.com.my",
     "summary": "Manage rentals, agreements, payments and maintenance tickets."
   },
   {
