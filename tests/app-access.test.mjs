@@ -17,8 +17,9 @@ const publicPem = publicKey.export({ type: 'spki', format: 'pem' });
 const baseEnv = {
   VERCEL_ENV: 'preview',
   MYOPS_ENVIRONMENT: 'staging',
+  MYOPS_USE_ISOLATED_STAGING: 'true',
   VERCEL_BRANCH_URL: 'myops-preview.vercel.app',
-  VITE_SUPABASE_URL: 'https://uhuukcztdifvpjuopdea.supabase.co',
+  VITE_SUPABASE_URL: 'https://wengxxiqwtosirealghx.supabase.co',
   MYOPS_SERVICE_ROLE_KEY: 'sb_secret_fixture',
   MYOPS_APP_USER_REF_SECRET: 'u'.repeat(40),
   MYOPS_APP_URL_OPSP: 'https://opsp.example.test/',
@@ -222,12 +223,26 @@ test('requests require Preview configuration and do not use a service role in th
   assert.equal((await call(production.redeem, req)).statusCode, 404);
 });
 
+test('incomplete preview isolation cannot create an app-access service client', async () => {
+  for (const extra of [
+    { MYOPS_USE_ISOLATED_STAGING: undefined },
+    { VITE_SUPABASE_URL: 'https://uhuukcztdifvpjuopdea.supabase.co' },
+  ]) {
+    const handler = createAppAccess({ env: { ...baseEnv, ...extra }, adminFactory: () => assert.fail('must not create a client') });
+    const body = { ticket: Buffer.alloc(32, 9).toString('base64url') };
+    assert.equal((await call(handler.redeem, signedRequest({ path: '/api/app/redeem', body }))).statusCode, 503);
+    assert.equal(await handler.issueTicket({ userId, product: 'opsp', loginSessionId }), null);
+  }
+});
+
 test('production app access needs explicit opt-in and accepts only the official MYOPS host', async () => {
   const body = { ticket: Buffer.alloc(32, 9).toString('base64url') };
   const productionEnv = {
     ...baseEnv,
     VERCEL_ENV: 'production',
     MYOPS_ENVIRONMENT: 'production',
+    MYOPS_USE_ISOLATED_STAGING: 'false',
+    VITE_SUPABASE_URL: 'https://uhuukcztdifvpjuopdea.supabase.co',
     MYOPS_ENABLE_PRODUCTION_APP_ACCESS: 'true',
   };
   const disabled = createAppAccess({ env: { ...productionEnv, MYOPS_ENABLE_PRODUCTION_APP_ACCESS: 'false' } });

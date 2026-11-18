@@ -72,12 +72,13 @@ async function rpc(client, name, args, signal) {
 }
 
 function configured(env) {
+  const project = projectForEnvironment(env);
   const staging = env.VERCEL_ENV === 'preview' && env.MYOPS_ENVIRONMENT === 'staging';
   const production = env.VERCEL_ENV === 'production'
     && env.MYOPS_ENVIRONMENT === 'production'
     && env.MYOPS_ENABLE_PRODUCTION_APP_ACCESS === 'true';
-  return (staging || production)
-    && env.VITE_SUPABASE_URL === projectForEnvironment(env)
+  return (staging || production) && project
+    && env.VITE_SUPABASE_URL === project
     && typeof env.MYOPS_APP_USER_REF_SECRET === 'string'
     && env.MYOPS_APP_USER_REF_SECRET.length >= 32;
 }

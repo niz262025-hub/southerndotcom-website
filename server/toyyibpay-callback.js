@@ -11,6 +11,8 @@ export function createCallbackHandler({ env = process.env, clientFactory = creat
     const reply = (status, body) => res.status(status).json(body);
     if (env.VERCEL_ENV !== 'preview' && !paymentGateway(env, projectForEnvironment(env))) return reply(404, { error: 'Preview-only.' });
     if (req.method !== 'POST') return reply(405, { error: 'Method not allowed.' });
+    const project = projectForEnvironment(env);
+    if (!project) return reply(503, { error: 'Environment is not configured.' });
     try {
       let fields = req.body;
       if (typeof fields === 'string') {
@@ -18,7 +20,7 @@ export function createCallbackHandler({ env = process.env, clientFactory = creat
         fields = Object.fromEntries(new URLSearchParams(fields));
       }
       if (!fields || typeof fields !== 'object' || Array.isArray(fields)) return reply(400, { error: 'invalid' });
-      const payments = createPayments({ env, transport, adminFactory: clientFactory, project: projectForEnvironment(env) });
+      const payments = createPayments({ env, transport, adminFactory: clientFactory, project });
       const result = await payments.callback(fields);
       return reply(result.status, result.body);
     } catch {

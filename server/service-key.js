@@ -1,7 +1,7 @@
 // This selects a server environment credential, never authenticates a browser JWT.
 // Supabase still verifies its signature and permissions on every upstream request.
 export function serverServiceKey(value, project) {
-  if (typeof value !== 'string') return null;
+  if (typeof value !== 'string' || typeof project !== 'string' || !project) return null;
   if (value.startsWith('sb_secret_')) return value;
   try {
     const parts=value.split('.');
