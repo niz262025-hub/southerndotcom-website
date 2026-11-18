@@ -1,5 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { readFile } from 'node:fs/promises';
 import { importSrc } from './helpers/load-src.mjs';
 import { JSDOM } from 'jsdom';
 import { act, createElement } from 'react';
@@ -89,6 +90,13 @@ test('MYOPS root shows the original landing page before and after login', async 
     assert.equal(document.querySelector('#auth-title'), null);
     assert.deepEqual(nav(), ['My Account', 'Log keluar semua aplikasi']);
   } finally { await signedInPage.cleanup(); }
+});
+
+test('homepage app grid keeps the approved desktop 5-card layout on large screens', async () => {
+  const css = await readFile(new URL('../src/styles.css', import.meta.url), 'utf8');
+  assert.match(css, /\.apps-section \.product-grid \{\s*grid-template-columns:\s*repeat\(5, minmax\(0, 1fr\)\);/s);
+  assert.match(css, /@media \(max-width: 1199px\)\s*\{\s*\.apps-section \.product-grid \{\s*grid-template-columns:\s*repeat\(4, minmax\(0, 1fr\)\);/s);
+  assert.match(css, /@media \(max-width: 900px\)\s*\{\s*\.apps-section \.product-grid \{\s*grid-template-columns:\s*repeat\(3, minmax\(0, 1fr\)\);/s);
 });
 
 test('signed-out visitors see Register and Login, Subscribe on live cards and Coming Soon on pending cards', async () => {
