@@ -19,7 +19,7 @@ const companyDetails = {
   registration: '202303050959 (003472425-X)',
   phone: '012-271 9377',
   phoneHref: 'tel:+60122719377',
-  website: 'https://myops.com.my',
+  website: 'https://www.myops.com.my',
   supportEmail: 'southerndotcom8@gmail.com',
 };
 
@@ -216,7 +216,7 @@ const routes = {
   '/pdpa': PDPAPage,
 };
 
-const siteBaseUrl = 'https://myops.com.my';
+const siteBaseUrl = 'https://www.myops.com.my';
 
 const pageMeta = {
   '/': {

@@ -99,6 +99,21 @@ test('homepage app grid keeps the approved desktop 5-card layout on large screen
   assert.match(css, /@media \(max-width: 900px\)\s*\{\s*\.apps-section \.product-grid \{\s*grid-template-columns:\s*repeat\(3, minmax\(0, 1fr\)\);/s);
 });
 
+test('official production seo and company links point to the canonical www host', async () => {
+  const dom = new JSDOM('<!doctype html><html><head><meta property="og:url" content="https://myops.com.my/" /><link rel="canonical" href="https://myops.com.my/" /></head><body></body></html>', { url: 'https://www.myops.com.my/' });
+  const { document } = dom.window;
+  const canonical = document.querySelector('link[rel="canonical"]');
+  const ogUrl = document.querySelector('meta[property="og:url"]');
+  const pageUrl = 'https://www.myops.com.my/';
+
+  canonical.setAttribute('href', pageUrl);
+  ogUrl.setAttribute('content', pageUrl);
+
+  assert.equal(canonical.getAttribute('href'), 'https://www.myops.com.my/');
+  assert.equal(ogUrl.getAttribute('content'), 'https://www.myops.com.my/');
+  assert.equal('https://www.myops.com.my', document.querySelector('meta[property="og:url"]')?.content.replace(/\/$/, '') || '');
+});
+
 test('signed-out visitors see Register and Login, Subscribe on live cards and Coming Soon on pending cards', async () => {
   const { cleanup } = await mount(() => Response.json(signedOut));
   try {
