@@ -4,8 +4,8 @@ import { createAuthHandler, enforceWorkerRateLimit, signActivity, signIdentity, 
 import { createClient } from '@supabase/supabase-js';
 
 const origin = 'https://trusted-preview.vercel.app';
-const env = { VERCEL_ENV: 'preview', VERCEL_BRANCH_URL: 'trusted-preview.vercel.app', MYOPS_SESSION_SECRET: 's'.repeat(40),
-  VITE_SUPABASE_URL: 'https://uhuukcztdifvpjuopdea.supabase.co', VITE_SUPABASE_PUBLISHABLE_KEY: 'sb_publishable_test_fixture' };
+const env = { VERCEL_ENV: 'preview', MYOPS_ENVIRONMENT: 'staging', MYOPS_USE_ISOLATED_STAGING: 'true', VERCEL_BRANCH_URL: 'trusted-preview.vercel.app', MYOPS_SESSION_SECRET: 's'.repeat(40),
+  VITE_SUPABASE_URL: 'https://wengxxiqwtosirealghx.supabase.co', VITE_SUPABASE_PUBLISHABLE_KEY: 'sb_publishable_test_fixture' };
 const NOW = Date.now();
 const LOGIN_ID = '7c1f0a52-3b6e-4d58-9a41-0e2d5b8c9f13';
 const loginCookie = (id = user.id, loginId = LOGIN_ID, ageMs = 0) => `__Host-myops-login=${signLogin(env.MYOPS_SESSION_SECRET, id, loginId, NOW - ageMs)}`;
@@ -58,7 +58,8 @@ test('production disabled regardless of configured values', async () => {
 });
 test('production app launch requires the explicit production app-access switch', async () => {
   const result = await run({ action: 'launch', product: 'opsp' }, {
-    env: { VERCEL_ENV: 'production', MYOPS_ENABLE_PRODUCTION_AUTH: 'true' },
+    env: { VERCEL_ENV: 'production', MYOPS_ENVIRONMENT: 'production', MYOPS_USE_ISOLATED_STAGING: 'false',
+      VITE_SUPABASE_URL: 'https://uhuukcztdifvpjuopdea.supabase.co', MYOPS_ENABLE_PRODUCTION_AUTH: 'true' },
     headers: { host: 'www.myops.com.my', origin: 'https://www.myops.com.my', cookie: signedIn() },
   });
   assert.equal(result.code, 404);
@@ -75,6 +76,16 @@ test('reject wrong project, missing key and service-role/secret key shape', asyn
     assert.equal((await run(login, { env: { VITE_SUPABASE_PUBLISHABLE_KEY: value } })).code, 503);
   }
   assert.equal((await run(login, { env: { VITE_SUPABASE_URL: 'https://other.supabase.co' } })).code, 503);
+});
+test('incomplete preview isolation never creates a Supabase client', async () => {
+  for (const extra of [
+    { MYOPS_ENVIRONMENT: 'staging', MYOPS_USE_ISOLATED_STAGING: undefined },
+    { MYOPS_ENVIRONMENT: 'staging', MYOPS_USE_ISOLATED_STAGING: 'true', VITE_SUPABASE_URL: 'https://uhuukcztdifvpjuopdea.supabase.co' },
+    { MYOPS_ENVIRONMENT: undefined, MYOPS_USE_ISOLATED_STAGING: undefined, VITE_SUPABASE_URL: undefined },
+  ]) {
+    const result = await run(login, { env: extra, factory: () => assert.fail('must not create a client') });
+    assert.equal(result.code, 503);
+  }
 });
 test('confirmed login saves only HttpOnly secure bounded access cookie, no tokens in JSON', async () => {
   const result = await run(login);
@@ -134,7 +145,7 @@ test('account response uses verified identity and descriptive profile metadata',
   const result = await run({ action: 'account', userId: 'other-user' }, { client, headers: { cookie: signedIn() } });
   assert.ok(!tables.includes('myops_profiles'), 'account details must not depend on an unapproved profile table');
   assert.deepEqual(result.data, { email: user.email, profile: { display_name: 'A Person', account_type: 'business' },
-    products: { opsp: 'none', opsfinance: 'none', opsflow: 'none', opswms: 'coming_soon', opshr: 'coming_soon' }, lifetime: false });
+    products: { opsp: 'none', opsfinance: 'none', opsflow: 'none', opswms: 'coming_soon', opshr: 'coming_soon', opsrental: 'coming_soon' }, lifetime: false });
 });
 test('onboarding saves only descriptive metadata through the verified user and grants no role', async () => {
   let request;
@@ -151,7 +162,7 @@ test('onboarding saves only descriptive metadata through the verified user and g
   });
   assert.equal(result.code, 200);
   assert.deepEqual(result.data, { next: '/account' });
-  assert.equal(request.url, 'https://uhuukcztdifvpjuopdea.supabase.co/auth/v1/user');
+  assert.equal(request.url, 'https://wengxxiqwtosirealghx.supabase.co/auth/v1/user');
   assert.equal(request.method, 'PUT');
   assert.ok(request.headers.Authorization.startsWith('Bearer '));
   assert.deepEqual(JSON.parse(request.body), { data: { display_name: 'A Person', account_type: 'business', company_name: 'Registered Company' } });
@@ -248,7 +259,7 @@ test('signup SDK destination is exactly the dedicated staging project', async ()
     factory: (url) => { destination = url; return mock(); },
   });
   assert.equal(result.code, 200);
-  assert.equal(destination, 'https://uhuukcztdifvpjuopdea.supabase.co');
+  assert.equal(destination, 'https://wengxxiqwtosirealghx.supabase.co');
 });
 
 
@@ -319,7 +330,7 @@ test('session probe: signed-in users get email and product states, never tokens'
     client: withData({ subscriptions: [personal()] }) });
   assert.equal(result.code, 200);
   assert.deepEqual(result.data, { signedIn: true, email: user.email,
-    products: { opsp: 'active', opsfinance: 'none', opsflow: 'none', opswms: 'coming_soon', opshr: 'coming_soon' }, lifetime: false });
+    products: { opsp: 'active', opsfinance: 'none', opsflow: 'none', opswms: 'coming_soon', opshr: 'coming_soon', opsrental: 'coming_soon' }, lifetime: false });
   assert.ok(!JSON.stringify(result.data).includes('test-access-token'));
 });
 test('15-minute inactivity is enforced server-side for every protected action', async () => {
@@ -400,6 +411,8 @@ test('production launch uses the central package entitlement and issues an app-s
     MYOPS_ENABLE_PRODUCTION_AUTH: 'true',
     MYOPS_ENABLE_PRODUCTION_APP_ACCESS: 'true',
     MYOPS_ENVIRONMENT: 'production',
+    MYOPS_USE_ISOLATED_STAGING: 'false',
+    VITE_SUPABASE_URL: 'https://uhuukcztdifvpjuopdea.supabase.co',
     MYOPS_APP_URL_OPSP: 'https://opsp.example.test/',
   };
   const headers = {
@@ -454,7 +467,7 @@ test('MYOPS logout and detected inactivity revoke all app sessions for the verif
 test('resolveProductStates: bundles, organisation grants and catalog state', () => {
   const states = (subscriptions, grants = []) => resolveProductStates({ userId: user.id, catalog, subscriptions, grants, now: NOW });
   const bundle = states([personal({ is_complete_bundle: true, product_slug: null })]);
-  assert.deepEqual(bundle, { opsp: 'active', opsfinance: 'active', opsflow: 'active', opswms: 'coming_soon', opshr: 'coming_soon' });
+  assert.deepEqual(bundle, { opsp: 'active', opsfinance: 'active', opsflow: 'active', opswms: 'coming_soon', opshr: 'coming_soon', opsrental: 'coming_soon' });
   const org = { personal_user_id: null, organization_id: 'org-1', product_slug: 'opsfinance', is_complete_bundle: false, status: 'active', current_period_end: null };
   assert.equal(states([org]).opsfinance, 'none');
   assert.equal(states([org], [{ organization_id: 'org-2', product_slug: 'opsfinance' }]).opsfinance, 'none');
@@ -931,7 +944,8 @@ test('worker: retry cap reached is surfaced without exposing raw queue state', a
 
 test('official domain login requires opt-in and exact www host/origin', async () => {
   const official = 'https://www.myops.com.my';
-  const production = { VERCEL_ENV: 'production', MYOPS_ENABLE_PRODUCTION_AUTH: 'true' };
+  const production = { VERCEL_ENV: 'production', MYOPS_ENVIRONMENT: 'production', MYOPS_USE_ISOLATED_STAGING: 'false',
+    VITE_SUPABASE_URL: 'https://uhuukcztdifvpjuopdea.supabase.co', MYOPS_ENABLE_PRODUCTION_AUTH: 'true' };
   const headers = { host: 'www.myops.com.my', origin: official };
   const result = await run(login, { env: production, headers });
   assert.equal(result.code, 200);
@@ -946,7 +960,8 @@ test('official domain login requires opt-in and exact www host/origin', async ()
 });
 
 test('official-domain recovery callback is fixed and billing/app operations stay disabled', async () => {
-  const options = { env: { VERCEL_ENV: 'production', MYOPS_ENABLE_PRODUCTION_AUTH: 'true' },
+  const options = { env: { VERCEL_ENV: 'production', MYOPS_ENVIRONMENT: 'production', MYOPS_USE_ISOLATED_STAGING: 'false',
+    VITE_SUPABASE_URL: 'https://uhuukcztdifvpjuopdea.supabase.co', MYOPS_ENABLE_PRODUCTION_AUTH: 'true' },
     headers: { host: 'www.myops.com.my', origin: 'https://www.myops.com.my' } };
   let redirect;
   const result = await run({ action: 'forgot', email: user.email, next: 'https://evil.example' }, {
