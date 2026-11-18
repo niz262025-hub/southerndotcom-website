@@ -955,8 +955,7 @@ select {
   .about-grid,
   .contact-panel,
   .footer-grid,
-  .cards-grid,
-  .product-grid {
+  .cards-grid {
     grid-template-columns: 1fr 1fr;
   }
 
@@ -1196,8 +1195,11 @@ select {
 .apps-section .coming-soon-label { left: 16px; right: 16px; bottom: 18px; text-align: center; background: transparent; color: #6332d9; border: 1px solid #b593ed; padding: 10px 5px; }
 .access-retry { border: 0; background: transparent; color: #6332d9; font: inherit; font-size: .72rem; cursor: pointer; text-decoration: underline; }
 @media (max-width: 1199px) {
-  .apps-section .product-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .apps-section .product-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
   .apps-section .product-card h3 { font-size: 1.5rem; }
+}
+@media (max-width: 900px) {
+  .apps-section .product-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 }
 @media (max-width: 800px) {
   .apps-section .product-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
