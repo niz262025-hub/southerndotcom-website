@@ -767,6 +767,16 @@ test('worker: valid authorization executes and returns safe aggregate metrics', 
   });
 });
 
+test('worker: processed count is taken from the DB payload instead of the retry count', async () => {
+  const result = await runWorker({
+    headers: { 'x-myops-cron-secret': workerSecret },
+    processRevocations: async () => ({ processed: 9, retried: 7, retry_failed: 2, expired_logins: 3, revoked_app_sessions: 4, revoked_tickets: 5, deleted_logins: 1, queued: 1, status: 'ok' }),
+  });
+  assert.equal(result.code, 200);
+  assert.equal(result.data.processed, 9);
+  assert.equal(result.data.retried, 7);
+});
+
 test('worker: execution timeout fails closed without false success', async () => {
   const result = await runWorker({
     env: { MYOPS_REVOCATION_TIMEOUT_MS: '5' },
