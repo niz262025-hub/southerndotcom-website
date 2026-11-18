@@ -134,7 +134,7 @@ test('account response uses verified identity and descriptive profile metadata',
   const result = await run({ action: 'account', userId: 'other-user' }, { client, headers: { cookie: signedIn() } });
   assert.ok(!tables.includes('myops_profiles'), 'account details must not depend on an unapproved profile table');
   assert.deepEqual(result.data, { email: user.email, profile: { display_name: 'A Person', account_type: 'business' },
-    products: { opsp: 'none', opsfinance: 'none', opsflow: 'none', opswms: 'coming_soon', opshr: 'coming_soon' }, lifetime: false });
+    products: { opsp: 'none', opsfinance: 'none', opsflow: 'none', opswms: 'coming_soon', opshr: 'coming_soon', opsrental: 'coming_soon' }, lifetime: false });
 });
 test('onboarding saves only descriptive metadata through the verified user and grants no role', async () => {
   let request;
@@ -319,7 +319,7 @@ test('session probe: signed-in users get email and product states, never tokens'
     client: withData({ subscriptions: [personal()] }) });
   assert.equal(result.code, 200);
   assert.deepEqual(result.data, { signedIn: true, email: user.email,
-    products: { opsp: 'active', opsfinance: 'none', opsflow: 'none', opswms: 'coming_soon', opshr: 'coming_soon' }, lifetime: false });
+    products: { opsp: 'active', opsfinance: 'none', opsflow: 'none', opswms: 'coming_soon', opshr: 'coming_soon', opsrental: 'coming_soon' }, lifetime: false });
   assert.ok(!JSON.stringify(result.data).includes('test-access-token'));
 });
 test('15-minute inactivity is enforced server-side for every protected action', async () => {
@@ -454,7 +454,7 @@ test('MYOPS logout and detected inactivity revoke all app sessions for the verif
 test('resolveProductStates: bundles, organisation grants and catalog state', () => {
   const states = (subscriptions, grants = []) => resolveProductStates({ userId: user.id, catalog, subscriptions, grants, now: NOW });
   const bundle = states([personal({ is_complete_bundle: true, product_slug: null })]);
-  assert.deepEqual(bundle, { opsp: 'active', opsfinance: 'active', opsflow: 'active', opswms: 'coming_soon', opshr: 'coming_soon' });
+  assert.deepEqual(bundle, { opsp: 'active', opsfinance: 'active', opsflow: 'active', opswms: 'coming_soon', opshr: 'coming_soon', opsrental: 'coming_soon' });
   const org = { personal_user_id: null, organization_id: 'org-1', product_slug: 'opsfinance', is_complete_bundle: false, status: 'active', current_period_end: null };
   assert.equal(states([org]).opsfinance, 'none');
   assert.equal(states([org], [{ organization_id: 'org-2', product_slug: 'opsfinance' }]).opsfinance, 'none');

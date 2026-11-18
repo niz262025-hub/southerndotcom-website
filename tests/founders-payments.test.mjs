@@ -338,7 +338,7 @@ const lifeRow = (over) => ({ user_id: 'user-a', scope: 'all_apps', status: 'acti
 test('lifetime entitlement unlocks every live app, including newly launched catalog apps', () => {
   const base = { userId: 'user-a', catalog, subscriptions: [], grants: [], now: NOW };
   assert.deepEqual(resolveProductStates({ ...base, lifetime: [lifeRow()] }),
-    { opsp: 'active', opsfinance: 'coming_soon', opsflow: 'coming_soon', opswms: 'coming_soon', opshr: 'coming_soon', opsnew: 'active' });
+    { opsp: 'active', opsfinance: 'coming_soon', opsflow: 'coming_soon', opswms: 'coming_soon', opshr: 'coming_soon', opsrental: 'coming_soon', opsnew: 'active' });
   const none = resolveProductStates({ ...base, lifetime: [] });
   assert.equal(none.opsp, 'none');
   assert.equal(none.opsnew, 'none');
