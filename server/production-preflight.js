@@ -2,6 +2,14 @@ import { PRODUCTION_PROJECT } from './project.js';
 import { serverServiceKey } from './service-key.js';
 
 // Checks configuration only. Never return credential values or certify live UAT.
+const REQUIRED_PRODUCTION_APP_URLS = [
+  ['MYOPS_APP_URL_OPSFINANCE', 'https://app.myops.com.my'],
+  ['MYOPS_APP_URL_OPSFLOW', 'https://opsflow.myops.com.my'],
+  ['MYOPS_APP_URL_OPSP', 'https://opsps.myops.com.my'],
+  ['MYOPS_APP_URL_OPSHR', 'https://opshr.myops.com.my'],
+  ['MYOPS_APP_URL_OPSRENTAL', 'https://opsrental.myops.com.my'],
+];
+
 export function productionSsoPreflight(env) {
   if (env.VERCEL_ENV !== 'production' || env.MYOPS_ENABLE_PRODUCTION_APP_ACCESS !== 'true') {
     return { enabled: false, errors: [] };
@@ -15,13 +23,15 @@ export function productionSsoPreflight(env) {
   for (const key of ['MYOPS_SESSION_SECRET', 'MYOPS_APP_USER_REF_SECRET']) {
     if (typeof env[key] !== 'string' || env[key].length < 32) errors.push(key);
   }
-  let destinationValid = false;
-  try {
-    const destination = new URL(env.MYOPS_APP_URL_OPSFINANCE);
-    destinationValid = destination.origin === 'https://app.myops.com.my'
-      && destination.pathname === '/' && !destination.search && !destination.hash
-      && !destination.username && !destination.password;
-  } catch { /* Missing/malformed destination fails closed. */ }
-  if (!destinationValid) errors.push('MYOPS_APP_URL_OPSFINANCE');
+  for (const [key, expectedOrigin] of REQUIRED_PRODUCTION_APP_URLS) {
+    let destinationValid = false;
+    try {
+      const destination = new URL(env[key]);
+      destinationValid = destination.origin === expectedOrigin
+        && destination.pathname === '/' && !destination.search && !destination.hash
+        && !destination.username && !destination.password;
+    } catch { /* Missing/malformed destination fails closed. */ }
+    if (!destinationValid) errors.push(key);
+  }
   return { enabled: true, errors };
 }
