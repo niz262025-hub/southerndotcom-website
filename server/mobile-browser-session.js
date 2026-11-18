@@ -6,11 +6,14 @@ import { projectForEnvironment } from './project.js';
 // Read-only bridge to the existing MYOPS web session. A signed cookie is NOT
 // sufficient authentication: Supabase must verify the access JWT as well.
 export async function verifyMobileBrowserSession(req, { env = process.env, clientFactory = createClient, appAccessFactory = createAppAccess, now = Date.now } = {}) {
-  const expectedOrigin = env.VERCEL_ENV === 'production'
-    ? 'https://www.myops.com.my'
-    : env.VERCEL_ENV === 'preview' && env.VERCEL_BRANCH_URL
-      ? 'https://' + env.VERCEL_BRANCH_URL : null;
-  if (!expectedOrigin || req.headers.host !== new URL(expectedOrigin).host) return null;
+  // Match the trusted host policy used by browser auth: preview deployments
+  // have a deployment hostname distinct from their branch alias.
+  const allowedHosts = env.VERCEL_ENV === 'production'
+    ? ['www.myops.com.my']
+    : env.VERCEL_ENV === 'preview' && env.MYOPS_ENVIRONMENT === 'staging'
+      && env.MYOPS_USE_ISOLATED_STAGING === 'true'
+      ? [env.VERCEL_URL, env.VERCEL_BRANCH_URL].filter(Boolean) : [];
+  if (typeof req.headers.host !== 'string' || !allowedHosts.includes(req.headers.host)) return null;
   const cookies = Object.fromEntries(String(req.headers.cookie || '').split(';').map(v => {
     const i = v.indexOf('=');
     return i < 0 ? ['', ''] : [v.slice(0, i).trim(), v.slice(i + 1)];
