@@ -1,4 +1,4 @@
-import { effectiveTrialState } from './subscription-plans.js';
+import { effectiveTrialState, trialFeaturePolicy } from './subscription-plans.js';
 export function isPlatformAdmin(userId, env = {}) {
   return typeof userId === 'string' && userId.length > 0 && String(env.MYOPS_ADMIN_USER_IDS || '').split(',').map(id => id.trim()).filter(Boolean).includes(userId);
 }
@@ -7,11 +7,14 @@ export const PRODUCT_SLUGS = ['opsp', 'opsfinance', 'opsflow', 'opswms', 'opshr'
 
 const SLUG = /^[a-z0-9_]{1,32}$/;
 
+const sanitizeSlugs = (items = []) => [...new Set(items.filter((slug) => typeof slug === 'string' && SLUG.test(slug)))];
+
 export const hasLifetime = (userId, lifetime = []) =>
   lifetime.some((row) => row.user_id === userId && row.status === 'active' && row.scope === 'all_apps');
 
 export function resolveProductStates({ userId, catalog, subscriptions, grants, lifetime = [], platformAdmin = false, trial = null, trialApps = [], now }) {
   const entitled = new Set();
+  const catalogSlugs = sanitizeSlugs(catalog.map((item) => item.slug));
   const live = new Set(catalog.filter((item) => item.launch_status === 'live' && SLUG.test(item.slug)).map((item) => item.slug));
   if (platformAdmin === true || hasLifetime(userId, lifetime)) live.forEach((slug) => entitled.add(slug));
   for (const sub of subscriptions) {
@@ -29,11 +32,21 @@ export function resolveProductStates({ userId, catalog, subscriptions, grants, l
       }
     }
   }
-  if(trial?.user_id===userId && trial.policy_version===1 && effectiveTrialState(trial,now)==='active') {
-    for(const app of trialApps) if(['opsflow','opsfinance','opsp'].includes(app) && live.has(app)) entitled.add(app);
+  if (trial?.user_id === userId && trial.policy_version === 1 && effectiveTrialState(trial, now) === 'active') {
+    for (const app of sanitizeSlugs(trialApps)) {
+      if (trialFeaturePolicy(app) && live.has(app)) entitled.add(app);
+    }
   }
-  const slugs = [...new Set([...PRODUCT_SLUGS, ...catalog.map((item) => item.slug).filter((slug) => SLUG.test(slug))])];
-  return Object.fromEntries(slugs.map((slug) => [
+
+  const listedSlugs = [...new Set([
+    ...PRODUCT_SLUGS,
+    ...catalogSlugs,
+    ...sanitizeSlugs(subscriptions.map((sub) => sub.product_slug)),
+    ...sanitizeSlugs(grants.map((grant) => grant.product_slug)),
+    ...sanitizeSlugs(trialApps),
+  ])];
+
+  return Object.fromEntries(listedSlugs.map((slug) => [
     slug,
     !live.has(slug) ? 'coming_soon' : entitled.has(slug) ? 'active' : 'none',
   ]));

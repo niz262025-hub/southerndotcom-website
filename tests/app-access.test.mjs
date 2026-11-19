@@ -212,6 +212,20 @@ test('current subscription expiry, revocation and Founder lifetime use the centr
   tables.myops_lifetime_entitlements = [{ user_id: userId, scope: 'all_apps', status: 'active' }];
   const lifetime = await loadCurrentEntitlements(client, userId, now);
   assert.deepEqual(lifetime, { opsp: 'active', opsfinance: 'active', opsfuture: 'active', opsflow: 'coming_soon', opswms: 'coming_soon', opshr: 'coming_soon' });
+  const catalog = { ...tables, myops_products: [...tables.myops_products, { slug: 'opsrental', launch_status: 'live' }] };
+  const liveWithRental = await loadCurrentEntitlements({
+    from(table) {
+      const filters = [];
+      const query = {
+        select() { return query; },
+        eq(key, value) { filters.push((row) => row[key] === value); return query; },
+        in(key, values) { filters.push((row) => values.includes(row[key])); return query; },
+        then(resolve) { return resolve({ data: (catalog[table] || []).filter((row) => filters.every((filter) => filter(row))), error: null }); },
+      };
+      return query;
+    },
+  }, userId, now);
+  assert.equal(liveWithRental.opsrental, 'active');
 });
 
 test('requests require Preview configuration and do not use a service role in the browser', async () => {
