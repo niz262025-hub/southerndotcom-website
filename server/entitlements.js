@@ -7,11 +7,14 @@ export const PRODUCT_SLUGS = ['opsp', 'opsfinance', 'opsflow', 'opswms', 'opshr'
 
 const SLUG = /^[a-z0-9_]{1,32}$/;
 
+const sanitizeSlugs = (items = []) => [...new Set(items.filter((slug) => typeof slug === 'string' && SLUG.test(slug)))];
+
 export const hasLifetime = (userId, lifetime = []) =>
   lifetime.some((row) => row.user_id === userId && row.status === 'active' && row.scope === 'all_apps');
 
 export function resolveProductStates({ userId, catalog, subscriptions, grants, lifetime = [], platformAdmin = false, trial = null, trialApps = [], now }) {
   const entitled = new Set();
+  const catalogSlugs = sanitizeSlugs(catalog.map((item) => item.slug));
   const live = new Set(catalog.filter((item) => item.launch_status === 'live' && SLUG.test(item.slug)).map((item) => item.slug));
   if (platformAdmin === true || hasLifetime(userId, lifetime)) live.forEach((slug) => entitled.add(slug));
   for (const sub of subscriptions) {
@@ -29,16 +32,18 @@ export function resolveProductStates({ userId, catalog, subscriptions, grants, l
       }
     }
   }
-  if(trial?.user_id===userId && trial.policy_version===1 && effectiveTrialState(trial,now)==='active') {
-    for(const app of trialApps) if(['opsflow','opsfinance','opsp'].includes(app) && live.has(app)) entitled.add(app);
+  if (trial?.user_id === userId && trial.policy_version === 1 && effectiveTrialState(trial, now) === 'active') {
+    for (const app of sanitizeSlugs(trialApps)) {
+      if (live.has(app)) entitled.add(app);
+    }
   }
 
   const listedSlugs = [...new Set([
     ...PRODUCT_SLUGS,
-    ...catalog.map((item) => item.slug).filter((slug) => SLUG.test(slug)),
-    ...subscriptions.map((sub) => sub.product_slug).filter((slug) => SLUG.test(slug)),
-    ...grants.map((grant) => grant.product_slug).filter((slug) => SLUG.test(slug)),
-    ...trialApps.filter((slug) => SLUG.test(slug)),
+    ...catalogSlugs,
+    ...sanitizeSlugs(subscriptions.map((sub) => sub.product_slug)),
+    ...sanitizeSlugs(grants.map((grant) => grant.product_slug)),
+    ...sanitizeSlugs(trialApps),
   ])];
 
   return Object.fromEntries(listedSlugs.map((slug) => [
