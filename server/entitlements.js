@@ -1,4 +1,4 @@
-import { effectiveTrialState } from './subscription-plans.js';
+import { effectiveTrialState, trialFeaturePolicy } from './subscription-plans.js';
 export function isPlatformAdmin(userId, env = {}) {
   return typeof userId === 'string' && userId.length > 0 && String(env.MYOPS_ADMIN_USER_IDS || '').split(',').map(id => id.trim()).filter(Boolean).includes(userId);
 }
@@ -34,7 +34,7 @@ export function resolveProductStates({ userId, catalog, subscriptions, grants, l
   }
   if (trial?.user_id === userId && trial.policy_version === 1 && effectiveTrialState(trial, now) === 'active') {
     for (const app of sanitizeSlugs(trialApps)) {
-      if (live.has(app)) entitled.add(app);
+      if (trialFeaturePolicy(app) && live.has(app)) entitled.add(app);
     }
   }
 

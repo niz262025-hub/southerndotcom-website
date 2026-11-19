@@ -24,3 +24,13 @@ test('loader binds verified user and rechecks company ownership and single activ
  members=[{user_id:'user',role:'admin'}];owner=null;assert.equal(await loadEligibleTrial(client,'user',now,env),null);
  error=true;await assert.rejects(loadEligibleTrial(client,'user',now,env),/unavailable/);
 });
+test('resolver denies trial for unapproved or coming-soon products even when passed by a caller',()=>{
+ const products=['opsflow','opsfinance','opsp','opshr','opsrental','opsfuture','opswms'];
+ const trialCatalog=products.map(slug=>({slug,launch_status:slug==='opswms'?'coming_soon':'live'}));
+ const result=resolveProductStates({userId:'user',catalog:trialCatalog,subscriptions:[],grants:[],trial,trialApps:products,now});
+ for(const app of ['opsflow','opsfinance','opsp']) assert.equal(result[app],'active',app);
+ for(const app of ['opshr','opsrental','opsfuture']) assert.equal(result[app],'none',app);
+ assert.equal(result.opswms,'coming_soon');
+ const paid=resolveProductStates({userId:'user',catalog:trialCatalog,subscriptions:[{personal_user_id:'user',product_slug:'opsrental',status:'active'}],grants:[],trial,trialApps:products,now});
+ assert.equal(paid.opsrental,'active','trial restrictions must not remove paid access');
+});
