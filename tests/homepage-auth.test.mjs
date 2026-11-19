@@ -140,6 +140,31 @@ test('signed-in users see My Account and Logout instead of Register and Login', 
   } finally { await cleanup(); }
 });
 
+test('signed-in users on satellite hosts see Back to MYOPS instead of local Logout', async () => {
+  const dom = new JSDOM('<div id="root"></div>', { url: 'https://opsrental.myops.com.my/' });
+  const originals = Object.fromEntries(['window', 'document', 'Element', 'HTMLElement', 'fetch', 'IS_REACT_ACT_ENVIRONMENT'].map((key) => [key, globalThis[key]]));
+  Object.assign(globalThis, {
+    window: dom.window,
+    document: dom.window.document,
+    Element: dom.window.Element,
+    HTMLElement: dom.window.HTMLElement,
+    IS_REACT_ACT_ENVIRONMENT: true,
+  });
+  globalThis.fetch = async () => Response.json(signedInState());
+  const root = createRoot(document.getElementById('root'));
+  try {
+    await act(async () => root.render(createElement(SessionProvider, { enabled: true }, createElement(AuthNav))));
+    assert.deepEqual(nav(), ['My Account', 'Back to MYOPS']);
+    const backLink = document.querySelector('.nav-auth a.btn.btn-primary');
+    assert.equal(backLink.getAttribute('href'), 'https://www.myops.com.my');
+    assert.equal(document.querySelector('.nav-auth button'), null);
+  } finally {
+    await act(async () => root.unmount());
+    Object.assign(globalThis, originals);
+    dom.window.close();
+  }
+});
+
 test('signed-in subscribe links open the founders offer section instead of doing nothing', async () => {
   const { cleanup, dom } = await mount(() => Response.json(signedInState()));
   const original = Element.prototype.scrollIntoView;

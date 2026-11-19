@@ -4,9 +4,15 @@ import { authRequest } from './authRequest';
 import { jumpToFounders } from './foundersNav';
 
 const PROBE_INTERVAL_MS = 60 * 1000;
+const MASTER_HOSTS = new Set(['myops.com.my', 'www.myops.com.my']);
 const SignedOut = { status: 'ready', signedIn: false, products: null, lifetime: false };
 
 const SessionContext = createContext({ ...SignedOut, enabled: false, refresh: async () => {}, logout: async () => {} });
+
+function isSatelliteMyOpsHost(hostname = (typeof window !== 'undefined' ? window.location.hostname : '').toLowerCase()) {
+  const normalized = String(hostname || '').trim().toLowerCase();
+  return normalized.endsWith('.myops.com.my') && !MASTER_HOSTS.has(normalized);
+}
 
 // Browser state is display-only. The server re-validates identity and subscriptions for every
 // protected operation, so editing this state can never unlock an application.
@@ -80,6 +86,7 @@ export function useSession() {
 
 export function AuthNav() {
   const session = useSession();
+  const satellite = isSatelliteMyOpsHost();
   if (!session.enabled || session.status === 'loading') return null;
   if (session.status === 'unavailable') return <div className="nav-auth" role="status">Session check unavailable. <button className="btn btn-secondary" onClick={() => session.refresh(false)}>Retry</button></div>;
   if (session.signedIn || session.logoutError) {
@@ -87,7 +94,11 @@ export function AuthNav() {
       <div className="nav-auth">
         <a href="/account" className="btn btn-secondary">My Account</a>
         {session.platformAdmin && <a href="/admin/audit" className="btn btn-secondary">Admin</a>}
-        <button type="button" className="btn btn-primary" disabled={session.logoutBusy} onClick={session.logout}>{session.logoutBusy ? 'Sedang log keluar…' : 'Log keluar semua aplikasi'}</button>
+        {satellite ? (
+          <a href="https://www.myops.com.my" className="btn btn-primary">Back to MYOPS</a>
+        ) : (
+          <button type="button" className="btn btn-primary" disabled={session.logoutBusy} onClick={session.logout}>{session.logoutBusy ? 'Sedang log keluar…' : 'Log keluar semua aplikasi'}</button>
+        )}
         {session.logoutError && <p role="alert">{session.logoutError}</p>}
       </div>
     );
