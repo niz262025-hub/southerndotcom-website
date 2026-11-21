@@ -173,8 +173,9 @@ test('staging client allowlist proposal rejects unknown IDs and fails closed on 
     values ('unknown_app', 'opswms', ${q(edPem())}, false)`);
   await assert.rejects(applyStagingClientAllowlist, /Existing unrecognized client IDs detected|Unexpected myops_app_clients app_id constraint/);
   await sql("delete from public.myops_app_clients where app_id = 'unknown_app'");
-  await sql("alter table public.myops_app_clients add constraint myops_app_clients_app_id_check check (app_id = 'opsfinance')");
+  await sql("alter table public.myops_app_clients add constraint myops_app_clients_app_id_check check (app_id = 'opsfinance') not valid");
   await assert.rejects(applyStagingClientAllowlist, /Unexpected myops_app_clients app_id constraint/);
+  await setLegacyAppConstraint();
 });
 
 test('duplicate and concurrent checkout clicks reuse one pending payment and one reservation', { skip }, async () => {
