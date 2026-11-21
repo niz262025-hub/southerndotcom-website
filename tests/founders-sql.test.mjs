@@ -155,9 +155,9 @@ test('staging client allowlist proposal is idempotent and preserves the valid cl
   const rows = await sql("select count(*) from public.myops_app_clients where app_id in ('opsfinance','opsflow','opsp','opshr','opsrental')");
   assert.equal(rows, '3');
   // The proposal permits the IDs but deliberately does not register clients.
-  for (const appId of ['opshr', 'opsrental']) {
+  for (const [appId, product] of [['opshr', 'opshr'], ['opsrental', 'opswms']]) {
     await sql(`insert into public.myops_app_clients(app_id, product_slug, public_key_current, enabled)
-      values (${q(appId)}, 'opsfinance', ${q(edPem())}, false)`);
+      values (${q(appId)}, ${q(product)}, ${q(edPem())}, false)`);
   }
   assert.equal(await sql("select count(*) from public.myops_app_clients where app_id in ('opshr','opsrental')"), '2');
 });
@@ -170,7 +170,7 @@ test('staging client allowlist proposal rejects unknown IDs and fails closed on 
   }
   await sql('alter table public.myops_app_clients drop constraint myops_app_clients_app_id_check');
   await sql(`insert into public.myops_app_clients(app_id, product_slug, public_key_current, enabled)
-    values ('unknown_app', 'opsfinance', ${q(edPem())}, false)`);
+    values ('unknown_app', 'opswms', ${q(edPem())}, false)`);
   await assert.rejects(applyStagingClientAllowlist, /Existing unrecognized client IDs detected|Unexpected myops_app_clients app_id constraint/);
   await sql("delete from public.myops_app_clients where app_id = 'unknown_app'");
   await sql("alter table public.myops_app_clients add constraint myops_app_clients_app_id_check check (app_id = 'opsfinance')");
