@@ -124,6 +124,30 @@ test('unconfirmed users, bad plans and the monthly plan while slots remain are r
   assert.equal((await checkout(user, 'single_app_monthly')).status, 'founders_available');
 });
 
+test('staging client allowlist proposal is idempotent and preserves the valid client set', { skip }, async () => {
+  const proposal = new URL('../supabase/proposals/20261121104242_staging_client_allowlist.sql', import.meta.url).pathname;
+  await sql("set myops.allow_client_staging = 'wengxxiqwtosirealghx'");
+  await run(`${binDir}/psql`, ['-X', '-q', '-v', 'ON_ERROR_STOP=1', '-h', sock, '-p', String(PORT), '-U', 'postgres', '-d', 'myops', '-f', proposal]);
+  await run(`${binDir}/psql`, ['-X', '-q', '-v', 'ON_ERROR_STOP=1', '-h', sock, '-p', String(PORT), '-U', 'postgres', '-d', 'myops', '-f', proposal]);
+  const actual = await sql("select array_to_string(array_agg(app_id order by app_id), ',') from public.myops_app_clients");
+  assert.equal(actual, 'opsfinance,opshr,opsflow,opsp,opsrental');
+  const rows = await sql("select count(*) from public.myops_app_clients where app_id in ('opsfinance','opsflow','opsp','opshr','opsrental')");
+  assert.equal(rows, '5');
+  await sql("insert into public.myops_app_clients(app_id, product_slug, public_key_current, enabled) values ('opsrental','opsrental','-----BEGIN PUBLIC KEY-----\nMCowBQYDK2VwAyEA\\n-----END PUBLIC KEY-----\n', true) on conflict (app_id) do nothing");
+  assert.equal(await sql("select count(*) from public.myops_app_clients where app_id = 'opsrental'"), '1');
+});
+
+test('staging client allowlist proposal rejects unknown IDs and fails closed on unexpected constraints', { skip }, async () => {
+  const proposal = new URL('../supabase/proposals/20261121104242_staging_client_allowlist.sql', import.meta.url).pathname;
+  await sql("set myops.allow_client_staging = 'wengxxiqwtosirealghx'");
+  await sql("insert into public.myops_app_clients(app_id, product_slug, public_key_current, enabled) values ('opsrental','opsrental','-----BEGIN PUBLIC KEY-----\nMCowBQYDK2VwAyEA\\n-----END PUBLIC KEY-----\n', true) on conflict (app_id) do nothing");
+  await sql("insert into public.myops_app_clients(app_id, product_slug, public_key_current, enabled) values ('unknown_app','unknown_app','-----BEGIN PUBLIC KEY-----\nMCowBQYDK2VwAyEA\\n-----END PUBLIC KEY-----\n', false) on conflict (app_id) do nothing");
+  await assert.rejects(() => run(`${binDir}/psql`, ['-X', '-q', '-v', 'ON_ERROR_STOP=1', '-h', sock, '-p', String(PORT), '-U', 'postgres', '-d', 'myops', '-f', proposal]), /Existing unrecognized client IDs detected|Unexpected myops_app_clients app_id constraint/);
+  await sql("alter table public.myops_app_clients drop constraint myops_app_clients_app_id_check");
+  await sql("alter table public.myops_app_clients add constraint myops_app_clients_app_id_check check (app_id = 'opsfinance')");
+  await assert.rejects(() => run(`${binDir}/psql`, ['-X', '-q', '-v', 'ON_ERROR_STOP=1', '-h', sock, '-p', String(PORT), '-U', 'postgres', '-d', 'myops', '-f', proposal]), /Unexpected myops_app_clients app_id constraint/);
+});
+
 test('duplicate and concurrent checkout clicks reuse one pending payment and one reservation', { skip }, async () => {
   const user = await newUser();
   const before = await status();
