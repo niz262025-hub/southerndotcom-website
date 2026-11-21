@@ -264,8 +264,11 @@ export function createAuthHandler({ env = process.env, clientFactory = createCli
     if (env.VERCEL_ENV !== 'preview' && !(production && env.MYOPS_ENABLE_PRODUCTION_AUTH === 'true')) {
       return reply(404, { error: 'Authentication is not enabled for this deployment.' });
     }
-    const origin = production ? 'https://www.myops.com.my'
-      : env.VERCEL_BRANCH_URL ? `https://${env.VERCEL_BRANCH_URL}` : '';
+    // Both immutable deployment URLs and branch aliases are Vercel-owned inputs.
+    // Never accept an arbitrary Preview host or use the caller's Origin as trust.
+    const trustedOrigins = production ? ['https://www.myops.com.my']
+      : [env.VERCEL_BRANCH_URL, env.VERCEL_URL].filter(Boolean).map(host => `https://${host}`);
+    const origin = trustedOrigins.find(value => req.headers.host === new URL(value).host);
     if (!origin || req.headers.host !== new URL(origin).host) {
       return reply(403, { error: 'Use the trusted MYOPS website URL.' });
     }
@@ -443,7 +446,7 @@ export function createAuthHandler({ env = process.env, clientFactory = createCli
         if (error) {
           // Do not echo upstream messages: they can disclose account existence or internals.
           if (error.code === 'user_already_exists') {
-            return reply(200, { message: 'If registration is available for this address, check your email to confirm it in this browser. Otherwise sign in or reset your password.' });
+            return reply(200, { next: `/verify-email?email=${encodeURIComponent(body.email)}`, message: 'If email confirmation is pending, enter the verification code. Otherwise sign in or reset your password.' });
           }
           if (error.code === 'email_address_invalid') {
             return reply(400, { error: 'Use a valid email address with a real inbox. Example and test domains are not supported.' });
@@ -459,6 +462,7 @@ export function createAuthHandler({ env = process.env, clientFactory = createCli
       if (action === 'verify_signup_otp') {
         if (!validEmail || typeof body.token !== 'string' || !/^\d{6}(?:\d{2})?$/.test(body.token)) return reply(400, { error: 'Enter your email and 6- or 8-digit verification code.' });
         const { data, error } = await client.auth.verifyOtp({ email: body.email, token: body.token, type: 'signup' });
+        if (error?.status === 429) return reply(429, { error: 'Please wait before trying another verification code.' });
         if (error || !await saveSession(data?.session, appAccess)) return reply(400, { error: 'Invalid or expired verification code.' });
         return reply(200, { next: '/account' });
       }

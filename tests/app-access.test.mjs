@@ -364,6 +364,23 @@ test('Finance and OpsPS staging provisioning receive only central labels behind 
   }
 });
 
+test('production Finance sends descriptive onboarding labels only after release readiness and signed redemption', async () => {
+  for(const ready of [false,true]) {
+    const env={...baseEnv,VERCEL_ENV:'production',MYOPS_ENVIRONMENT:'production',
+      MYOPS_ENABLE_PRODUCTION_APP_ACCESS:'true',MYOPS_FINANCE_PROVISIONING_READY:String(ready)};
+    const {handler,admin}=make({product:'opsfinance',env});
+    let lookups=0;
+    admin.auth={admin:{getUserById:async id=>{lookups++;return {data:{user:{id,user_metadata:{display_name:'Owner',company_name:'Company',role:'admin'}}}};}}};
+    const body={ticket:Buffer.alloc(32,9).toString('base64url')};
+    const invalid=await call(handler.redeem,signedRequest({path:'/api/app/redeem',body,headers:{host:'www.myops.com.my','x-myops-signature':'invalid'}}));
+    assert.equal(invalid.statusCode,401);assert.equal(lookups,0);
+    const result=await call(handler.redeem,signedRequest({path:'/api/app/redeem',body,headers:{host:'www.myops.com.my'}}));
+    assert.equal(result.statusCode,200);
+    assert.deepEqual(result.body.onboarding_profile,ready?{display_name:'Owner',company_name:'Company'}:undefined);
+    assert.equal(lookups,ready?1:0);
+  }
+});
+
 test('OpsFlow receives central labels only after signature, ticket, session and entitlement verification', async () => {
   const {handler,admin}=make({product:'opsflow'});
   let lookups=0;
