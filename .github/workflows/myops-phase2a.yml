@@ -8,6 +8,7 @@ on:
       - recovery/phase1b-security-ui
       - fix/myops-logout-retry
       - feature/myops-central-auth-foundation
+      - feat/myops-isolated-staging
   workflow_dispatch:
 
 permissions:
