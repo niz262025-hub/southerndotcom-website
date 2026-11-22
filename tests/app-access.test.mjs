@@ -538,3 +538,28 @@ test('snapshot retains company trial isolation and never grants Coming Soon appl
   f.tables.myops_products[0].launch_status = 'coming_soon';
   assert.equal((await call(f.handler.entitlement, f.request())).statusCode, 403);
 });
+
+test('private OpsRental launch requires staging, opt-in and an approved membership', async () => {
+  const project = 'https://wengxxiqwtosirealghx.supabase.co';
+  const env = { ...baseEnv, MYOPS_OPSRENTAL_UAT_ENABLED: 'true' };
+  const membership = { organization_id: sessionId, role: 'owner' };
+  let lookups = 0;
+  function access({ currentEnv = env, currentProject = project, result = membership } = {}) {
+    return createAppAccess({
+      env: currentEnv, project: currentProject,
+      adminFactory: () => ({ rpc: async (name, args) => {
+        lookups++;
+        assert.equal(name, 'myops_opsrental_uat_membership');
+        assert.deepEqual(args, { p_user_id: userId });
+        return { data: result, error: null };
+      } }),
+    });
+  }
+  assert.equal(await access().canLaunchRentalUat(userId, 'opsrental'), true);
+  assert.equal(await access({ result: null }).canLaunchRentalUat(userId, 'opsrental'), false);
+  assert.equal(await access().canLaunchRentalUat(userId, 'opsp'), false);
+  assert.equal(await access({ currentProject: baseEnv.VITE_SUPABASE_URL }).canLaunchRentalUat(userId, 'opsrental'), false);
+  assert.equal(await access({ currentEnv: { ...env, VERCEL_ENV: 'production' } }).canLaunchRentalUat(userId, 'opsrental'), false);
+  assert.equal(await access({ currentEnv: { ...env, MYOPS_OPSRENTAL_UAT_ENABLED: '' } }).canLaunchRentalUat(userId, 'opsrental'), false);
+  assert.equal(lookups, 2);
+});

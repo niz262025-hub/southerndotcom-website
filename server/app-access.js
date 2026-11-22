@@ -194,6 +194,12 @@ export function createAppAccess({ env = process.env, adminFactory = createClient
   const rentalMembership = (admin, userId) =>
     rpc(admin, 'myops_opsrental_uat_membership', { p_user_id: userId });
 
+  async function canLaunchRentalUat(userId, product) {
+    if (!rentalUat(product) || env.MYOPS_OPSRENTAL_UAT_ENABLED !== 'true') return false;
+    const admin = client();
+    return !!admin && !!(await rentalMembership(admin, userId))?.organization_id;
+  }
+
   async function permitRate(clientAdmin, key, limit, windowSeconds) {
     const keyHash = createHash('sha256').update(key).digest('hex');
     return rpc(clientAdmin, 'myops_check_app_rate_limit', {
@@ -511,5 +517,5 @@ export function createAppAccess({ env = process.env, adminFactory = createClient
     } catch { return res.status(503).json({ allowed:false }); }
   }
 
-  return { issueTicket, startLogin, touchLogin, loginLive, processRevocations, queueRevocation, pendingRevocations, revokeUserSessions, redeem, entitlement, trialQuota };
+  return { canLaunchRentalUat, issueTicket, startLogin, touchLogin, loginLive, processRevocations, queueRevocation, pendingRevocations, revokeUserSessions, redeem, entitlement, trialQuota };
 }

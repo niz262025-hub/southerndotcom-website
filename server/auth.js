@@ -598,7 +598,11 @@ export function createAuthHandler({ env = process.env, clientFactory = createCli
         const products = await loadProductStates(client, identity.user.id, now(), env);
         if (!products) return reply(503, { error: 'Subscription status is unavailable. Try again later.' });
         if (!products[body.product]) return reply(400, { error: 'Unknown product.' });
-        if (products[body.product] !== 'active') return reply(403, { error: 'An active subscription is required for this application.' });
+        if (products[body.product] !== 'active' &&
+            !(products[body.product] === 'coming_soon' &&
+              await appAccess.canLaunchRentalUat(identity.user.id, body.product))) {
+          return reply(403, { error: 'An active subscription is required for this application.' });
+        }
         // Tickets bind to a verified, live login-session record; without one, fail closed.
         if (!loginSessionId) return reply(401, { error: 'Sign in again to launch applications.', reason: 'login_required' });
         const launch = await appAccess.issueTicket({ userId: identity.user.id, product: body.product, loginSessionId });
