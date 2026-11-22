@@ -535,3 +535,26 @@ test('snapshot retains company trial isolation and never grants Coming Soon appl
   f.tables.myops_products[0].launch_status = 'coming_soon';
   assert.equal((await call(f.handler.entitlement, f.request())).statusCode, 403);
 });
+
+test('scoped OpsRental administrator is verified against current session and active organization role', async () => {
+  const org = '4bc79d9a-e917-4bab-bf29-b318a4f5542c';
+  const body = { session_id: sessionId, product: 'opsrental', organization_id: org };
+  const request = () => signedRequest({ path:'/api/app/entitlement', body });
+  for (const [adminId, role, active, sessionActive, expected] of [
+    [userId, 'owner', true, true, 200], [userId, 'admin', true, true, 200],
+    [userId, 'manager', true, true, 403], [userId, 'owner', false, true, 403],
+    ['another-user', 'owner', true, true, 403], [userId, 'owner', true, false, 403],
+  ]) {
+    const fixture = make({ product:'opsrental', sessionActive, env:{...baseEnv, MYOPS_ADMIN_USER_IDS:adminId} });
+    fixture.admin.from = () => {
+      const filters = {};
+      const query = { select() { return this; }, eq(key,value) { filters[key] = value; return this; },
+        async maybeSingle() { return { data: active && filters.user_id === userId && filters.organization_id === org && filters.status === 'active'
+          ? { organization_id: org, role } : null, error:null }; } };
+      return query;
+    };
+    const res = await call(fixture.handler.entitlement, request());
+    assert.equal(res.statusCode, expected);
+    if (expected === 200) { assert.equal(res.body.access_mode,'admin'); assert.equal(res.body.organization_id,org); }
+  }
+});
