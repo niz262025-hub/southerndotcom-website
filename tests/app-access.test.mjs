@@ -546,10 +546,12 @@ test('scoped OpsRental administrator is verified against current session and act
     ['another-user', 'owner', true, true, 403], [userId, 'owner', true, false, 403],
   ]) {
     const fixture = make({ product:'opsrental', sessionActive, env:{...baseEnv, MYOPS_ADMIN_USER_IDS:adminId} });
-    fixture.admin.from = () => {
+    fixture.admin.from = table => {
       const filters = {};
       const query = { select() { return this; }, eq(key,value) { filters[key] = value; return this; },
-        async maybeSingle() { return { data: active && filters.user_id === userId && filters.organization_id === org && filters.status === 'active'
+        async maybeSingle() { return { data: table === 'myops_platform_administrators'
+          ? (adminId === userId && filters.user_id === userId ? { user_id:userId, status:'active' } : null)
+          : active && filters.user_id === userId && filters.organization_id === org && filters.status === 'active'
           ? { organization_id: org, role } : null, error:null }; } };
       return query;
     };
@@ -557,4 +559,18 @@ test('scoped OpsRental administrator is verified against current session and act
     assert.equal(res.statusCode, expected);
     if (expected === 200) { assert.equal(res.body.access_mode,'admin'); assert.equal(res.body.organization_id,org); }
   }
+});
+
+test('scoped admin authorization reads registry again after revocation and fails closed on lookup outage', async () => {
+  const org='4bc79d9a-e917-4bab-bf29-b318a4f5542c';
+  const fixture=make({product:'opsrental',env:{...baseEnv,MYOPS_ADMIN_USER_IDS:userId}});
+  let status='active', unavailable=false;
+  fixture.admin.from = table => ({ select(){return this;}, eq(){return this;}, async maybeSingle(){
+    if (table==='myops_platform_administrators') return unavailable ? {data:null,error:{message:'unavailable'}} : {data:{user_id:userId,status},error:null};
+    return {data:{organization_id:org,role:'owner'},error:null};
+  }});
+  const run=()=>call(fixture.handler.entitlement,signedRequest({path:'/api/app/entitlement',body:{session_id:sessionId,product:'opsrental',organization_id:org}}));
+  assert.equal((await run()).statusCode,200);
+  status='revoked'; assert.equal((await run()).statusCode,403);
+  unavailable=true; assert.equal((await run()).statusCode,503);
 });

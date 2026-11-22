@@ -1,13 +1,19 @@
-# OpsRental central integration: release gates
+# OpsRental trial and administrator integration — blocked release gates
 
-The signed entitlement endpoint can return an `admin` decision scoped to one requested organization. It checks the live app session, the server-owned MYOPS administrator allowlist and a current active owner/admin membership for that exact organization. The request is app-authenticated; the browser cannot assert a role. Rental APIs continue to verify local membership, role and data scope. The new claim is fail-closed when the central contract is unavailable.
+## Approved policy
 
-This is not a complete production authorization rollout. The MYOPS administrator allowlist is environment configuration; removing an ID takes effect only once the updated configuration reaches the runtime. A centrally managed, immediately revocable administrator authority must be designed and tested before claiming immediate administrator revocation. Removing an organization membership or revoking a central session is checked on each request.
+The trial runs for exactly 168 hours with no card or renewal. The total limit is 30 successful operations across create property, create tenancy, record payment, create maintenance ticket and upload document. Edits, deletes, views, downloads, listing, login, logout, navigation and reporting are free. Failed actions consume nothing; retries of the same operation are idempotent; data remains after expiry.
 
-## Free trial decision required
+The approved policy is declared but OpsRental remains deliberately excluded from trial admission. Declaring the policy does not enforce a limit. Do not enable the trial until all five backend operations use a reviewed atomic protocol and the 31st operation, failures, concurrency and retries are tested end-to-end.
 
-OpsRental is deliberately excluded from central trial admission and quota. Existing trial policies define features only for OpsFinance, OpsFlow and OpsPS. MYOPS needs an explicit decision on which OpsRental creates or other actions consume one of the 30 transactions (properties, tenancies, payments, tickets, documents; edits/deletes and retries). The implementation also needs an idempotent, failure-safe quota/mutation contract so failed or repeated operations neither exhaust quota incorrectly nor bypass it. Do not enable the product in the trial allowlist until this is implemented and tested. MYOPS currently measures seven days as 168 hours; confirm whether that matches the requested calendar-day interpretation.
+## Unresolved implementation work
 
-## Hosted UAT and release gates
+The current central trial quota RPC immediately commits usage in a separate request; the OpsRental APIs write business records through separate HTTP calls, and Storage is independent from PostgreSQL. Calling the existing RPC before or after a create is insufficient: crashes or timeouts can consume quota without a record, create a record without quota, or duplicate an operation. A reservation must not be released solely on a timeout when the create or upload could have committed. The quota ledger, idempotency key and database mutation need one transaction or an equivalent proven protocol, with a durable upload state machine and reconciliation of uncertain Storage outcomes. Cross-database placement and write-path bypass need to be established before choosing a transaction boundary. Paid and admin entitlements must remain separate from trial usage.
 
-Use a dedicated approved non-production environment with registered OpsRental client signing keys, central login/session and entitlement services, synthetic users, organizations and roles, rental tables with reviewed RLS, and a private rental Storage bucket. Verify preview-only configuration and browser desktop/mobile flows, trial limits and expiry, organization and tenant isolation, revoked sessions and admin authority, private file access and cache headers. Hosted migrations, resource configuration, deployment and merge each require explicit authorization. No existing shared SSO staging or production resources are changed by this proposal.
+## Revocable administrator proposal
+
+`supabase/proposals/opsrental_revocable_admin.sql` is review-only and is not applied to hosted environments. It creates a central active/revoked administrator registry and audit table; the scoped OpsRental authorization check reads the registry and current owner/admin membership on each request. Existing product-wide launch and other central administrator features still depend on the legacy environment allowlist; migrating those paths safely without changing other applications remains open. Until the migration is applied, the new scoped check fails closed. The proposal requires review of role grants, audit custody, administrative provisioning and rollback before use.
+
+## Hosted UAT and release
+
+Use only a dedicated approved non-production environment with central MYOPS client signing keys, rental tables with reviewed RLS, a private bucket and synthetic users, organizations and documents. Test desktop/mobile login, logout, inactivity, quota and expiry, admin revocation, role changes, cross-organization and tenant isolation, upload recovery and cache controls. Hosted migrations, provisioning, merge and production deployment require separate approval. Never reset trial usage or production data.

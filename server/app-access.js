@@ -453,7 +453,14 @@ export function createAppAccess({ env = process.env, adminFactory = createClient
       // A platform administrator receives no organization privilege from the
       // platform role alone. Verify the requested scope freshly on each call.
       if (body.organization_id !== undefined) {
-        if (!isPlatformAdmin(appSession.user_id, env)) return reply(403, { entitled: false });
+        // The organization-level decision must never rely on an environment
+        // allowlist or a previously issued claim. Read the current record.
+        const authority = await admin.from('myops_platform_administrators').select('user_id,status')
+          .eq('user_id', appSession.user_id).maybeSingle();
+        if (authority.error) return reply(503, { entitled: false, error: 'Administrator status could not be verified.' });
+        if (!authority.data || authority.data.user_id !== appSession.user_id || authority.data.status !== 'active') {
+          return reply(403, { entitled: false });
+        }
         const membership = await admin.from('myops_memberships').select('organization_id,role')
           .eq('user_id', appSession.user_id).eq('organization_id', body.organization_id)
           .eq('status', 'active').maybeSingle();

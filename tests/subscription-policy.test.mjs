@@ -37,3 +37,11 @@ test('published prices replace legacy offers without enabling unvalidated checko
  }
  assert.equal(SUBSCRIPTION_OPTIONS.some(p=>['founders_lifetime','starter_monthly','complete_monthly'].includes(p.id)),false);
 });
+
+test('OpsRental approved trial policy is declared but cannot admit an unenforced app', async () => {
+ const {OPSRENTAL_TRIAL_POLICY,OPSRENTAL_TRIAL_CHARGEABLE,trialFeaturePolicy,TRIAL_DURATION_MS}=await import('../server/subscription-plans.js');
+ assert.equal(TRIAL_DURATION_MS,168*60*60*1000);
+ assert.equal(OPSRENTAL_TRIAL_POLICY.transactions,30);
+ assert.deepEqual(OPSRENTAL_TRIAL_CHARGEABLE,['create_property','create_tenancy','record_payment','create_ticket','upload_document']);
+ assert.equal(trialFeaturePolicy('opsrental'),null);
+});

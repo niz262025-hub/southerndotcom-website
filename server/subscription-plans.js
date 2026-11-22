@@ -15,6 +15,10 @@ const POLICY = Object.freeze({
   opsflow:Object.freeze({ transactions:30, users:1, companies:1, workflows:2, automation:false, advancedApproval:false }),
   opsp:Object.freeze({ transactions:30, users:1, companies:1, projects:2, advancedReporting:false, exportPdf:false, exportExcel:false, multiUser:false }),
 });
+// The approved policy is not yet an eligible app: quota enforcement and
+// Storage failure recovery must be integrated before it can be admitted.
+export const OPSRENTAL_TRIAL_POLICY = Object.freeze({ transactions:30, users:1, companies:1 });
+export const OPSRENTAL_TRIAL_CHARGEABLE = Object.freeze(['create_property','create_tenancy','record_payment','create_ticket','upload_document']);
 export function trialFeaturePolicy(app) { return Object.hasOwn(POLICY,app) ? POLICY[app] : null; }
 export function effectiveTrialState(trial, now=Date.now()) {
   if (!trial) return 'not_started';
