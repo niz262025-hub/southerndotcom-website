@@ -1,7 +1,7 @@
 import PropTypes from 'prop-types';
 import { AccountPreview } from './AccountPreview';
 import { AuthPortal } from './AuthPortal';
-import { AuthNav, ProductAction, SessionProvider } from './session';
+import { AuthNav, ProductAction, SessionProvider, useSession } from './session';
 import { FoundersPromo } from './FoundersPromo';
 import { AdminAudit } from './AdminAudit';
 import { useEffect, useState } from 'react';
@@ -510,6 +510,7 @@ SectionIntro.propTypes = {
 };
 
 function LandingPage() {
+  const session = useSession();
   return (
     <PageShell pageClass="landing-shell">
       <section className="hero">
@@ -570,11 +571,12 @@ function LandingPage() {
                 <p className="product-desc">
                   {product.summary}
                 </p>
-                {product.comingSoon ? (
+                {product.comingSoon && !(product.slug === "opsrental" && buildMode === "preview-auth"
+                  && session.products?.opsrental === "active") ? (
                   <span className="coming-soon-label">Coming Soon</span>
                 ) : (
                   <>
-                    <ProductAction product={product} />
+                    <ProductAction product={{ ...product, comingSoon: false }} />
                   </>
                 )}
               </article>

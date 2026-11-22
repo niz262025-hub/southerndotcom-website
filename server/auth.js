@@ -220,8 +220,17 @@ async function loadEntitlements(client, userId, now, env = {}) {
   const trialProject=projectForEnvironment(env);
   const trialKey=trialAppsForEnvironment(env).length ? serverServiceKey(env.MYOPS_SERVICE_ROLE_KEY,trialProject) : null;
   const trial=trialKey ? await loadEligibleTrial(createClient(trialProject,trialKey,{auth:{persistSession:false,autoRefreshToken:false}}),userId,now,env) : null;
+  const products = resolveProductStates({ userId, catalog: catalog.data || [], subscriptions: subscriptions.data || [], grants: grants.data || [], lifetime: rows, platformAdmin: isPlatformAdmin(userId, env), trial, trialApps:trialAppsForEnvironment(env), now });
+  if (env.VERCEL_ENV === 'preview' && env.MYOPS_ENVIRONMENT === 'staging'
+      && trialProject === 'https://wengxxiqwtosirealghx.supabase.co'
+      && products.opsrental && products.opsrental !== 'coming_soon') {
+    const key = serverServiceKey(env.MYOPS_SERVICE_ROLE_KEY, trialProject);
+    const admin = key && createClient(trialProject, key, { auth: { persistSession: false, autoRefreshToken: false } });
+    const access = admin && await admin.rpc('myops_opsrental_uat_membership', { p_user_id: userId });
+    products.opsrental = access?.data?.organization_id && !access.error ? 'active' : 'none';
+  }
   return {
-    products: resolveProductStates({ userId, catalog: catalog.data || [], subscriptions: subscriptions.data || [], grants: grants.data || [], lifetime: rows, platformAdmin: isPlatformAdmin(userId, env), trial, trialApps:trialAppsForEnvironment(env), now }),
+    products,
     lifetime: hasLifetime(userId, rows),
   };
 }

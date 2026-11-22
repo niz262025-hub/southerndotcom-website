@@ -16,7 +16,7 @@ test('SSO SQL replay, ticket audience/replay, session revocation and client ACLs
       grant usage on schema auth,public to anon,authenticated,service_role;
       alter default privileges in schema public grant all on tables to anon,authenticated,service_role;`);
     for (const path of ['migrations/202610160001_myops_identity_foundation.sql', 'proposals/phase3_founders_100.sql',
-      'proposals/202610170001_myops_app_access.sql', 'proposals/202610170002_myops_login_sessions.sql']) {
+      'proposals/202610170001_myops_app_access.sql', 'proposals/202610170002_myops_login_sessions.sql', 'proposals/202611220001_opsrental_uat_sso.sql']) {
       await db.exec(readFileSync(new URL(`../supabase/${path}`, import.meta.url), 'utf8'));
     }
     const user = await one("insert into auth.users(email,email_confirmed_at) values('sso@test.invalid',now()) returning id as value");
@@ -25,6 +25,27 @@ test('SSO SQL replay, ticket audience/replay, session revocation and client ACLs
       await db.query('insert into public.myops_app_clients(app_id,product_slug,public_key_current,enabled) values($1,$1,$2,true)', [app,publicKey]);
       await db.query("update public.myops_products set launch_status='live' where slug=$1", [app]);
     }
+    await db.exec("insert into public.myops_products(slug,display_name,launch_status) values('opsrental','OpsRental','coming_soon') on conflict do nothing");
+    await db.exec(`alter table public.myops_app_clients drop constraint myops_app_clients_app_id_check;
+      alter table public.myops_app_clients add check (app_id in ('opsfinance','opsflow','opsp','opsrental'))`);
+    await db.query("insert into public.myops_app_clients(app_id,product_slug,public_key_current,enabled) values('opsrental','opsrental',$1,true)", [publicKey]);
+    const a = await one("insert into public.myops_organizations(name,owner_user_id) values('UAT A',$1) returning id as value",[user]);
+    const b = await one("insert into public.myops_organizations(name,owner_user_id) values('UAT B',$1) returning id as value",[user]);
+    await db.query("insert into public.myops_memberships(organization_id,user_id,role,status) values($1,$2,'admin','active'),($3,$2,'admin','active')",[a,user,b]);
+    const issueRental = login => one("select public.myops_issue_app_ticket($1,'opsrental',$2,$3) as value",[user,randomBytes(32).toString('hex'),login]);
+    const rentalLogin = await one('select public.myops_login_start($1) as value',[user]);
+    await db.exec("update public.myops_products set launch_status='live' where slug='opsrental'");
+    assert.equal((await issueRental(rentalLogin)).status,'unavailable');
+    await db.query("insert into public.myops_app_grants values($1,$2,'opsrental')",[a,user]);
+    assert.equal((await issueRental(rentalLogin)).status,'issued');
+    const scoped = await one('select public.myops_opsrental_uat_membership($1) as value',[user]);
+    assert.equal(scoped.organization_id,a);
+    assert.notEqual(scoped.organization_id,b);
+    await db.query("update public.myops_memberships set status='suspended' where organization_id=$1 and user_id=$2",[a,user]);
+    assert.equal((await issueRental(rentalLogin)).status,'unavailable');
+    await db.query("update public.myops_memberships set status='active' where organization_id=$1 and user_id=$2",[a,user]);
+    await db.query("delete from public.myops_app_grants where organization_id=$1 and user_id=$2 and product_slug='opsrental'",[a,user]);
+    assert.equal((await issueRental(rentalLogin)).status,'unavailable');
     await db.exec('set role service_role');
     const login = await one('select public.myops_login_start($1) as value', [user]);
     const hash = randomBytes(32).toString('hex');

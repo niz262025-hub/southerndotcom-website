@@ -187,6 +187,13 @@ function requestContext(req, res, env, now) {
 export function createAppAccess({ env = process.env, adminFactory = createClient, now = Date.now, project = projectForEnvironment(env),
   entitlementResolver = loadCurrentEntitlements } = {}) {
   const client = () => serviceClient(env, adminFactory, project);
+  const rentalUat = product => product === 'opsrental'
+    && env.VERCEL_ENV === 'preview' && env.MYOPS_ENVIRONMENT === 'staging'
+    && project === 'https://wengxxiqwtosirealghx.supabase.co';
+
+  const rentalMembership = (admin, userId) =>
+    rpc(admin, 'myops_opsrental_uat_membership', { p_user_id: userId });
+
   async function permitRate(clientAdmin, key, limit, windowSeconds) {
     const keyHash = createHash('sha256').update(key).digest('hex');
     return rpc(clientAdmin, 'myops_check_app_rate_limit', {
@@ -394,7 +401,9 @@ export function createAppAccess({ env = process.env, adminFactory = createClient
           || typeof redeemed.user_id !== 'string' || typeof redeemed.session_id !== 'string') {
         return reply(401, { error: 'Launch ticket is invalid or expired.' });
       }
-      const products = await entitlementResolver(admin, redeemed.user_id, now(), env);
+      const products = rentalUat(clientData.product_slug)
+        ? { opsrental: (await rentalMembership(admin, redeemed.user_id)) ? 'active' : 'denied' }
+        : await entitlementResolver(admin, redeemed.user_id, now(), env);
       if (!products || products[clientData.product_slug] !== 'active') {
         await rpc(admin, 'myops_revoke_app_session', {
           p_session_id: redeemed.session_id, p_reason: 'entitlement_denied',
@@ -422,7 +431,8 @@ export function createAppAccess({ env = process.env, adminFactory = createClient
       auth = await authenticate(req, res, 'entitlement');
       if (!auth || typeof auth.statusCode === 'number') return auth;
       const { admin, appId, clientData, body, reply } = auth;
-      if (Object.keys(body).some((key) => !['session_id', 'product', 'sensitive', 'activity', 'profile'].includes(key))
+      if (Object.keys(body).some((key) => !['session_id', 'product', 'sensitive', 'activity', 'profile'].includes(key)
+          && !(key === 'organization_id' && rentalUat(body.product)))
           || !SESSION_ID.test(body.session_id || '') || body.product !== clientData.product_slug
           || (body.sensitive !== undefined && typeof body.sensitive !== 'boolean')
           || (body.activity !== undefined && typeof body.activity !== 'boolean')
@@ -436,6 +446,18 @@ export function createAppAccess({ env = process.env, adminFactory = createClient
       });
       if (!appSession?.active || typeof appSession.user_id !== 'string') {
         return reply(403, { entitled: false, session_active: false });
+      }
+      if (rentalUat(body.product)) {
+        const membership = await rentalMembership(admin, appSession.user_id);
+        if (!membership?.organization_id || (body.organization_id !== undefined
+            && body.organization_id !== membership.organization_id)) {
+          return reply(403, { entitled: false });
+        }
+        const manager = ['owner', 'admin', 'manager'].includes(membership.role);
+        if (body.organization_id !== undefined && !manager) return reply(403, { entitled: false });
+        return reply(200, { entitled: true, session_active: true,
+          organization_id: membership.organization_id, access_mode: manager ? 'admin' : 'member',
+          checked_at: new Date(now()).toISOString() });
       }
       const snapshot = entitlementResolver === loadCurrentEntitlements
         ? await loadEntitlementSnapshot(admin, appSession.user_id, now(), env) : null;
