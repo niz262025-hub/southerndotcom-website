@@ -1,5 +1,6 @@
 import { createClient } from '@supabase/supabase-js';
-import { validAuthorizeRequest,issueAuthorizationCode,hashCode } from '../../server/mobile-oauth.js';
+import { mobileAuthorizationQuery } from '../../src/mobileAuthorization.js';
+import { issueAuthorizationCode,hashCode } from '../../server/mobile-oauth.js';
 import { verifyMobileBrowserSession } from '../../server/mobile-browser-session.js';
 import { projectForEnvironment } from '../../server/project.js';
 import { serverServiceKey } from '../../server/service-key.js';
@@ -12,12 +13,20 @@ export function createMobileAuthorizeHandler({env=process.env,clientFactory=crea
   let url;
   try {url=new URL(req.url,'https://www.myops.com.my');}catch{return res.status(400).json({error:'invalid_request'});}
   const params=Object.fromEntries(url.searchParams);
-  if(!validAuthorizeRequest(params)) return res.status(400).json({error:'invalid_request'});
+  const query=mobileAuthorizationQuery(params);
+  if(!query) return res.status(400).json({error:'invalid_request'});
   // Do not redirect errors or codes until the native login integration has been tested.
   if(env.MYOPS_ENABLE_MOBILE_TOKEN_ISSUANCE!=='true')
    return res.status(503).json({error:'mobile_authorization_disabled'});
   const session=await sessionVerifier(req,{env});
-  if(!session?.verifiedJwt||!session?.durableLoginVerified) return res.status(401).json({error:'login_required'});
+  if(!session?.verifiedJwt||!session?.durableLoginVerified) {
+   if (req.headers['sec-fetch-mode'] === 'navigate' || req.headers.accept?.includes('text/html')) {
+    query.set('mobile_login','1');
+    res.setHeader('Location','/login?'+query);
+    return res.status(302).end();
+   }
+   return res.status(401).json({error:'login_required'});
+  }
   const project=projectForEnvironment(env),key=serverServiceKey(env.MYOPS_SERVICE_ROLE_KEY,project);
   if(!key) return res.status(503).json({error:'mobile_auth_unavailable'});
   const code=issueAuthorizationCode();

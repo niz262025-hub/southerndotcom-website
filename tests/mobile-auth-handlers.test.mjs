@@ -50,3 +50,19 @@ test('refresh issuance stays closed by default',async()=>{
  await createMobileRefreshHandler({env:{}})({method:'POST',headers:{'content-type':'application/json'},body:{grant_type:'refresh_token',client_id:'myopsmobile',refresh_token:'A'.repeat(43)}},res);
  assert.equal(res.statusCode,503);
 });
+
+test('a browser without a session is sent to central login with only validated OAuth parameters',async()=>{
+ const res=response();
+ const handler=createMobileAuthorizeHandler({
+  env:{MYOPS_ENABLE_MOBILE_TOKEN_ISSUANCE:'true'},sessionVerifier:async()=>null
+ });
+ await handler({
+  method:'GET',
+  url:'/api/mobile-auth/authorize?'+new URLSearchParams({...valid,next:'https://untrusted.example'}),
+  headers:{accept:'text/html'}
+ },res);
+ assert.equal(res.statusCode,302);
+ const login=new URL(res.headers.Location,'https://www.myops.com.my');
+ assert.equal(login.pathname,'/login');
+ assert.deepEqual(Object.fromEntries(login.searchParams),{...valid,mobile_login:'1'});
+});

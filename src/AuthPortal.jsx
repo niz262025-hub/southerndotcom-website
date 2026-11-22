@@ -3,6 +3,7 @@ import PropTypes from 'prop-types';
 import { authRequest as request } from './authRequest';
 import { jumpToFounders } from './foundersNav';
 import { ProfileLogo } from './ProfileLogo';
+import { mobileAuthorizationQuery } from './mobileAuthorization';
 import { FreeTrial } from './FreeTrial';
 
 const productLabels = { opsp: 'OpsPS', opsfinance: 'OpsFinance', opsflow: 'OpsFlow', opswms: 'OpsWMS', opshr: 'OpsHR' };
@@ -52,6 +53,14 @@ export function AuthPortal({ mode, production = false }) {
       const fields = Object.fromEntries(new FormData(event.currentTarget));
       const action = mode === 'dashboard' ? 'profile' : mode === 'verify' ? 'verify_signup_otp' : mode;
       const result = await request(action, fields);
+      if (mode === 'login' && result.next === '/account') {
+        const params = Object.fromEntries(new URLSearchParams(window.location.search));
+        const query = params.mobile_login === '1' ? mobileAuthorizationQuery(params) : null;
+        if (query) {
+          window.location.replace('/api/mobile-auth/authorize?' + query);
+          return;
+        }
+      }
       if (result.next) window.location.assign(result.next);
       else setMessage(result.message);
     } catch (error) { setMessage(error.message); }
