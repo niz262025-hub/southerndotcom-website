@@ -4,6 +4,13 @@ import { createMobileAuthorizeHandler } from '../api/mobile-auth/authorize.js';
 import { createMobileTokenHandler } from '../api/mobile-auth/token.js';
 import { createMobileRefreshHandler } from '../api/mobile-auth/refresh.js';
 
+const staging = {
+ VERCEL_ENV:'preview',
+ MYOPS_ENVIRONMENT:'staging',
+ MYOPS_USE_ISOLATED_STAGING:'true',
+ MYOPS_ENABLE_MOBILE_TOKEN_ISSUANCE:'true'
+};
+
 function response() {
  const res={statusCode:200,headers:{},payload:null};
  res.setHeader=(k,v)=>{res.headers[k]=v;return res};
@@ -15,7 +22,7 @@ function response() {
 const valid={client_id:'myopsmobile',redirect_uri:'myops://auth/callback',response_type:'code',code_challenge_method:'S256',code_challenge:'A'.repeat(43),state:'B'.repeat(43)};
 test('authorization rejects untrusted redirect before session lookup',async()=>{
  let called=false;
- const handler=createMobileAuthorizeHandler({env:{MYOPS_ENABLE_MOBILE_TOKEN_ISSUANCE:'true'},sessionVerifier:async()=>{called=true;return null}});
+ const handler=createMobileAuthorizeHandler({env:staging,sessionVerifier:async()=>{called=true;return null}});
  const params=new URLSearchParams({...valid,redirect_uri:'https://attacker.example/callback'});
  const res=response();
  await handler({method:'GET',url:'/api/mobile-auth/authorize?'+params,headers:{}},res);
@@ -31,13 +38,13 @@ test('authorization stays closed when issuance flag is absent',async()=>{
 });
 test('authorization refuses unverified central session',async()=>{
  const res=response();
- await createMobileAuthorizeHandler({env:{MYOPS_ENABLE_MOBILE_TOKEN_ISSUANCE:'true'},sessionVerifier:async()=>null})({method:'GET',url:'/api/mobile-auth/authorize?'+new URLSearchParams(valid),headers:{}},res);
+ await createMobileAuthorizeHandler({env:staging,sessionVerifier:async()=>null})({method:'GET',url:'/api/mobile-auth/authorize?'+new URLSearchParams(valid),headers:{}},res);
  assert.equal(res.statusCode,401);
  assert.equal(res.headers.Location,undefined);
 });
 test('token endpoint rejects invalid PKCE verifier without contacting storage',async()=>{
  const res=response();
- await createMobileTokenHandler({env:{MYOPS_ENABLE_MOBILE_TOKEN_ISSUANCE:'true'},clientFactory:()=>{throw Error('should not be called')}})({method:'POST',headers:{'content-type':'application/json'},body:{grant_type:'authorization_code',client_id:'myopsmobile',redirect_uri:'myops://auth/callback',code:'A'.repeat(43),code_verifier:'short'}},res);
+ await createMobileTokenHandler({env:staging,clientFactory:()=>{throw Error('should not be called')}})({method:'POST',headers:{'content-type':'application/json'},body:{grant_type:'authorization_code',client_id:'myopsmobile',redirect_uri:'myops://auth/callback',code:'A'.repeat(43),code_verifier:'short'}},res);
  assert.equal(res.statusCode,400);
 });
 test('token issuance stays closed by default',async()=>{
@@ -54,7 +61,7 @@ test('refresh issuance stays closed by default',async()=>{
 test('a browser without a session is sent to central login with only validated OAuth parameters',async()=>{
  const res=response();
  const handler=createMobileAuthorizeHandler({
-  env:{MYOPS_ENABLE_MOBILE_TOKEN_ISSUANCE:'true'},sessionVerifier:async()=>null
+  env:staging,sessionVerifier:async()=>null
  });
  await handler({
   method:'GET',
@@ -65,4 +72,14 @@ test('a browser without a session is sent to central login with only validated O
  const login=new URL(res.headers.Location,'https://www.myops.com.my');
  assert.equal(login.pathname,'/login');
  assert.deepEqual(Object.fromEntries(login.searchParams),{...valid,mobile_login:'1'});
+});
+
+test('mobile grant issuance stays disabled in production even with a true flag',async()=>{
+ const res=response();
+ await createMobileAuthorizeHandler({
+  env:{...staging,VERCEL_ENV:'production'},
+  sessionVerifier:async()=>{throw Error('unexpected session lookup')}
+ })({method:'GET',url:'/api/mobile-auth/authorize?'+new URLSearchParams(valid),headers:{}},res);
+ assert.equal(res.statusCode,503);
+ assert.equal(res.payload.error,'mobile_authorization_disabled');
 });

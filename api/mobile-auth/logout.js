@@ -1,3 +1,4 @@
+import { mobileAuthEnabled } from '../../server/mobile-environment.js';
 import { createHash } from 'node:crypto';
 import { createClient } from '@supabase/supabase-js';
 import { projectForEnvironment } from '../../server/project.js';
@@ -19,6 +20,7 @@ export function createMobileLogoutHandler({env=process.env,clientFactory=createC
   const access=typeof bearer==='string'&&bearer.startsWith('Bearer ')?bearer.slice(7):null;
   if(!HASHABLE.test(refresh||'')&&!HASHABLE.test(access||''))
    return res.status(400).json({error:'invalid_request'});
+  if(!mobileAuthEnabled(env)) return res.status(503).json({error:'mobile_authorization_disabled'});
   const project=projectForEnvironment(env),key=serverServiceKey(env.MYOPS_SERVICE_ROLE_KEY,project);
   if(!key) return res.status(503).json({error:'mobile_auth_unavailable'});
   try{

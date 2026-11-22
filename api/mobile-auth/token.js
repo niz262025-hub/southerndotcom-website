@@ -1,3 +1,4 @@
+import { mobileAuthEnabled } from '../../server/mobile-environment.js';
 import { randomBytes, createHash } from 'node:crypto';
 import { createClient } from '@supabase/supabase-js';
 import { validCode, mobileClient } from '../../server/mobile-oauth.js';
@@ -21,7 +22,7 @@ export function createMobileTokenHandler({env=process.env, clientFactory=createC
     !validCode(code)||!pkceVerifier.test(code_verifier||'')) return res.status(400).json({error:'invalid_grant'});
   // This route stays disabled until token verification, rotation, revocation and
   // complete native client UAT are ready. Do not issue unusable bearer credentials.
-  if(env.MYOPS_ENABLE_MOBILE_TOKEN_ISSUANCE!=='true') return res.status(503).json({error:'mobile_token_issuance_disabled'});
+  if(!mobileAuthEnabled(env)) return res.status(503).json({error:'mobile_token_issuance_disabled'});
   const project=projectForEnvironment(env);
   const key=serverServiceKey(env.MYOPS_SERVICE_ROLE_KEY,project);
   if(!key) return res.status(503).json({error:'mobile_auth_unavailable'});

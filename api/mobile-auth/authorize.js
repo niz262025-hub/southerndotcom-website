@@ -1,3 +1,4 @@
+import { mobileAuthEnabled } from '../../server/mobile-environment.js';
 import { createClient } from '@supabase/supabase-js';
 import { mobileAuthorizationQuery } from '../../src/mobileAuthorization.js';
 import { issueAuthorizationCode,hashCode } from '../../server/mobile-oauth.js';
@@ -16,7 +17,7 @@ export function createMobileAuthorizeHandler({env=process.env,clientFactory=crea
   const query=mobileAuthorizationQuery(params);
   if(!query) return res.status(400).json({error:'invalid_request'});
   // Do not redirect errors or codes until the native login integration has been tested.
-  if(env.MYOPS_ENABLE_MOBILE_TOKEN_ISSUANCE!=='true')
+  if(!mobileAuthEnabled(env))
    return res.status(503).json({error:'mobile_authorization_disabled'});
   const session=await sessionVerifier(req,{env});
   if(!session?.verifiedJwt||!session?.durableLoginVerified) {

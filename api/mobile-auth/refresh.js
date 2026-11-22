@@ -1,3 +1,4 @@
+import { mobileAuthEnabled } from '../../server/mobile-environment.js';
 import { createHash, randomBytes } from 'node:crypto';
 import { createClient } from '@supabase/supabase-js';
 import { projectForEnvironment } from '../../server/project.js';
@@ -18,7 +19,7 @@ export function createMobileRefreshHandler({env=process.env,clientFactory=create
   if(!body||typeof body!=='object'||Array.isArray(body)||JSON.stringify(body).length>4096||
      body.grant_type!=='refresh_token'||!REFRESH.test(body.refresh_token||'')||body.client_id!=='myopsmobile')
    return res.status(400).json({error:'invalid_request'});
-  if(env.MYOPS_ENABLE_MOBILE_TOKEN_ISSUANCE!=='true')
+  if(!mobileAuthEnabled(env))
    return res.status(503).json({error:'mobile_token_issuance_disabled'});
   const project=projectForEnvironment(env),key=serverServiceKey(env.MYOPS_SERVICE_ROLE_KEY,project);
   if(!key) return res.status(503).json({error:'mobile_auth_unavailable'});
