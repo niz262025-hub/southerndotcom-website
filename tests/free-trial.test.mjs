@@ -21,7 +21,7 @@ async function mount(signedIn){
 }
 test('signed-out free trial is visible without starting its clock or asking for a card',async()=>{
  const {calls,cleanup}=await mount(false);try{
-  assert.match(document.body.textContent,/Free 7-Day Trial/);assert.match(document.body.textContent,/RM0/);
+  assert.match(document.body.textContent,/7 Days Free/);assert.match(document.body.textContent,/RM0/);
   assert.equal(document.querySelector('a').getAttribute('href'),'/register');
   assert.equal(calls.some(c=>c.action==='trial_start'),false);assert.equal(document.querySelector('input'),null);
  }finally{await cleanup();}

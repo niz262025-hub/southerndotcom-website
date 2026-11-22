@@ -22,10 +22,7 @@ const USER_ID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-
 export const hashTicket = (ticket) => createHash('sha256').update(ticket).digest('hex');
 function receivesCentralLabels(product,env) {
   if(product==='opsflow')return true;
-  const staging=env.VERCEL_ENV==='preview'&&env.MYOPS_ENVIRONMENT==='staging';
-  const production=env.VERCEL_ENV==='production'&&env.MYOPS_ENVIRONMENT==='production'
-    &&env.MYOPS_ENABLE_PRODUCTION_APP_ACCESS==='true';
-  if(!staging&&!production)return false;
+  if(env.VERCEL_ENV!=='preview'||env.MYOPS_ENVIRONMENT!=='staging')return false;
   return (product==='opsfinance'&&env.MYOPS_FINANCE_PROVISIONING_READY==='true')
     ||(product==='opsp'&&env.MYOPS_OPSPS_PROVISIONING_READY==='true');
 }
@@ -187,19 +184,6 @@ function requestContext(req, res, env, now) {
 export function createAppAccess({ env = process.env, adminFactory = createClient, now = Date.now, project = projectForEnvironment(env),
   entitlementResolver = loadCurrentEntitlements } = {}) {
   const client = () => serviceClient(env, adminFactory, project);
-  const rentalUat = product => product === 'opsrental'
-    && env.VERCEL_ENV === 'preview' && env.MYOPS_ENVIRONMENT === 'staging'
-    && project === 'https://wengxxiqwtosirealghx.supabase.co';
-
-  const rentalMembership = (admin, userId) =>
-    rpc(admin, 'myops_opsrental_uat_membership', { p_user_id: userId });
-
-  async function canLaunchRentalUat(userId, product) {
-    if (!rentalUat(product) || env.MYOPS_OPSRENTAL_UAT_ENABLED !== 'true') return false;
-    const admin = client();
-    return !!admin && !!(await rentalMembership(admin, userId))?.organization_id;
-  }
-
   async function permitRate(clientAdmin, key, limit, windowSeconds) {
     const keyHash = createHash('sha256').update(key).digest('hex');
     return rpc(clientAdmin, 'myops_check_app_rate_limit', {
@@ -292,8 +276,10 @@ export function createAppAccess({ env = process.env, adminFactory = createClient
       if (!result || typeof result !== 'object') {
         return { processed: 0, retried: 0, retry_failed: 0, expired_logins: 0, revoked_app_sessions: 0, revoked_tickets: 0, deleted_logins: 0, queued: 0, status: 'invalid' };
       }
+      const processed = Number.isFinite(Number(result.processed)) ? Number(result.processed)
+        : Number.isFinite(Number(result.retried)) ? Number(result.retried) : 0;
       const safe = {
-        processed: Number.isFinite(Number(result.retried)) ? Number(result.retried) : 0,
+        processed,
         retried: Number.isFinite(Number(result.retried)) ? Number(result.retried) : 0,
         retry_failed: Number.isFinite(Number(result.retry_failed)) ? Number(result.retry_failed) : 0,
         expired_logins: Number.isFinite(Number(result.expired_logins)) ? Number(result.expired_logins) : 0,
@@ -407,9 +393,7 @@ export function createAppAccess({ env = process.env, adminFactory = createClient
           || typeof redeemed.user_id !== 'string' || typeof redeemed.session_id !== 'string') {
         return reply(401, { error: 'Launch ticket is invalid or expired.' });
       }
-      const products = rentalUat(clientData.product_slug)
-        ? { opsrental: (await rentalMembership(admin, redeemed.user_id)) ? 'active' : 'denied' }
-        : await entitlementResolver(admin, redeemed.user_id, now(), env);
+      const products = await entitlementResolver(admin, redeemed.user_id, now(), env);
       if (!products || products[clientData.product_slug] !== 'active') {
         await rpc(admin, 'myops_revoke_app_session', {
           p_session_id: redeemed.session_id, p_reason: 'entitlement_denied',
@@ -437,8 +421,7 @@ export function createAppAccess({ env = process.env, adminFactory = createClient
       auth = await authenticate(req, res, 'entitlement');
       if (!auth || typeof auth.statusCode === 'number') return auth;
       const { admin, appId, clientData, body, reply } = auth;
-      if (Object.keys(body).some((key) => !['session_id', 'product', 'sensitive', 'activity', 'profile'].includes(key)
-          && !(key === 'organization_id' && rentalUat(body.product)))
+      if (Object.keys(body).some((key) => !['session_id', 'product', 'sensitive', 'activity', 'profile'].includes(key))
           || !SESSION_ID.test(body.session_id || '') || body.product !== clientData.product_slug
           || (body.sensitive !== undefined && typeof body.sensitive !== 'boolean')
           || (body.activity !== undefined && typeof body.activity !== 'boolean')
@@ -452,18 +435,6 @@ export function createAppAccess({ env = process.env, adminFactory = createClient
       });
       if (!appSession?.active || typeof appSession.user_id !== 'string') {
         return reply(403, { entitled: false, session_active: false });
-      }
-      if (rentalUat(body.product)) {
-        const membership = await rentalMembership(admin, appSession.user_id);
-        if (!membership?.organization_id || (body.organization_id !== undefined
-            && body.organization_id !== membership.organization_id)) {
-          return reply(403, { entitled: false });
-        }
-        const manager = ['owner', 'admin', 'manager'].includes(membership.role);
-        if (body.organization_id !== undefined && !manager) return reply(403, { entitled: false });
-        return reply(200, { entitled: true, session_active: true,
-          organization_id: membership.organization_id, access_mode: manager ? 'admin' : 'member',
-          checked_at: new Date(now()).toISOString() });
       }
       const snapshot = entitlementResolver === loadCurrentEntitlements
         ? await loadEntitlementSnapshot(admin, appSession.user_id, now(), env) : null;
@@ -517,5 +488,5 @@ export function createAppAccess({ env = process.env, adminFactory = createClient
     } catch { return res.status(503).json({ allowed:false }); }
   }
 
-  return { canLaunchRentalUat, issueTicket, startLogin, touchLogin, loginLive, processRevocations, queueRevocation, pendingRevocations, revokeUserSessions, redeem, entitlement, trialQuota };
+  return { issueTicket, startLogin, touchLogin, loginLive, processRevocations, queueRevocation, pendingRevocations, revokeUserSessions, redeem, entitlement, trialQuota };
 }

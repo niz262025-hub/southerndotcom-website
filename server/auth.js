@@ -220,17 +220,8 @@ async function loadEntitlements(client, userId, now, env = {}) {
   const trialProject=projectForEnvironment(env);
   const trialKey=trialAppsForEnvironment(env).length ? serverServiceKey(env.MYOPS_SERVICE_ROLE_KEY,trialProject) : null;
   const trial=trialKey ? await loadEligibleTrial(createClient(trialProject,trialKey,{auth:{persistSession:false,autoRefreshToken:false}}),userId,now,env) : null;
-  const products = resolveProductStates({ userId, catalog: catalog.data || [], subscriptions: subscriptions.data || [], grants: grants.data || [], lifetime: rows, platformAdmin: isPlatformAdmin(userId, env), trial, trialApps:trialAppsForEnvironment(env), now });
-  if (env.VERCEL_ENV === 'preview' && env.MYOPS_ENVIRONMENT === 'staging'
-      && trialProject === 'https://wengxxiqwtosirealghx.supabase.co'
-      && products.opsrental && products.opsrental !== 'coming_soon') {
-    const key = serverServiceKey(env.MYOPS_SERVICE_ROLE_KEY, trialProject);
-    const admin = key && createClient(trialProject, key, { auth: { persistSession: false, autoRefreshToken: false } });
-    const access = admin && await admin.rpc('myops_opsrental_uat_membership', { p_user_id: userId });
-    products.opsrental = access?.data?.organization_id && !access.error ? 'active' : 'none';
-  }
   return {
-    products,
+    products: resolveProductStates({ userId, catalog: catalog.data || [], subscriptions: subscriptions.data || [], grants: grants.data || [], lifetime: rows, platformAdmin: isPlatformAdmin(userId, env), trial, trialApps:trialAppsForEnvironment(env), now }),
     lifetime: hasLifetime(userId, rows),
   };
 }
@@ -273,11 +264,8 @@ export function createAuthHandler({ env = process.env, clientFactory = createCli
     if (env.VERCEL_ENV !== 'preview' && !(production && env.MYOPS_ENABLE_PRODUCTION_AUTH === 'true')) {
       return reply(404, { error: 'Authentication is not enabled for this deployment.' });
     }
-    // Both immutable deployment URLs and branch aliases are Vercel-owned inputs.
-    // Never accept an arbitrary Preview host or use the caller's Origin as trust.
-    const trustedOrigins = production ? ['https://www.myops.com.my']
-      : [env.VERCEL_BRANCH_URL, env.VERCEL_URL].filter(Boolean).map(host => `https://${host}`);
-    const origin = trustedOrigins.find(value => req.headers.host === new URL(value).host);
+    const origin = production ? 'https://www.myops.com.my'
+      : env.VERCEL_BRANCH_URL ? `https://${env.VERCEL_BRANCH_URL}` : '';
     if (!origin || req.headers.host !== new URL(origin).host) {
       return reply(403, { error: 'Use the trusted MYOPS website URL.' });
     }
@@ -455,7 +443,7 @@ export function createAuthHandler({ env = process.env, clientFactory = createCli
         if (error) {
           // Do not echo upstream messages: they can disclose account existence or internals.
           if (error.code === 'user_already_exists') {
-            return reply(200, { next: `/verify-email?email=${encodeURIComponent(body.email)}`, message: 'If email confirmation is pending, enter the verification code. Otherwise sign in or reset your password.' });
+            return reply(200, { message: 'If registration is available for this address, check your email to confirm it in this browser. Otherwise sign in or reset your password.' });
           }
           if (error.code === 'email_address_invalid') {
             return reply(400, { error: 'Use a valid email address with a real inbox. Example and test domains are not supported.' });
@@ -471,7 +459,6 @@ export function createAuthHandler({ env = process.env, clientFactory = createCli
       if (action === 'verify_signup_otp') {
         if (!validEmail || typeof body.token !== 'string' || !/^\d{6}(?:\d{2})?$/.test(body.token)) return reply(400, { error: 'Enter your email and 6- or 8-digit verification code.' });
         const { data, error } = await client.auth.verifyOtp({ email: body.email, token: body.token, type: 'signup' });
-        if (error?.status === 429) return reply(429, { error: 'Please wait before trying another verification code.' });
         if (error || !await saveSession(data?.session, appAccess)) return reply(400, { error: 'Invalid or expired verification code.' });
         return reply(200, { next: '/account' });
       }
@@ -586,7 +573,7 @@ export function createAuthHandler({ env = process.env, clientFactory = createCli
       if (action === 'checkout') {
         // Eligibility (Individual-only) is decided inside the database from the server-owned
         // profile; user-editable auth metadata is never consulted.
-        const result = await payments.checkout({ userId: identity.user.id, plan: body.plan, product: body.product, products: body.products, origin });
+        const result = await payments.checkout({ userId: identity.user.id, plan: body.plan, product: body.product, origin });
         return reply(result.status, result.body);
       }
       if (action === 'admin_audit') {
@@ -598,11 +585,7 @@ export function createAuthHandler({ env = process.env, clientFactory = createCli
         const products = await loadProductStates(client, identity.user.id, now(), env);
         if (!products) return reply(503, { error: 'Subscription status is unavailable. Try again later.' });
         if (!products[body.product]) return reply(400, { error: 'Unknown product.' });
-        if (products[body.product] !== 'active' &&
-            !(products[body.product] === 'coming_soon' &&
-              await appAccess.canLaunchRentalUat(identity.user.id, body.product))) {
-          return reply(403, { error: 'An active subscription is required for this application.' });
-        }
+        if (products[body.product] !== 'active') return reply(403, { error: 'An active subscription is required for this application.' });
         // Tickets bind to a verified, live login-session record; without one, fail closed.
         if (!loginSessionId) return reply(401, { error: 'Sign in again to launch applications.', reason: 'login_required' });
         const launch = await appAccess.issueTicket({ userId: identity.user.id, product: body.product, loginSessionId });

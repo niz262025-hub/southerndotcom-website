@@ -101,7 +101,7 @@ export function AuthPortal({ mode, production = false }) {
       </div>
       <div className="account-preview-panel account-form-panel">
         <p role="status" aria-live="polite">{busy ? 'Please wait…' : message}</p>
-        {mode === 'register' && <p><strong>Free 7-Day Trial — RM0.</strong> Verify your email to access your MYOPS account. MYOPS applications: OpsPS, OpsFinance, OpsFlow and OpsHR. Free-trial access is available only for applications confirmed as eligible in your account; registration does not automatically activate every application. No card or auto-renewal for eligible trials.</p>}
+        {mode === 'register' && <p><strong>7 Days Free — RM0.</strong> Verify your email to access your MYOPS account. MYOPS applications: OpsPS, OpsFinance, OpsFlow and OpsHR. Free-trial access is available only for applications confirmed as eligible in your account; registration does not automatically activate every application. No card or auto-renewal for eligible trials.</p>}
         {mode === 'dashboard' && account && <>
           <FreeTrial />
           <p>Signed in as {account.email}</p>
@@ -123,7 +123,7 @@ export function AuthPortal({ mode, production = false }) {
               </ul>
             ) : <p>Subscription status is currently unavailable.</p>}
             {!production && account.trialAvailable && !account.lifetime && <section aria-labelledby="trial-title">
-              <h3 id="trial-title">Free Trial — 7 days</h3>
+              <h3 id="trial-title">7 Days Free</h3>
               <p>RM0 for 7 × 24 hours from activation. No payment card, automatic charge or renewal. One trial per eligible account/company; 1 user and 1 company. Your data is kept after expiry.</p>
               <p>Staging UAT apps: {trialInfo?.availableApps.map(product=>productLabels[product]).join(', ') || 'Checking availability…'}. Other applications are not included yet.</p>
               {trialInfo?.availableApps.includes('opsflow') && <p>OpsFlow: up to 30 transaction records and 2 purchase-order flows.</p>}
@@ -132,11 +132,11 @@ export function AuthPortal({ mode, production = false }) {
               {trialInfo ? <>
                 <p>Trial status: {trialInfo.trial.status.replace('_',' ')}</p>
                 {trialInfo.trial.expires_at && <p>Expires: {new Date(trialInfo.trial.expires_at).toLocaleString()}</p>}
-                {trialInfo.canStart && <button type="button" className="btn btn-primary" disabled={busy} onClick={startTrial}>Activate free 7-day trial</button>}
+                {trialInfo.canStart && <button type="button" className="btn btn-primary" disabled={busy} onClick={startTrial}>Activate 7 Days Free</button>}
                 {trialInfo.trial.status==='active' && trialInfo.availableApps.map(product=><button key={product} type="button" className="btn btn-primary" disabled={busy} onClick={()=>openTrialApp(product)}>Open {productLabels[product]}</button>)}
                 {!trialInfo.canStart && trialInfo.trial.status==='not_started' && <p>Your existing access is already active; no trial is needed.</p>}
               </> : <p>Checking trial eligibility…</p>}
-              <p>MYOPS plans: Starter · Single · Duo · Complete. View current prices on the MYOPS pricing page. New paid checkout is not enabled by this trial test.</p>
+              <p>MYOPS plans: Single App · Duo · Triple · All Apps. View current prices on the MYOPS pricing page. New paid checkout is not enabled by this trial test.</p>
             </section>}
             {account.lifetime && <p>Founders 100 lifetime access: active (all current and future MYOPS apps).</p>}
             <p>{production ? 'View subscription availability and pricing on the MYOPS homepage. Access is granted after payment verification.' : 'Preview payments use the ToyyibPay sandbox only. Application access is granted only after the server confirms a verified payment or active subscription.'}</p>
@@ -176,7 +176,7 @@ export function AuthPortal({ mode, production = false }) {
             </>}
             {['register', 'login', 'forgot'].includes(mode) && <label>Email address<input name="email" type="email" autoComplete="email" required maxLength={254} disabled={busy} /></label>}
             {['register', 'login', 'reset'].includes(mode) && <label>Password<input name="password" type="password" autoComplete={mode === 'login' ? 'current-password' : 'new-password'} required minLength={mode === 'login' ? 1 : 12} maxLength={128} disabled={busy} /></label>}
-            {mode === 'register' && <p>Use 12–128 characters for your password. Enter the TAC/OTP sent to your email on the next screen.</p>}
+            {mode === 'register' && <p>Use 12–128 characters for your password. Open the confirmation email in this same browser. You can add an optional company logo from your account after verification.</p>}
             <button className="btn btn-primary" type="submit" disabled={busy}>{busy ? 'Please wait…' : ({ register: 'Register', login: 'Sign in', forgot: 'Send recovery email', reset: 'Save password', dashboard: 'Save profile' })[mode]}</button>
           </form>
         )}

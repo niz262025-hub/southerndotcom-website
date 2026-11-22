@@ -1,7 +1,7 @@
 import PropTypes from 'prop-types';
 import { AccountPreview } from './AccountPreview';
 import { AuthPortal } from './AuthPortal';
-import { AuthNav, ProductAction, SessionProvider, useSession } from './session';
+import { AuthNav, ProductAction, SessionProvider } from './session';
 import { FoundersPromo } from './FoundersPromo';
 import { AdminAudit } from './AdminAudit';
 import { useEffect, useState } from 'react';
@@ -19,7 +19,7 @@ const companyDetails = {
   registration: '202303050959 (003472425-X)',
   phone: '012-271 9377',
   phoneHref: 'tel:+60122719377',
-  website: 'https://myops.com.my',
+  website: 'https://www.myops.com.my',
   supportEmail: 'southerndotcom8@gmail.com',
 };
 
@@ -62,7 +62,21 @@ const products = [
     accent: 'teal',
     art: 'opshr',
     href: '/solutions/opshr',
+    badgeFormat: 'svg',
     summary: 'Employee records with MYOPS access. Live UAT; other HR modules are in development.',
+  },
+  {
+    "slug": "opsrental",
+    "name": "OpsRental",
+    "tag": [
+      "Property & Tenancy",
+      "Management"
+    ],
+    "icon": "RN",
+    "accent": "purple",
+    "art": "opsrental",
+    "href": "https://opsrental.myops.com.my",
+    "summary": "Manage rentals, agreements, payments and maintenance tickets."
   },
   {
     slug: 'opswms',
@@ -101,24 +115,11 @@ const products = [
     "summary": "Plan clinic workflows, visits and patient operations."
   },
   {
-    "slug": "opsrental",
-    "name": "OpsRental",
-    "tag": [
-      "Property & Tenancy",
-      "Management"
-    ],
-    "icon": "RN",
-    "accent": "purple",
-    "art": "opsrental",
-    "comingSoon": true,
-    "summary": "Manage rentals, agreements, payments and maintenance tickets."
-  },
-  {
     "slug": "opslife",
     "name": "OpsLife",
     "tag": [
-      "Personal Finance, To-Do,",
-      "Shopping & Event Planner"
+      "Your Personal",
+      "Life Manager"
     ],
     "icon": "LF",
     "accent": "pink",
@@ -215,7 +216,7 @@ const routes = {
   '/pdpa': PDPAPage,
 };
 
-const siteBaseUrl = 'https://myops.com.my';
+const siteBaseUrl = 'https://www.myops.com.my';
 
 const pageMeta = {
   '/': {
@@ -510,7 +511,6 @@ SectionIntro.propTypes = {
 };
 
 function LandingPage() {
-  const session = useSession();
   return (
     <PageShell pageClass="landing-shell">
       <section className="hero">
@@ -571,14 +571,7 @@ function LandingPage() {
                 <p className="product-desc">
                   {product.summary}
                 </p>
-                {product.comingSoon && !(product.slug === "opsrental" && buildMode === "preview-auth"
-                  && session.products?.opsrental === "active") ? (
-                  <span className="coming-soon-label">Coming Soon</span>
-                ) : (
-                  <>
-                    <ProductAction product={{ ...product, comingSoon: false }} />
-                  </>
-                )}
+                <ProductAction product={product} />
               </article>
             ))}
           </div>
@@ -845,49 +838,36 @@ const routePageMap = {
 };
 
 function PricingPage() {
-  if (customerAuthEnabled) {
-    return (
-      <PageShell pageClass="page-shell-plain">
-        <FoundersPromo production={buildMode === 'production-auth'} />
-        <section className="content-section">
-          <div className="container narrow-content">
-            <SectionIntro label="Services" title="Website & application solutions" text="Custom website development, business applications and integrations are quoted separately based on project scope." />
-            <a href="/contact" className="btn btn-primary">Get a Quote</a>
-          </div>
-        </section>
-      </PageShell>
-    );
-  }
   const plans = [
-    { name: 'Starter', price: 'RM9.90', tag: 'Entry', summary: 'Limited-use tier for lighter operational requirements.', cta: 'Talk to Us' },
-    { name: 'Single', price: 'RM19.90', tag: 'Focused', summary: 'Choose one MYOPS product for a targeted rollout.', cta: 'Talk to Us' },
-    { name: 'Duo', price: 'RM29.90', tag: 'Bundle', summary: 'Access any two paid MYOPS products in one plan.', cta: 'Talk to Us' },
-    { name: 'Complete', price: 'RM39.90', tag: 'Full bundle', summary: 'Unlock the complete MYOPS bundle for your business.', cta: 'Talk to Us', highlight: true },
-    { name: 'OpsHub', price: 'RM0', tag: 'Seller', summary: 'Seller access is free. GMV commissions apply at 3% / 2% / 1.5% tiers.', cta: 'Request quote' },
+    { name: '7 Days Free', price: 'RM0', period: '7 days', tag: 'Free trial', summary: 'Explore eligible MYOPS applications for seven days.', cta: 'Contact Us', features: ['Seven-day trial', 'Eligible MYOPS apps', 'No automatic renewal'] },
+    { name: 'Single App', price: 'RM19.90', period: '/month', tag: 'One application', summary: 'Choose one MYOPS application for your business.', cta: 'Enquire Now', features: ['One selected app', 'MYOPS central account', 'Manual activation'] },
+    { name: 'Duo', price: 'RM29.90', period: '/month', tag: 'Two applications', summary: 'Combine two MYOPS applications in one plan.', cta: 'Enquire Now', features: ['Two selected apps', 'MYOPS central account', 'Manual activation'] },
+    { name: 'Triple', price: 'RM39.90', period: '/month', tag: 'Three applications', summary: 'Connect three MYOPS applications.', cta: 'Enquire Now', features: ['Three selected apps', 'MYOPS central account', 'Manual activation'] },
+    { name: 'All Apps', price: 'RM49.90', period: '/month', tag: 'Best value', summary: 'Access all eligible MYOPS applications as they become available. OpsHub excluded.', cta: 'Enquire Now', highlight: true, features: ['All eligible available MYOPS apps', 'MYOPS central account', 'Manual activation'] },
   ];
 
   return (
     <PageShell pageClass="page-shell-plain">
       <section className="page-hero">
-        <div className="container narrow-content">
+        <div className="container">
           <SectionIntro
             label="Pricing"
-            title="MYOPS product pricing"
-            text="Approved monthly pricing in MYR. All paid plans include a 14-day trial, default manual renewal, and no card-based recurring debit checkout. Custom development services are quoted separately."
+            title="Simple, transparent MYOPS pricing"
+            text="Choose a plan that fits your business. All prices are in MYR; subscription activation is currently handled manually. No automatic card charges."
           />
-          <div className="pricing-grid">
-            {plans.map((plan) => (
+          <div className="pricing-trial-strip"><div><span className="pricing-tag">Free Trial</span><h3>Try MYOPS for 7 days</h3><p>RM0 · Eligible applications only · No automatic renewal</p></div><a className="btn btn-secondary" href="/contact">Start Free Trial</a></div>
+          <div className="pricing-grid pricing-grid-refined pricing-grid-four">
+            {plans.filter((plan) => plan.price !== 'RM0').map((plan) => (
               <article key={plan.name} className={`pricing-card${plan.highlight ? ' highlight' : ''}`}>
                 <span className="pricing-tag">{plan.tag}</span>
                 <h3>{plan.name}</h3>
+                <p className="pricing-summary">{plan.summary}</p>
                 <div className="price-line">
                   <strong>{plan.price}</strong>
-                  <span>/month</span>
+                  <span>{plan.period}</span>
                 </div>
                 <ul>
-                  <li>{plan.summary}</li>
-                  {plan.name === 'OpsHub' ? <li>Commission tiers: 3% under RM1,000 GMV, 2% from RM1,000 to RM9,999.99, 1.5% above RM10,000.</li> : <li>14-day trial included on paid plans.</li>}
-                  <li>Manual renewal by default. No unsupported recurring debit claims.</li>
+                  {plan.features.map((feature) => <li key={feature}>{feature}</li>)}
                 </ul>
                 <a href="/contact" className="btn btn-primary">{plan.cta}</a>
               </article>

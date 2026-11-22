@@ -6,7 +6,7 @@ const companyDetails = {
   legalEntity: 'Southern Dotcom Enterprise',
   registration: '202303050959 (003472425-X)',
   phone: '012-271 9377',
-  website: 'https://myops.com.my',
+  website: 'https://www.myops.com.my',
   supportEmail: 'southerndotcom8@gmail.com',
 };
 
@@ -191,7 +191,7 @@ export function PrivacyPolicyPage() {
           MYOPS is the public-facing brand of the ecosystem operated by Southern Dotcom Enterprise. Our contact details are:
         </p>
         <ul className="legal-list">
-          <li>Website: https://myops.com.my</li>
+          <li>Website: https://www.myops.com.my</li>
           <li>Email: southerndotcom8@gmail.com</li>
           <li>Phone: 012-271 9377</li>
         </ul>

@@ -104,13 +104,9 @@ export function ProductAction({ product, arrow = false }) {
   const session = useSession();
   const [message, setMessage] = useState('');
   const [busy, setBusy] = useState(false);
-  if (product.comingSoon) return null;
-  if (!session.enabled) return arrow
-    ? <a className="card-link" href="/login" aria-label={`Subscribe to ${product.slug}`}><span aria-hidden="true">→</span></a>
-    : <div className="product-action"><a className="btn btn-secondary" href="/login">Subscribe</a></div>;
-  if (session.status === 'unavailable') return arrow
-    ? <a className="card-link" href="/login" aria-label={`Subscribe to ${product.slug}`}><span aria-hidden="true">→</span></a>
-    : <div className="product-action"><a className="btn btn-secondary" href="/login">Subscribe</a><button type="button" className="access-retry" onClick={() => session.refresh(false)}>Retry access check</button></div>;
+  if (product.comingSoon) return <div className="product-action"><span className="coming-soon-label">Coming Soon</span></div>;
+  if (!session.enabled) return product.slug === 'opsrental' ? <div className="product-action"><a className="btn btn-secondary" href="/login">Subscribe</a></div> : null;
+  if (session.status === 'unavailable') return arrow ? <a className="card-link" href="/login" aria-label={`Subscribe to ${product.slug}`}><span aria-hidden="true">→</span></a> : <div className="product-action"><a className="btn btn-secondary" href="/login">Subscribe</a></div>;
 
   const state = session.signedIn ? session.products?.[product.slug] : 'none';
   async function open() {
@@ -124,7 +120,7 @@ export function ProductAction({ product, arrow = false }) {
       if (error.status === 401) session.refresh(false);
     } finally { setBusy(false); }
   }
-  if (state === 'coming_soon') return <span className="coming-soon-label">Coming Soon</span>;
+  if (state === 'coming_soon') return product.slug === 'opsrental' ? <div className="product-action"><a className="btn btn-secondary" href="/#founders" onClick={jumpToFounders}>Subscribe</a></div> : <span className="coming-soon-label">Coming Soon</span>;
   if (state === 'active') {
     if (arrow) return (
       <div className="product-action">

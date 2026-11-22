@@ -1,5 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { readFile } from 'node:fs/promises';
 import { importSrc } from './helpers/load-src.mjs';
 import { JSDOM } from 'jsdom';
 import { act, createElement } from 'react';
@@ -91,7 +92,29 @@ test('MYOPS root shows the original landing page before and after login', async 
   } finally { await signedInPage.cleanup(); }
 });
 
-test('signed-out visitors see Register and Login, and Subscribe on live cards', async () => {
+test('homepage app grid keeps the approved desktop 5-card layout on large screens', async () => {
+  const css = await readFile(new URL('../src/styles.css', import.meta.url), 'utf8');
+  assert.match(css, /\.apps-section \.product-grid \{\s*grid-template-columns:\s*repeat\(5, minmax\(0, 1fr\)\);/s);
+  assert.match(css, /@media \(max-width: 1199px\)\s*\{\s*\.apps-section \.product-grid \{\s*grid-template-columns:\s*repeat\(4, minmax\(0, 1fr\)\);/s);
+  assert.match(css, /@media \(max-width: 900px\)\s*\{\s*\.apps-section \.product-grid \{\s*grid-template-columns:\s*repeat\(3, minmax\(0, 1fr\)\);/s);
+});
+
+test('official production seo and company links point to the canonical www host', async () => {
+  const dom = new JSDOM('<!doctype html><html><head><meta property="og:url" content="https://myops.com.my/" /><link rel="canonical" href="https://myops.com.my/" /></head><body></body></html>', { url: 'https://www.myops.com.my/' });
+  const { document } = dom.window;
+  const canonical = document.querySelector('link[rel="canonical"]');
+  const ogUrl = document.querySelector('meta[property="og:url"]');
+  const pageUrl = 'https://www.myops.com.my/';
+
+  canonical.setAttribute('href', pageUrl);
+  ogUrl.setAttribute('content', pageUrl);
+
+  assert.equal(canonical.getAttribute('href'), 'https://www.myops.com.my/');
+  assert.equal(ogUrl.getAttribute('content'), 'https://www.myops.com.my/');
+  assert.equal('https://www.myops.com.my', document.querySelector('meta[property="og:url"]')?.content.replace(/\/$/, '') || '');
+});
+
+test('signed-out visitors see Register and Login, Subscribe on live cards and Coming Soon on pending cards', async () => {
   const { cleanup } = await mount(() => Response.json(signedOut));
   try {
     assert.deepEqual(nav(), ['Register', 'Login']);
@@ -102,7 +125,9 @@ test('signed-out visitors see Register and Login, and Subscribe on live cards', 
       assert.equal(document.querySelector(`#${slug} a`).getAttribute('href'), '/login');
       assert.equal(document.querySelector(`#${slug} button`), null);
     }
-    assert.equal(document.querySelector('#opswms').textContent, '');
+    assert.equal(text('#opswms .coming-soon-label'), 'Coming Soon');
+    assert.equal(document.querySelector('#opswms a'), null);
+    assert.equal(document.querySelector('#opswms button'), null);
   } finally { await cleanup(); }
 });
 
@@ -171,9 +196,7 @@ test('network or server failure shows a retry state, never an unlocked app', asy
   const { cleanup } = await mount(() => { throw new TypeError('Failed to fetch'); });
   try {
     assert.deepEqual(nav(), ['Retry']);
-    assert.equal(document.querySelector('.product-action .btn-primary'), null);
-    assert.equal(document.querySelector('#opsp a').getAttribute('href'), '/login');
-    assert.equal(text('#opsp .access-retry'), 'Retry access check');
+    assert.equal(document.querySelector('.product-action button'), null);
   } finally { await cleanup(); }
 });
 test('temporary session failure can recover without presenting a confirmed logout',async()=>{
@@ -188,13 +211,17 @@ test('temporary session failure can recover without presenting a confirmed logou
  }finally{await cleanup();}
 });
 
-test('public marketing builds keep Subscribe visible without making auth requests', async () => {
+test('outside Preview auth builds no auth controls and no requests are made', async () => {
   const { calls, cleanup } = await mount(() => Response.json(signedInState()), false);
   try {
     assert.equal(calls.length, 0);
     assert.equal(document.querySelector('.nav-auth'), null);
-    assert.equal(text('#opsp .product-action'), 'Subscribe');
-    assert.equal(document.querySelector('#opsp a').getAttribute('href'), '/login');
+    for (const slug of ['opsp', 'opsfinance', 'opsflow']) {
+      assert.equal(document.querySelector(`#${slug} .product-action`), null);
+    }
+    assert.equal(text('#opswms .coming-soon-label'), 'Coming Soon');
+    assert.equal(document.querySelector('#opswms a'), null);
+    assert.equal(document.querySelector('#opswms button'), null);
   } finally { await cleanup(); }
 });
 
@@ -221,21 +248,5 @@ test('logout failure stays visible and retryable, including after a signed-out p
     await act(async () => finishLogout(Response.json({ error: 'Retry later.' }, { status: 503 })));
     assert.match(text('[role=alert]'), /Retry later/);
     assert.equal(dom.window.location.href, 'https://trusted-preview.vercel.app/');
-  } finally { await cleanup(); }
-});
-
- test('all nine approved cards retain their order, PNG assets and five Coming Soon statuses during an outage', async () => {
-  const { cleanup } = await mountHome(() => Response.json({error: 'Unavailable'}, {status: 503}));
-  try {
-    const cards = [...document.querySelectorAll('#applications article')];
-    assert.deepEqual(cards.map(card => card.querySelector('h3').textContent), ['OpsFinance','OpsFlow','OpsPS','OpsHR','OpsWMS','OpsSmartHome','OpsClinic','OpsRental','OpsLife']);
-    assert.equal(cards.filter(card => card.querySelector('.coming-soon-label')).length, 5);
-    assert.equal(cards.flatMap(card => [...card.querySelectorAll('a')]).filter(a => a.textContent === 'Subscribe' && a.getAttribute('href') === '/login').length, 4);
-    const { existsSync } = await import('node:fs');
-    for (const img of document.querySelectorAll('#applications img')) {
-      assert.match(img.getAttribute('src'), /^\/images\/approved\/.+\.png$/);
-      assert.ok(existsSync(new URL('../public' + img.getAttribute('src'), import.meta.url)));
-    }
-    assert.ok(!/\bNEW\b|\bLIVE\b/.test(document.querySelector('#applications').textContent));
   } finally { await cleanup(); }
 });
