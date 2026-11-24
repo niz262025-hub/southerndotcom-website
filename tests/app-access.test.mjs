@@ -592,3 +592,30 @@ test('bound HTTP flow uses only the selected organization for issue, redemption 
   assert.equal(trialResponse.body.access_mode, 'trial');
   assert.equal(trialResponse.body.trial.id, 'trial-1');
 });
+
+
+test('staging redemption diagnostics contain only bounded request ID and fixed stages', async () => {
+  const events = [];
+  const original = console.warn;
+  console.warn = (...args) => events.push(args);
+  try {
+    const ticket = 'x'.repeat(43);
+    const body = { ticket };
+    const request = signedRequest({ path: '/api/app/redeem', body, headers: {
+      'x-vercel-id': 'cle1:iad1::h5tbr-1795540282123-2287494cc987',
+    } });
+    const response = await call(make().handler.redeem, request);
+    assert.equal(response.statusCode, 200);
+    const logs = events.filter(([name]) => name === 'myops_redeem_trace').map(([, value]) => value);
+    assert.deepEqual(logs.map(item => item.stage), ['handler_entry', 'authentication_entry', 'authentication_passed', 'redemption_succeeded']);
+    assert.ok(logs.every(item => item.requestId === 'cle1:iad1::h5tbr-1795540282123-2287494cc987'));
+    assert.doesNotMatch(JSON.stringify(logs), new RegExp(ticket));
+    events.length = 0;
+    const bad = signedRequest({ path: '/api/app/redeem', body, signatureKey: generateKeyPairSync('ed25519').privateKey, headers: { 'x-vercel-id': ticket } });
+    assert.equal((await call(make().handler.redeem, bad)).statusCode, 401);
+    const rejected = events.filter(([name]) => name === 'myops_redeem_trace').map(([, value]) => value);
+    assert.ok(rejected.some(item => item.stage === 'signature_rejected' && item.status === 401));
+    assert.ok(rejected.every(item => item.requestId === null));
+    assert.doesNotMatch(JSON.stringify(rejected), new RegExp(ticket));
+  } finally { console.warn = original; }
+});
