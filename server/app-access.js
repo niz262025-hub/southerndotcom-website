@@ -145,7 +145,13 @@ export async function loadCurrentEntitlements(client, userId, now, env = {}) {
   return (await loadEntitlementSnapshot(client, userId, now, env))?.products ?? null;
 }
 
-function requestContext(req, res, env, now) {
+function logStagingRejection(env, endpoint, appId, reason) {
+  if (env.VERCEL_ENV !== 'preview' || env.MYOPS_ENVIRONMENT !== 'staging') return;
+  const product = ['opshr', 'opsfinance', 'opsflow', 'opsp', 'opsrental'].includes(appId) ? appId : 'unknown';
+  console.warn('myops_staging_broker_rejected', endpoint, product, reason);
+}
+
+function requestContext(req, res, env, now, endpoint) {
   const reply = (status, body) => res.status(status).json(body);
   res.setHeader('Cache-Control', 'no-store');
   res.setHeader('Referrer-Policy', 'no-referrer');
@@ -176,6 +182,7 @@ function requestContext(req, res, env, now) {
       || !Number.isSafeInteger(numericTime) || Math.abs(now() - numericTime) > REQUEST_SKEW_MS
       || typeof nonce !== 'string' || !NONCE.test(nonce)
       || typeof signature !== 'string' || !SIGNATURE.test(signature)) {
+    logStagingRejection(env, endpoint, appId, 'invalid_request_headers');
     return { done: reply(401, { error: 'Application request is not authorized.' }) };
   }
   return { body, appId, timestamp, nonce, signature, reply, ip: ipHash(req) };
@@ -346,7 +353,7 @@ export function createAppAccess({ env = process.env, adminFactory = createClient
   async function authenticate(req, res, endpoint) {
     let context;
     try {
-      context = requestContext(req, res, env, now);
+      context = requestContext(req, res, env, now, endpoint);
     } catch {
       res.setHeader('Cache-Control', 'no-store');
       return res.status(400).json({ error: 'Invalid request.' });
@@ -358,12 +365,16 @@ export function createAppAccess({ env = process.env, adminFactory = createClient
     const ipAllowed = await permitRate(admin, `${endpoint}:ip:${ip}`, endpoint === 'redeem' ? 30 : 120, 60);
     if (!ipAllowed) return reply(429, { error: 'Please wait before trying again.' });
     const clientData = await rpc(admin, 'myops_get_app_client', { p_app_id: appId });
-    if (!clientData?.enabled) return reply(401, { error: 'Application request is not authorized.' });
+    if (!clientData?.enabled) {
+      logStagingRejection(env, endpoint, appId, 'app_client_unavailable');
+      return reply(401, { error: 'Application request is not authorized.' });
+    }
     const keyVersion = req.headers['x-myops-key-version'];
     const publicKey = keyVersion === 'next' ? clientData.public_key_next : keyVersion === 'current' ? clientData.public_key_current : null;
     const path = `/api/app/${endpoint}`;
     const message = canonicalRequest('POST', path, appId, String(keyVersion), timestamp, nonce, body);
     if (!verifyAppSignature(publicKey, signature, message)) {
+      logStagingRejection(env, endpoint, appId, publicKey ? 'signature_rejected' : 'key_slot_unavailable');
       return reply(401, { error: 'Application request is not authorized.' });
     }
     const appAllowed = await permitRate(admin, `${endpoint}:app:${appId}`, endpoint === 'redeem' ? 100 : 600, 60);
@@ -372,7 +383,10 @@ export function createAppAccess({ env = process.env, adminFactory = createClient
     const nonceAccepted = await rpc(admin, 'myops_record_app_nonce', {
       p_app_id: appId, p_nonce_hash: nonceHash,
     });
-    if (!nonceAccepted) return reply(401, { error: 'Application request is not authorized.' });
+    if (!nonceAccepted) {
+      logStagingRejection(env, endpoint, appId, 'nonce_rejected');
+      return reply(401, { error: 'Application request is not authorized.' });
+    }
     return { admin, appId, clientData, body, reply };
   }
 
@@ -391,6 +405,7 @@ export function createAppAccess({ env = process.env, adminFactory = createClient
       if (!redeemed || redeemed.status !== 'redeemed'
           || redeemed.product_slug !== clientData.product_slug
           || typeof redeemed.user_id !== 'string' || typeof redeemed.session_id !== 'string') {
+        logStagingRejection(env, 'redeem', appId, 'ticket_rejected');
         return reply(401, { error: 'Launch ticket is invalid or expired.' });
       }
       const products = await entitlementResolver(admin, redeemed.user_id, now(), env);
