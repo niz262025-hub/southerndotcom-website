@@ -27,6 +27,8 @@ jobs:
           cache: npm
       - name: Install dependencies
         run: npm ci
+      - name: Audit dependencies
+        run: npm audit --audit-level=low
       - name: Install local PostgreSQL test binaries
         run: |
           sudo apt-get update
