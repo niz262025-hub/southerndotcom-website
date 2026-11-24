@@ -1,11 +1,13 @@
 import { useEffect, useState } from 'react';
 import { useSession } from './session';
 import { authRequest } from './authRequest';
+import { useOrganizationLaunch } from './organizationLaunch';
 
 const trialAppLabels = { opsp: 'OpsPS', opsfinance: 'OpsFinance', opsflow: 'OpsFlow', opshr: 'OpsHR' };
 
 export function FreeTrial() {
   const session=useSession();
+  const { launch, chooser } = useOrganizationLaunch();
   const [state,setState]=useState(null);
   const [message,setMessage]=useState('');
   const [busy,setBusy]=useState(false);
@@ -25,8 +27,9 @@ export function FreeTrial() {
   }
   async function open(product) {
     setBusy(true);setMessage('');
-    try {const result=await authRequest('launch',{product});window.location.assign(result.next);}
-    catch(error){setMessage(error.message);setBusy(false);}
+    try {await launch(product);}
+    catch(error){setMessage(error.message);}
+    finally{setBusy(false);}
   }
   const active=state?.trial?.status==='active';
   const availableApps = Array.isArray(state?.availableApps) ? state.availableApps.filter(app => Object.hasOwn(trialAppLabels, app)) : [];
@@ -46,6 +49,7 @@ export function FreeTrial() {
       : state && !availableApps.length ? <p>Trial activation is not available for these applications yet. Existing subscriptions are unaffected.</p>
       : state ? <p>Your existing paid or administrator access remains active; no trial is needed.</p>
       : <p>Checking trial eligibility…</p>}
+    {chooser}
     <p role="status" aria-live="polite">{message||state?.message}</p>
   </article>;
 }
