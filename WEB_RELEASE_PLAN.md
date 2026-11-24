@@ -24,6 +24,28 @@ OpsHub is a separate standalone website with its own seller/customer accounts. D
 
 This is an execution record, not evidence that all apps are production-ready. Previous release tracker snapshots remain historical and are superseded on scope by this document.
 
+## Backup and recovery acceptance
+
+### Phase 1 / Step 1
+
+- Keep automatic daily backups enabled. Availability is verified for Central staging `wengxxiqwtosirealghx`. The latest backup visible at verification was a physical backup on 23 November 2026 at 15:16 UTC (23:16 MYT).
+- Full restoration, restored-data integrity testing and disaster recovery verification are **DEFERRED TO PHASE 2**. Restoration testing is removed from Step 1 release acceptance.
+- SSO, security, tenant isolation, entitlement and release validation remain required for Step 1. Commercial launch remains gated on Phase 2 recovery verification.
+
+### Existing recovery procedure
+
+1. In the Supabase project dashboard, verify the source project, then open Database Backups → Scheduled backups. Identify the backup from before the incident and record its timestamp.
+2. For a drill, use an authorized isolated recovery target. Supabase's Restore to new project action creates a separate project. Confirm the target and any cost before proceeding. Obtain owner approval for additional paid infrastructure. An in-place restore is an operational recovery action and requires separate authorization.
+3. Verify restored schemas, row counts, constraints and representative workflows before traffic or application configuration changes. Restore Storage objects and reconfigure affected services separately where needed. Record the backup, target, verification results and recovery timings.
+
+[Supabase restore procedure](https://supabase.com/docs/guides/platform/clone-project)
+
+### Phase 2 completion criteria
+
+- Complete a full physical backup restore and a logical backup and restore. Verify database integrity and execute a disaster recovery drill. Complete recovery verification before commercial launch.
+- Restructure and standardize GitHub, Vercel and Supabase. Complete final data synchronization, approved file and data cleanup, infrastructure cost optimization and production security lockdown.
+- Obtain owner approval before creating additional paid infrastructure.
+
 ## Six-app scope expansion
 
 Latest owner instruction: complete MYOPS, OpsFinance, OpsPS, OpsFlow, OpsWMS and OpsHR for web. OpsHub remains an independent website and is excluded from central SSO/package integration.
