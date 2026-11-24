@@ -387,7 +387,15 @@ export function createAppAccess({ env = process.env, adminFactory = createClient
     return true;
   }
 
+  function traceRedeem(req, stage, status) {
+    if (env.VERCEL_ENV !== 'preview' || env.MYOPS_ENVIRONMENT !== 'staging') return;
+    const raw = req.headers['x-vercel-id'];
+    const requestId = typeof raw === 'string' && /^(?:[a-z0-9]+:)*[a-z0-9]*::[a-z0-9]+-\d{13}-[a-f0-9]{12}$/i.test(raw) ? raw : null;
+    console.warn('myops_redeem_trace', { requestId, stage, status });
+  }
+
   async function authenticate(req, res, endpoint) {
+    if (endpoint === 'redeem') traceRedeem(req, 'authentication_entry', null);
     let context;
     try {
       context = requestContext(req, res, env, now);
@@ -395,19 +403,20 @@ export function createAppAccess({ env = process.env, adminFactory = createClient
       res.setHeader('Cache-Control', 'no-store');
       return res.status(400).json({ error: 'Invalid request.' });
     }
-    if (context.done) return context.done;
+    if (context.done) { if (endpoint === 'redeem') traceRedeem(req, 'request_context_rejected', res.statusCode ?? null); return context.done; }
     const { appId, timestamp, nonce, signature, body, reply, ip } = context;
     const admin = client();
     if (!admin) return reply(503, { error: 'Application access is not configured.' });
     const ipAllowed = await permitRate(admin, `${endpoint}:ip:${ip}`, endpoint === 'redeem' ? 30 : 120, 60);
     if (!ipAllowed) return reply(429, { error: 'Please wait before trying again.' });
     const clientData = await rpc(admin, 'myops_get_app_client', { p_app_id: appId });
-    if (!clientData?.enabled) return reply(401, { error: 'Application request is not authorized.' });
+    if (!clientData?.enabled) { if (endpoint === 'redeem') traceRedeem(req, 'app_client_rejected', 401); return reply(401, { error: 'Application request is not authorized.' }); }
     const keyVersion = req.headers['x-myops-key-version'];
     const publicKey = keyVersion === 'next' ? clientData.public_key_next : keyVersion === 'current' ? clientData.public_key_current : null;
     const path = `/api/app/${endpoint}`;
     const message = canonicalRequest('POST', path, appId, String(keyVersion), timestamp, nonce, body);
     if (!verifyAppSignature(publicKey, signature, message)) {
+      if (endpoint === 'redeem') traceRedeem(req, 'signature_rejected', 401);
       return reply(401, { error: 'Application request is not authorized.' });
     }
     const appAllowed = await permitRate(admin, `${endpoint}:app:${appId}`, endpoint === 'redeem' ? 100 : 600, 60);
@@ -416,11 +425,13 @@ export function createAppAccess({ env = process.env, adminFactory = createClient
     const nonceAccepted = await rpc(admin, 'myops_record_app_nonce', {
       p_app_id: appId, p_nonce_hash: nonceHash,
     });
-    if (!nonceAccepted) return reply(401, { error: 'Application request is not authorized.' });
+    if (!nonceAccepted) { if (endpoint === 'redeem') traceRedeem(req, 'nonce_rejected', 401); return reply(401, { error: 'Application request is not authorized.' }); }
+    if (endpoint === 'redeem') traceRedeem(req, 'authentication_passed', 200);
     return { admin, appId, clientData, body, reply };
   }
 
   async function redeem(req, res) {
+    traceRedeem(req, 'handler_entry', null);
     let auth;
     try {
       auth = await authenticate(req, res, 'redeem');
@@ -437,12 +448,14 @@ export function createAppAccess({ env = process.env, adminFactory = createClient
           || redeemed.product_slug !== clientData.product_slug
           || typeof redeemed.user_id !== 'string' || typeof redeemed.session_id !== 'string'
           || (bound && !SESSION_ID.test(redeemed.organization_id || ''))) {
+        traceRedeem(req, 'ticket_rejected', 401);
         return reply(401, { error: 'Launch ticket is invalid or expired.' });
       }
       const entitled = bound
         ? await loadOrganizationEntitlement(admin, redeemed.user_id, redeemed.organization_id, clientData.product_slug, now(), env)
         : await entitlementResolver(admin, redeemed.user_id, now(), env).then(products => products ? products[clientData.product_slug] === 'active' : null);
       if (!entitled) {
+        traceRedeem(req, entitled === false ? 'entitlement_denied' : 'entitlement_unavailable', entitled === false ? 403 : 503);
         await rpc(admin, 'myops_revoke_app_session', {
           p_session_id: redeemed.session_id, p_reason: 'entitlement_denied',
         });
@@ -450,6 +463,7 @@ export function createAppAccess({ env = process.env, adminFactory = createClient
         return entitled === false ? reply(403, { error: 'Application access is not authorized.' })
           : reply(503, { error: 'Application access could not be verified.' });
       }
+      traceRedeem(req, 'redemption_succeeded', 200);
       return reply(200, {
         session_id: redeemed.session_id,
         user_ref: userRef(env.MYOPS_APP_USER_REF_SECRET, appId, redeemed.user_id),
