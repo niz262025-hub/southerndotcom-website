@@ -151,7 +151,7 @@ export function organizationBindingEnabled(env, product) {
     && (env.MYOPS_ORGANIZATION_BOUND_PRODUCTS || '').split(',').map(value => value.trim()).includes(product);
 }
 
-async function loadOrganizationEntitlement(client, userId, organizationId, product, now) {
+async function loadOrganizationEntitlement(client, userId, organizationId, product, now, env) {
   const [catalog, membership, subscriptions, grants] = await Promise.all([
     client.from('myops_products').select('slug,launch_status').eq('slug', product),
     client.from('myops_memberships').select('organization_id').eq('user_id', userId)
@@ -163,12 +163,21 @@ async function loadOrganizationEntitlement(client, userId, organizationId, produ
   ]);
   if ([catalog, membership, subscriptions, grants].some(result => result.error)) return null;
   if (!membership.data?.some(row => row.organization_id === organizationId)) return false;
-  return resolveProductStates({
+  const paid = resolveProductStates({
     userId, catalog: catalog.data || [],
     subscriptions: (subscriptions.data || []).filter(row => row.organization_id === organizationId && !row.personal_user_id),
     grants: (grants.data || []).filter(row => row.organization_id === organizationId),
     now,
   })[product] === 'active';
+  if (paid) return { access_mode: 'paid' };
+  if (!trialAppsForEnvironment(env).includes(product)) return false;
+  try {
+    const trial = await loadEligibleTrial(client, userId, now, env);
+    if (!trial || trial.organization_id !== organizationId || !catalog.data?.some(row => row.slug === product && row.launch_status === 'live')) return false;
+    return { access_mode: 'trial', trial: { id: trial.id, expires_at: trial.expires_at, policy_version: trial.policy_version } };
+  } catch {
+    return null;
+  }
 }
 
 function requestContext(req, res, env, now) {
@@ -236,8 +245,8 @@ export function createAppAccess({ env = process.env, adminFactory = createClient
     const allowed = await permitRate(admin, `launch:${userId}:${product}`, 10, 60);
     if (!allowed) return { status: 429 };
     if (bound) {
-      const entitled = await loadOrganizationEntitlement(admin, userId, organizationId, product, now());
-      if (entitled !== true) return { status: entitled === false ? 403 : 503 };
+      const entitled = await loadOrganizationEntitlement(admin, userId, organizationId, product, now(), env);
+      if (!entitled) return { status: entitled === false ? 403 : 503 };
     }
     const ticket = randomBytes(32).toString('base64url');
     const inserted = await rpc(admin, bound ? 'myops_issue_org_app_ticket' : 'myops_issue_app_ticket', {
@@ -431,9 +440,9 @@ export function createAppAccess({ env = process.env, adminFactory = createClient
         return reply(401, { error: 'Launch ticket is invalid or expired.' });
       }
       const entitled = bound
-        ? await loadOrganizationEntitlement(admin, redeemed.user_id, redeemed.organization_id, clientData.product_slug, now())
+        ? await loadOrganizationEntitlement(admin, redeemed.user_id, redeemed.organization_id, clientData.product_slug, now(), env)
         : await entitlementResolver(admin, redeemed.user_id, now(), env).then(products => products ? products[clientData.product_slug] === 'active' : null);
-      if (entitled !== true) {
+      if (!entitled) {
         await rpc(admin, 'myops_revoke_app_session', {
           p_session_id: redeemed.session_id, p_reason: 'entitlement_denied',
         });
@@ -482,7 +491,7 @@ export function createAppAccess({ env = process.env, adminFactory = createClient
         if (appSession.organization_id !== body.organization_id.toLowerCase()) {
           return reply(403, { entitled: false, session_active: false });
         }
-        const entitled = await loadOrganizationEntitlement(admin, appSession.user_id, appSession.organization_id, body.product, now());
+        const entitled = await loadOrganizationEntitlement(admin, appSession.user_id, appSession.organization_id, body.product, now(), env);
         if (entitled === null) return reply(503, { entitled: false, error: 'Application access could not be verified.' });
         if (!entitled) {
           await rpc(admin, 'myops_revoke_app_session', { p_session_id: body.session_id, p_reason: 'entitlement_revoked' });
@@ -498,7 +507,7 @@ export function createAppAccess({ env = process.env, adminFactory = createClient
         }
         return reply(200, {
           entitled: true, session_active: true, organization_id: appSession.organization_id,
-          access_mode: 'paid', checked_at: new Date(now()).toISOString(),
+          ...entitled, checked_at: new Date(now()).toISOString(),
           ...(body.profile === true ? { central_profile: await loadCentralProfile(admin, appSession.user_id) } : {}),
           ...(body.product === 'opsflow' && body.sensitive === true ? { onboarding_profile: await loadAppProfile(admin, appSession.user_id) } : {}),
         });

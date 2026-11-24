@@ -525,22 +525,29 @@ test('snapshot retains company trial isolation and never grants Coming Soon appl
 test('bound HTTP flow uses only the selected organization for issue, redemption and refresh', async () => {
   const organization = 'ffdfca04-db7d-4ff4-89c5-cdbc95c3099d';
   const other = '9cacc056-c964-456f-ab28-68711928607e';
-  const env = { ...baseEnv, MYOPS_ORGANIZATION_BOUND_PRODUCTS: 'opsp' };
+  const env = { ...baseEnv, MYOPS_ORGANIZATION_BOUND_PRODUCTS: 'opsp',
+    VITE_SUPABASE_URL: 'https://wengxxiqwtosirealghx.supabase.co', MYOPS_USE_ISOLATED_STAGING: 'true',
+    MYOPS_ENABLE_STAGING_TRIAL_ACCESS: 'true', MYOPS_TRIAL_READY_APPS: 'opsp', MYOPS_OPSPS_TRIAL_UAT_READY: 'true' };
   const { handler, admin, calls } = make({ env });
   const previousRpc = admin.rpc;
   let subscriptionStatus = 'active';
+  let trialOrganization = null;
   const data = () => ({
     myops_products: [{ slug: appId, launch_status: 'live' }],
-    myops_memberships: [{ organization_id: organization, user_id: userId, status: 'active' }],
+    myops_memberships: [{ organization_id: organization, user_id: userId, status: 'active', role: 'admin' }],
     myops_subscriptions: [
       { organization_id: organization, product_slug: appId, status: subscriptionStatus },
       { organization_id: other, product_slug: appId, status: 'active' },
     ],
     myops_app_grants: [{ organization_id: organization, user_id: userId, product_slug: appId }],
+    myops_trials: trialOrganization ? [{ id: 'trial-1', user_id: userId, organization_id: trialOrganization,
+      status: 'active', policy_version: 1, started_at: new Date(NOW - 1000).toISOString(), expires_at: new Date(NOW - 1000 + 7 * 86400000).toISOString() }] : [],
+    myops_organizations: [{ id: organization, owner_user_id: userId }],
   });
   admin.from = table => ({
     select() { return this; },
     eq(key, value) { this.filters ??= []; this.filters.push([key, value]); return this; },
+    maybeSingle() { return Promise.resolve({ data: data()[table].filter(row => (this.filters || []).every(([key, value]) => row[key] === value))[0] || null, error: null }); },
     then(resolve) {
       return resolve({ data: data()[table].filter(row => this.filters.every(([key, value]) => row[key] === value)), error: null });
     },
@@ -572,8 +579,16 @@ test('bound HTTP flow uses only the selected organization for issue, redemption 
   assert.equal((await validate(other)).statusCode, 403);
   assert.equal(calls.some(([name, args]) => name === 'myops_validate_org_app_session' && args.p_touch), false);
   assert.equal((await validate(organization)).body.organization_id, organization);
-  assert.equal(calls.filter(([name, args]) => name === 'myops_validate_org_app_session' && args.p_touch).length, 1);
+  assert.equal((await validate(organization)).body.access_mode, 'paid');
+  assert.equal(calls.filter(([name, args]) => name === 'myops_validate_org_app_session' && args.p_touch).length, 2);
   subscriptionStatus = 'expired';
   assert.equal((await validate(organization)).statusCode, 403);
   assert.ok(calls.some(([name, args]) => name === 'myops_revoke_app_session' && args.p_session_id === sessionId));
+  trialOrganization = other;
+  assert.equal((await validate(organization)).statusCode, 403);
+  trialOrganization = organization;
+  const trialResponse = await validate(organization);
+  assert.equal(trialResponse.statusCode, 200);
+  assert.equal(trialResponse.body.access_mode, 'trial');
+  assert.equal(trialResponse.body.trial.id, 'trial-1');
 });
