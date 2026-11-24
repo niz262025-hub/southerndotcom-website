@@ -5,7 +5,7 @@ import { createHmac, timingSafeEqual } from 'node:crypto';
 import { createClient } from '@supabase/supabase-js';
 import { profileFields, descriptiveProfile } from './profile-fields.js';
 import { changeProfileLogo, decodeLogo, ownedLogoPath, profileLogoUrl } from './profile-logo.js';
-import { createAppAccess, loadCurrentEntitlements } from './app-access.js';
+import { createAppAccess, loadCurrentEntitlements, organizationBindingEnabled } from './app-access.js';
 import { createPayments, paymentGateway } from './payments.js';
 import { PRODUCT_SLUGS, hasLifetime, resolveProductStates, isPlatformAdmin } from './entitlements.js';
 
@@ -595,13 +595,19 @@ export function createAuthHandler({ env = process.env, clientFactory = createCli
       }
       if (action === 'launch') {
         if (typeof body.product !== 'string' || !SLUG.test(body.product)) return reply(400, { error: 'Unknown product.' });
-        const products = await loadProductStates(client, identity.user.id, now(), env, clientFactory);
-        if (!products) return reply(503, { error: 'Subscription status is unavailable. Try again later.' });
-        if (!products[body.product]) return reply(400, { error: 'Unknown product.' });
-        if (products[body.product] !== 'active') return reply(403, { error: 'An active subscription is required for this application.' });
+        const bound = organizationBindingEnabled(env, body.product);
+        if (!bound) {
+          if (body.organization_id !== undefined) return reply(400, { error: 'Organization launch is unavailable for this application.' });
+          const products = await loadProductStates(client, identity.user.id, now(), env, clientFactory);
+          if (!products) return reply(503, { error: 'Subscription status is unavailable. Try again later.' });
+          if (!products[body.product]) return reply(400, { error: 'Unknown product.' });
+          if (products[body.product] !== 'active') return reply(403, { error: 'An active subscription is required for this application.' });
+        }
         // Tickets bind to a verified, live login-session record; without one, fail closed.
         if (!loginSessionId) return reply(401, { error: 'Sign in again to launch applications.', reason: 'login_required' });
-        const launch = await appAccess.issueTicket({ userId: identity.user.id, product: body.product, loginSessionId });
+        const launch = await appAccess.issueTicket({ userId: identity.user.id, product: body.product, loginSessionId, ...(bound ? { organizationId: body.organization_id } : {}) });
+        if (launch?.status === 400) return reply(400, { error: 'Select a valid organization to launch this application.' });
+        if (launch?.status === 403) return reply(403, { error: 'Application access is not authorized for this organization.' });
         if (launch?.status === 429) return reply(429, { error: 'Please wait before trying again.' });
         if (!launch || launch.status !== 200) return reply(503, { error: 'Secure application launch is unavailable. Try again later.' });
         return reply(200, { next: launch.next });
