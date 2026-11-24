@@ -390,7 +390,7 @@ export function createAppAccess({ env = process.env, adminFactory = createClient
   function traceRedeem(req, stage, status) {
     if (env.VERCEL_ENV !== 'preview' || env.MYOPS_ENVIRONMENT !== 'staging') return;
     const raw = req.headers['x-vercel-id'];
-    const requestId = typeof raw === 'string' && /^(?:[a-z0-9]+:)*[a-z0-9]*::[a-z0-9]+-\d{13}-[a-f0-9]{12}$/i.test(raw) ? raw : null;
+    const requestId = typeof raw === 'string' && /^(?:[a-z0-9]+:{1,2})+[a-z0-9]+-\d{13}-[a-f0-9]{12}$/i.test(raw) ? raw : null;
     console.warn('myops_redeem_trace', { requestId, stage, status });
   }
 
