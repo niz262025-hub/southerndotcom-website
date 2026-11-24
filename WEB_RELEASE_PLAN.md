@@ -38,3 +38,13 @@ GitHub inventory and local source search found no accessible OpsWMS or OpsHR imp
 Payroll statutory calculation must use an explicitly selected jurisdiction and verified current rules before being called production-ready. Do not infer Malaysia or Singapore payroll from the owner's residence or employment alone.
 
 Work order: MYOPS/Finance integration → OpsPS Web → OpsFlow Web → OpsWMS → OpsHR. Shared release gates remain authenticated login, package denial, logout/expiry, tenant A/B and real persisted workflows. All six must pass their own gates before an all-app go-live claim.
+
+## Phase 1A — Central registration and global language
+
+Phase 1A begins after Step 1 release gates pass. This is mandatory roadmap scope.
+
+- Central owns registration and email verification. Replace registration verification links with a six-digit email OTP.
+- Central owns global language selection and the account preference for English, Bahasa Melayu, Simplified Chinese and Tamil. Every satellite inherits the preference.
+- Apply a shared glossary and complete localization. Synchronize language on web, Android and iOS after authenticated refresh and reconnection.
+
+The [Phase 1A roadmap issue](https://github.com/niz262025-hub/southerndotcom-website/issues/102) contains the implementation sequence and acceptance criteria. Phase 1A implementation is outside the Step 1 release candidate.
