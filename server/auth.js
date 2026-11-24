@@ -5,7 +5,7 @@ import { createHmac, timingSafeEqual } from 'node:crypto';
 import { createClient } from '@supabase/supabase-js';
 import { profileFields, descriptiveProfile } from './profile-fields.js';
 import { changeProfileLogo, decodeLogo, ownedLogoPath, profileLogoUrl } from './profile-logo.js';
-import { createAppAccess } from './app-access.js';
+import { createAppAccess, loadCurrentEntitlements } from './app-access.js';
 import { createPayments, paymentGateway } from './payments.js';
 import { PRODUCT_SLUGS, hasLifetime, resolveProductStates, isPlatformAdmin } from './entitlements.js';
 
@@ -206,7 +206,20 @@ export async function runRevocationWorker({ env, headers = {}, body = {}, appAcc
 export { PRODUCT_SLUGS, hasLifetime, resolveProductStates };
 const SLUG = /^[a-z0-9_]{1,32}$/;
 
-async function loadEntitlements(client, userId, now, env = {}) {
+async function loadEntitlements(client, userId, now, env = {}, clientFactory = createClient) {
+  const project = projectForEnvironment(env);
+  const stagingKey = env.VERCEL_ENV === 'preview' && env.MYOPS_ENVIRONMENT === 'staging'
+    ? serverServiceKey(env.MYOPS_SERVICE_ROLE_KEY, project)
+    : null;
+  if (stagingKey) {
+    // Subscription rows remain private to organization admins. Resolve only the verified user's access server-side.
+    const admin = clientFactory(project, stagingKey, { auth: { persistSession: false, autoRefreshToken: false } });
+    const [products, lifetime] = await Promise.all([
+      loadCurrentEntitlements(admin, userId, now, env),
+      client.from('myops_lifetime_entitlements').select('user_id,scope,status').eq('user_id', userId),
+    ]);
+    return products ? { products, lifetime: hasLifetime(userId, lifetime.error ? [] : lifetime.data || []) } : null;
+  }
   const [catalog, subscriptions, grants, lifetime] = await Promise.all([
     client.from('myops_products').select('slug,launch_status'),
     client.from('myops_subscriptions').select('personal_user_id,organization_id,product_slug,is_complete_bundle,status,current_period_end'),
@@ -226,8 +239,8 @@ async function loadEntitlements(client, userId, now, env = {}) {
   };
 }
 
-async function loadProductStates(client, userId, now, env = {}) {
-  return (await loadEntitlements(client, userId, now, env))?.products ?? null;
+async function loadProductStates(client, userId, now, env, clientFactory) {
+  return (await loadEntitlements(client, userId, now, env, clientFactory))?.products ?? null;
 }
 
 function profileFrom(user) {
@@ -556,7 +569,7 @@ export function createAuthHandler({ env = process.env, clientFactory = createCli
         }
       }
       if (action === 'session') {
-        const entitlements = await loadEntitlements(client, identity.user.id, now(), env);
+        const entitlements = await loadEntitlements(client, identity.user.id, now(), env, clientFactory);
         return reply(200, { signedIn: true, email: identity.user.email, products: entitlements?.products ?? null, lifetime: entitlements?.lifetime ?? false, ...(isPlatformAdmin(identity.user.id, env) ? { platformAdmin: true } : {}) });
       }
       if(action==='trial_start'||action==='trial_status') {
@@ -582,7 +595,7 @@ export function createAuthHandler({ env = process.env, clientFactory = createCli
       }
       if (action === 'launch') {
         if (typeof body.product !== 'string' || !SLUG.test(body.product)) return reply(400, { error: 'Unknown product.' });
-        const products = await loadProductStates(client, identity.user.id, now(), env);
+        const products = await loadProductStates(client, identity.user.id, now(), env, clientFactory);
         if (!products) return reply(503, { error: 'Subscription status is unavailable. Try again later.' });
         if (!products[body.product]) return reply(400, { error: 'Unknown product.' });
         if (products[body.product] !== 'active') return reply(403, { error: 'An active subscription is required for this application.' });
@@ -650,7 +663,7 @@ export function createAuthHandler({ env = process.env, clientFactory = createCli
         return reply(200, { next: '/account' });
       }
       // Auth metadata is user-editable and descriptive only; it never grants access.
-      const entitlements = await loadEntitlements(client, identity.user.id, now(), env);
+      const entitlements = await loadEntitlements(client, identity.user.id, now(), env, clientFactory);
       const profile = profileFrom(identity.user);
       if (profile && ownedLogoPath(identity.user.user_metadata?.logo_path, identity.user.id)) {
         profile.has_logo = true;
