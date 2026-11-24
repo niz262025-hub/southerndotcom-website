@@ -16,7 +16,7 @@ test('SSO SQL replay, ticket audience/replay, session revocation and client ACLs
       grant usage on schema auth,public to anon,authenticated,service_role;
       alter default privileges in schema public grant all on tables to anon,authenticated,service_role;`);
     for (const path of ['migrations/202610160001_myops_identity_foundation.sql', 'proposals/phase3_founders_100.sql',
-      'proposals/202610170001_myops_app_access.sql', 'proposals/202610170002_myops_login_sessions.sql']) {
+      'proposals/202610170001_myops_app_access.sql', 'proposals/202610170002_myops_login_sessions.sql', 'proposals/202611240001_myops_org_app_binding.sql']) {
       await db.exec(readFileSync(new URL(`../supabase/${path}`, import.meta.url), 'utf8'));
     }
     const user = await one("insert into auth.users(email,email_confirmed_at) values('sso@test.invalid',now()) returning id as value");
@@ -41,6 +41,26 @@ test('SSO SQL replay, ticket audience/replay, session revocation and client ACLs
     const nonce = randomBytes(32).toString('hex');
     assert.equal(await one('select public.myops_record_app_nonce($1,$2) as value',['opsfinance',nonce]),true);
     assert.equal(await one('select public.myops_record_app_nonce($1,$2) as value',['opsfinance',nonce]),false);
+    const organization = await one("insert into public.myops_organizations(name,owner_user_id) values('Org A',$1) returning id as value", [user]);
+    const other = await one("insert into public.myops_organizations(name,owner_user_id) values('Org B',$1) returning id as value", [user]);
+    await db.query("insert into public.myops_memberships(organization_id,user_id,role,status) values($1,$2,'admin','active')", [organization,user]);
+    const boundHash = randomBytes(32).toString('hex');
+    const issueBound = (org, hash = boundHash) => one('select public.myops_issue_org_app_ticket($1,$2,$3,$4,$5) as value', [user,'opsfinance',hash,login,org]);
+    assert.equal((await issueBound(other)).status, 'denied');
+    assert.equal((await issueBound(organization)).status, 'issued');
+    assert.equal((await one('select public.myops_redeem_app_ticket($1,$2) as value',['opsfinance',boundHash])).status,'denied');
+    const redeemBound = hash => one('select public.myops_redeem_org_app_ticket($1,$2) as value',['opsfinance',hash]);
+    const bound = await redeemBound(boundHash);
+    assert.equal(bound.organization_id, organization);
+    assert.equal((await redeemBound(boundHash)).status, 'denied');
+    const validateBound = () => one('select public.myops_validate_org_app_session($1,$2,$3,false) as value',[bound.session_id,'opsfinance','opsfinance']);
+    assert.equal((await validateBound()).organization_id, organization);
+    assert.equal((await one('select public.myops_validate_app_session($1,$2,$3) as value',[bound.session_id,'opsfinance','opsfinance'])).active,false);
+    const unredeemed = randomBytes(32).toString('hex');
+    assert.equal((await issueBound(organization, unredeemed)).status,'issued');
+    await db.query("update public.myops_memberships set status='suspended' where organization_id=$1 and user_id=$2", [organization,user]);
+    assert.equal((await redeemBound(unredeemed)).status,'denied');
+    assert.equal((await validateBound()).active,false);
     await one('select public.myops_login_end($1,$2,$3) as value',[login,user,'logout']);
     assert.equal((await one('select public.myops_validate_app_session($1,$2,$3) as value',[grant.session_id,'opsfinance','opsfinance'])).active,false);
     assert.equal((await one('select public.myops_issue_app_ticket($1,$2,$3,$4) as value',[user,'opsfinance',randomBytes(32).toString('hex'),login])).status,'unavailable');
@@ -48,6 +68,7 @@ test('SSO SQL replay, ticket audience/replay, session revocation and client ACLs
       await db.exec(`reset role; set role ${role}`);
       await assert.rejects(db.query('select public.myops_redeem_app_ticket($1,$2)',['opsfinance',hash]), /permission denied/);
       await assert.rejects(db.query('select * from public.myops_app_tickets'), /permission denied/);
+      await assert.rejects(db.query('select public.myops_redeem_org_app_ticket($1,$2)',['opsfinance',boundHash]), /permission denied/);
     }
   } finally {
     await db.close();
