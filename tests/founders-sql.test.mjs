@@ -73,7 +73,9 @@ before(async () => {
     grant usage on schema public to anon, authenticated, service_role;
     alter default privileges in schema public grant all on tables to anon, authenticated, service_role;`);
   const migrations = new URL('../supabase/migrations/', import.meta.url);
+  const mobileConstraints = '20261125175729_production_parity_mobile_security_constraints.sql';
   for (const file of readdirSync(migrations).sort()) {
+    if (file === mobileConstraints) continue;
     await run(`${binDir}/psql`, ['-X', '-q', '-v', 'ON_ERROR_STOP=1', '-h', sock, '-p', String(PORT), '-U', 'postgres', '-d', 'myops', '-f', new URL(file, migrations).pathname]);
   }
   const proposal = new URL('../supabase/proposals/phase3_founders_100.sql', import.meta.url).pathname;
@@ -82,6 +84,7 @@ before(async () => {
   await run(`${binDir}/psql`, ['-X', '-q', '-v', 'ON_ERROR_STOP=1', '-h', sock, '-p', String(PORT), '-U', 'postgres', '-d', 'myops', '-f', appAccessProposal]);
   const loginProposal = new URL('../supabase/proposals/202610170002_myops_login_sessions.sql', import.meta.url).pathname;
   await run(`${binDir}/psql`, ['-X', '-q', '-v', 'ON_ERROR_STOP=1', '-h', sock, '-p', String(PORT), '-U', 'postgres', '-d', 'myops', '-f', loginProposal]);
+  await run(`${binDir}/psql`, ['-X', '-q', '-v', 'ON_ERROR_STOP=1', '-h', sock, '-p', String(PORT), '-U', 'postgres', '-d', 'myops', '-f', new URL(mobileConstraints, migrations).pathname]);
   const mobileProposal = new URL('../supabase/proposals/20261118044103_myops_mobile_sso_rpcs.sql', import.meta.url).pathname;
   for (let replay = 0; replay < 2; replay++) {
     await run(`${binDir}/psql`, ['-X', '-q', '-v', 'ON_ERROR_STOP=1', '-h', sock, '-p', String(PORT), '-U', 'postgres', '-d', 'myops', '-f', mobileProposal]);
