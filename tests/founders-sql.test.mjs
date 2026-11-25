@@ -61,12 +61,21 @@ before(async () => {
   await run(`${binDir}/createdb`, ['-h', sock, '-p', String(PORT), '-U', 'postgres', 'myops']);
   await sql(`create role anon nologin; create role authenticated nologin; create role service_role nologin;
     create schema auth; create table auth.users (id uuid primary key default gen_random_uuid(), email text, email_confirmed_at timestamptz);
-    create function auth.uid() returns uuid language sql stable as $$ select nullif(current_setting('request.jwt.claim.sub', true), '')::uuid $$;
+    create function auth.uid() returns uuid language sql stable as $body$ select nullif(current_setting('request.jwt.claim.sub', true), '')::uuid $body$;
+    -- Minimal Supabase Storage objects required by the recorded logo migration.
+    create schema storage;
+    create table storage.objects (id uuid primary key default gen_random_uuid(), bucket_id text, name text);
+    alter table storage.objects enable row level security;
+    create function storage.foldername(text) returns text[] language sql immutable as $body$
+      select (string_to_array($1, '/'))[1:array_length(string_to_array($1, '/'), 1) - 1]
+    $body$;
     grant usage on schema auth to anon, authenticated, service_role;
     grant usage on schema public to anon, authenticated, service_role;
     alter default privileges in schema public grant all on tables to anon, authenticated, service_role;`);
   const migrations = new URL('../supabase/migrations/', import.meta.url);
+  const mobileConstraints = '20261125175729_production_parity_mobile_security_constraints.sql';
   for (const file of readdirSync(migrations).sort()) {
+    if (file === mobileConstraints) continue;
     await run(`${binDir}/psql`, ['-X', '-q', '-v', 'ON_ERROR_STOP=1', '-h', sock, '-p', String(PORT), '-U', 'postgres', '-d', 'myops', '-f', new URL(file, migrations).pathname]);
   }
   const proposal = new URL('../supabase/proposals/phase3_founders_100.sql', import.meta.url).pathname;
@@ -75,6 +84,12 @@ before(async () => {
   await run(`${binDir}/psql`, ['-X', '-q', '-v', 'ON_ERROR_STOP=1', '-h', sock, '-p', String(PORT), '-U', 'postgres', '-d', 'myops', '-f', appAccessProposal]);
   const loginProposal = new URL('../supabase/proposals/202610170002_myops_login_sessions.sql', import.meta.url).pathname;
   await run(`${binDir}/psql`, ['-X', '-q', '-v', 'ON_ERROR_STOP=1', '-h', sock, '-p', String(PORT), '-U', 'postgres', '-d', 'myops', '-f', loginProposal]);
+  await run(`${binDir}/psql`, ['-X', '-q', '-v', 'ON_ERROR_STOP=1', '-h', sock, '-p', String(PORT), '-U', 'postgres', '-d', 'myops', '-f', new URL(mobileConstraints, migrations).pathname]);
+  const mobileProposal = new URL('../supabase/proposals/20261118044103_myops_mobile_sso_rpcs.sql', import.meta.url).pathname;
+  for (let replay = 0; replay < 2; replay++) {
+    await run(`${binDir}/psql`, ['-X', '-q', '-v', 'ON_ERROR_STOP=1', '-h', sock, '-p', String(PORT), '-U', 'postgres', '-d', 'myops', '-f', mobileProposal]);
+  }
+  assert.equal(await sql("select count(*) from pg_proc p join pg_namespace n on n.oid=p.pronamespace where n.nspname='public' and p.proname like 'myops_mobile_%' and p.prosecdef and not has_function_privilege('anon',p.oid,'EXECUTE') and not has_function_privilege('authenticated',p.oid,'EXECUTE') and has_function_privilege('service_role',p.oid,'EXECUTE')"), '7');
   // Supabase grants service_role BYPASSRLS; the stub cluster must match.
   await sql('alter role service_role bypassrls; grant execute on all functions in schema public to service_role');
   await sql('revoke execute on all functions in schema public from public, anon, authenticated');
@@ -665,6 +680,26 @@ test('login sessions: clients cannot reach tables or functions and the proposal 
   const rollback = readFileSync(new URL('../supabase/proposals/202610170002_myops_login_sessions_rollback.sql', import.meta.url), 'utf8');
   assert.match(rollback, /NOT EXECUTED/);
   assert.doesNotMatch(rollback, /cron\./i);
+});
+
+test('mobile replay: dependency guard and reverse-order teardown in disposable database', { skip }, async () => {
+  // The legacy rollback tests below exercise the pre-mobile schema.
+  // First prove the new foreign keys prevent dropping the parent, then
+  // remove only the mobile fixtures from this throwaway PostgreSQL cluster.
+  await assert.rejects(sql('drop table public.myops_login_sessions'), /depend on it/);
+  await sql(`BEGIN;
+    DROP FUNCTION public.myops_mobile_issue_code(text,uuid,uuid,text);
+    DROP FUNCTION public.myops_mobile_redeem_and_issue(text,text,text,text,text,text);
+    DROP FUNCTION public.myops_mobile_redeem_code(text,text,text,text);
+    DROP FUNCTION public.myops_mobile_revoke_access(text);
+    DROP FUNCTION public.myops_mobile_revoke_refresh(text);
+    DROP FUNCTION public.myops_mobile_rotate_refresh(text,text,text);
+    DROP FUNCTION public.myops_mobile_verify_access(text);
+    DROP TABLE public.myops_mobile_used_refresh;
+    DROP TABLE public.myops_mobile_sessions;
+    DROP TABLE public.myops_mobile_authorization_codes;
+    COMMIT;`);
+  assert.equal(await sql("select count(*) from pg_class c join pg_namespace n on n.oid=c.relnamespace where n.nspname='public' and c.relkind='r' and c.relname in ('myops_mobile_used_refresh','myops_mobile_sessions','myops_mobile_authorization_codes')"), '0');
 });
 
 test('rollback safety: 0002 rollback revokes stale, revoked and evicted login-bound sessions before dropping the binding', async () => {

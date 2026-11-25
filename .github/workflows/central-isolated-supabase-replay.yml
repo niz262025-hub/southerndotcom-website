@@ -1,0 +1,70 @@
+name: Central isolated Supabase replay
+on:
+  push:
+    branches: ['staging/production-baseline']
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  replay:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: supabase/setup-cli@v1
+        with:
+          version: 2.54.11
+      - name: Start disposable local Supabase
+        run: |
+          mkdir -p "$RUNNER_TEMP/myops-replay"
+          cd "$RUNNER_TEMP/myops-replay"
+          supabase init
+          supabase start
+      - name: Replay Central dependency order and assert privileges
+        shell: bash
+        run: |
+          set -euo pipefail
+          export PGHOST=127.0.0.1 PGPORT=54322 PGUSER=postgres PGPASSWORD=postgres PGDATABASE=postgres
+          for file in \
+            migrations/202610160001_myops_identity_foundation.sql \
+            migrations/20261101104802_central_trial_7_day_foundation.sql \
+            migrations/20261101164633_central_trial_usage_limits.sql \
+            migrations/20261118044103_myops_mobile_sso_tables.sql \
+            migrations/20261125124355_production_parity_profile_logo_policies.sql \
+            proposals/phase3_founders_100.sql \
+            proposals/202610170001_myops_app_access.sql \
+            proposals/202610170002_myops_login_sessions.sql \
+            migrations/20261125175729_production_parity_mobile_security_constraints.sql \
+            proposals/20261118044103_myops_mobile_sso_rpcs.sql \
+            migrations/20261125192226_central_browser_role_noncrud_hardening.sql \
+            migrations/20261125193036_central_service_role_noncrud_hardening.sql
+          do
+            echo "Replay: $file"
+            psql -X -v ON_ERROR_STOP=1 -f "supabase/$file"
+          done
+          psql -X -v ON_ERROR_STOP=1 <<'SQL'
+          DO $$
+          DECLARE t text; p text; r text;
+          BEGIN
+            FOREACH t IN ARRAY ARRAY['myops_app_audit','myops_app_clients','myops_app_grants','myops_app_nonces','myops_app_rate_limits','myops_app_sessions','myops_app_tickets','myops_founder_allocations','myops_lifetime_entitlements','myops_login_sessions','myops_memberships','myops_mobile_authorization_codes','myops_mobile_sessions','myops_mobile_used_refresh','myops_organizations','myops_payment_events','myops_payments','myops_plans','myops_products','myops_profiles','myops_revocation_requests','myops_subscriptions','myops_trials'] LOOP
+              IF to_regclass('public.'||t) IS NULL THEN RAISE EXCEPTION 'Missing table %',t; END IF;
+              IF NOT (SELECT relrowsecurity FROM pg_class WHERE oid=to_regclass('public.'||t)) THEN RAISE EXCEPTION 'RLS missing %',t; END IF;
+              FOREACH p IN ARRAY ARRAY['TRUNCATE','REFERENCES','TRIGGER'] LOOP
+                IF has_table_privilege('service_role','public.'||t,p) THEN RAISE EXCEPTION 'Unexpected service privilege % %',t,p; END IF;
+              END LOOP;
+            END LOOP;
+            FOREACH t IN ARRAY ARRAY['myops_app_grants','myops_memberships','myops_organizations','myops_products','myops_profiles','myops_subscriptions'] LOOP
+              FOREACH r IN ARRAY ARRAY['anon','authenticated'] LOOP
+                FOREACH p IN ARRAY ARRAY['TRUNCATE','REFERENCES','TRIGGER'] LOOP
+                  IF has_table_privilege(r,'public.'||t,p) THEN RAISE EXCEPTION 'Unexpected browser privilege % % %',r,t,p; END IF;
+                END LOOP;
+              END LOOP;
+            END LOOP;
+            IF (SELECT count(*) FROM pg_proc p JOIN pg_namespace n ON n.oid=p.pronamespace WHERE n.nspname='public' AND p.proname LIKE 'myops_mobile_%' AND p.prosecdef AND NOT has_function_privilege('anon',p.oid,'EXECUTE') AND NOT has_function_privilege('authenticated',p.oid,'EXECUTE') AND has_function_privilege('service_role',p.oid,'EXECUTE')) <> 7 THEN RAISE EXCEPTION 'Mobile RPC ACL mismatch'; END IF;
+          END $$;
+          SQL
+      - name: Stop disposable Supabase
+        if: always()
+        run: |
+          cd "$RUNNER_TEMP/myops-replay"
+          supabase stop --no-backup

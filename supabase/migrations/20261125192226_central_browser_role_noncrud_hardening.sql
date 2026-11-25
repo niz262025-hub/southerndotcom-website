@@ -1,0 +1,1 @@
+REVOKE TRUNCATE, REFERENCES, TRIGGER ON public.myops_app_grants, public.myops_memberships, public.myops_organizations, public.myops_products, public.myops_profiles, public.myops_subscriptions FROM anon, authenticated;
