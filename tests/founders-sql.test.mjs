@@ -682,6 +682,26 @@ test('login sessions: clients cannot reach tables or functions and the proposal 
   assert.doesNotMatch(rollback, /cron\./i);
 });
 
+test('mobile replay: dependency guard and reverse-order teardown in disposable database', { skip }, async () => {
+  // The legacy rollback tests below exercise the pre-mobile schema.
+  // First prove the new foreign keys prevent dropping the parent, then
+  // remove only the mobile fixtures from this throwaway PostgreSQL cluster.
+  await assert.rejects(sql('drop table public.myops_login_sessions'), /depend on it/);
+  await sql(`BEGIN;
+    DROP FUNCTION public.myops_mobile_issue_code(text,uuid,uuid,text);
+    DROP FUNCTION public.myops_mobile_redeem_and_issue(text,text,text,text,text,text);
+    DROP FUNCTION public.myops_mobile_redeem_code(text,text,text,text);
+    DROP FUNCTION public.myops_mobile_revoke_access(text);
+    DROP FUNCTION public.myops_mobile_revoke_refresh(text);
+    DROP FUNCTION public.myops_mobile_rotate_refresh(text,text,text);
+    DROP FUNCTION public.myops_mobile_verify_access(text);
+    DROP TABLE public.myops_mobile_used_refresh;
+    DROP TABLE public.myops_mobile_sessions;
+    DROP TABLE public.myops_mobile_authorization_codes;
+    COMMIT;`);
+  assert.equal(await sql("select count(*) from pg_class c join pg_namespace n on n.oid=c.relnamespace where n.nspname='public' and c.relkind='r' and c.relname in ('myops_mobile_used_refresh','myops_mobile_sessions','myops_mobile_authorization_codes')"), '0');
+});
+
 test('rollback safety: 0002 rollback revokes stale, revoked and evicted login-bound sessions before dropping the binding', async () => {
   if (skip) return;
   await resetRollbackState();
