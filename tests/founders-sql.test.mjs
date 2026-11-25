@@ -61,14 +61,14 @@ before(async () => {
   await run(`${binDir}/createdb`, ['-h', sock, '-p', String(PORT), '-U', 'postgres', 'myops']);
   await sql(`create role anon nologin; create role authenticated nologin; create role service_role nologin;
     create schema auth; create table auth.users (id uuid primary key default gen_random_uuid(), email text, email_confirmed_at timestamptz);
-    create function auth.uid() returns uuid language sql stable as $ select nullif(current_setting('request.jwt.claim.sub', true), '')::uuid $;
+    create function auth.uid() returns uuid language sql stable as $body$ select nullif(current_setting('request.jwt.claim.sub', true), '')::uuid $body$;
     -- Minimal Supabase Storage objects required by the recorded logo migration.
     create schema storage;
     create table storage.objects (id uuid primary key default gen_random_uuid(), bucket_id text, name text);
     alter table storage.objects enable row level security;
-    create function storage.foldername(text) returns text[] language sql immutable as $
+    create function storage.foldername(text) returns text[] language sql immutable as $body$
       select (string_to_array($1, '/'))[1:array_length(string_to_array($1, '/'), 1) - 1]
-    $;
+    $body$;
     grant usage on schema auth to anon, authenticated, service_role;
     grant usage on schema public to anon, authenticated, service_role;
     alter default privileges in schema public grant all on tables to anon, authenticated, service_role;`);
