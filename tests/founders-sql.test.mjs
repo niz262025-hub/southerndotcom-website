@@ -82,6 +82,11 @@ before(async () => {
   await run(`${binDir}/psql`, ['-X', '-q', '-v', 'ON_ERROR_STOP=1', '-h', sock, '-p', String(PORT), '-U', 'postgres', '-d', 'myops', '-f', appAccessProposal]);
   const loginProposal = new URL('../supabase/proposals/202610170002_myops_login_sessions.sql', import.meta.url).pathname;
   await run(`${binDir}/psql`, ['-X', '-q', '-v', 'ON_ERROR_STOP=1', '-h', sock, '-p', String(PORT), '-U', 'postgres', '-d', 'myops', '-f', loginProposal]);
+  const mobileProposal = new URL('../supabase/proposals/20261118044103_myops_mobile_sso_rpcs.sql', import.meta.url).pathname;
+  for (let replay = 0; replay < 2; replay++) {
+    await run(`${binDir}/psql`, ['-X', '-q', '-v', 'ON_ERROR_STOP=1', '-h', sock, '-p', String(PORT), '-U', 'postgres', '-d', 'myops', '-f', mobileProposal]);
+  }
+  assert.equal(await sql("select count(*) from pg_proc p join pg_namespace n on n.oid=p.pronamespace where n.nspname='public' and p.proname like 'myops_mobile_%' and p.prosecdef and not has_function_privilege('anon',p.oid,'EXECUTE') and not has_function_privilege('authenticated',p.oid,'EXECUTE') and has_function_privilege('service_role',p.oid,'EXECUTE')"), '7');
   // Supabase grants service_role BYPASSRLS; the stub cluster must match.
   await sql('alter role service_role bypassrls; grant execute on all functions in schema public to service_role');
   await sql('revoke execute on all functions in schema public from public, anon, authenticated');
