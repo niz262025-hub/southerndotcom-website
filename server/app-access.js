@@ -431,6 +431,9 @@ export function createAppAccess({ env = process.env, adminFactory = createClient
   }
 
   async function redeem(req, res) {
+    if (env.VERCEL_ENV === 'preview' && env.MYOPS_ENVIRONMENT === 'staging') {
+      res.setHeader('x-myops-preview-redemption', 'central');
+    }
     traceRedeem(req, 'handler_entry', null);
     let auth;
     try {
