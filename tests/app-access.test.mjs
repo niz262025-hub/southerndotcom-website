@@ -212,6 +212,20 @@ test('current subscription expiry, revocation and Founder lifetime use the centr
   tables.myops_lifetime_entitlements = [{ user_id: userId, scope: 'all_apps', status: 'active' }];
   const lifetime = await loadCurrentEntitlements(client, userId, now);
   assert.deepEqual(lifetime, { opsp: 'active', opsfinance: 'active', opsfuture: 'active', opsflow: 'coming_soon', opswms: 'coming_soon', opshr: 'coming_soon' });
+  const catalog = { ...tables, myops_products: [...tables.myops_products, { slug: 'opsrental', launch_status: 'live' }] };
+  const liveWithRental = await loadCurrentEntitlements({
+    from(table) {
+      const filters = [];
+      const query = {
+        select() { return query; },
+        eq(key, value) { filters.push((row) => row[key] === value); return query; },
+        in(key, values) { filters.push((row) => values.includes(row[key])); return query; },
+        then(resolve) { return resolve({ data: (catalog[table] || []).filter((row) => filters.every((filter) => filter(row))), error: null }); },
+      };
+      return query;
+    },
+  }, userId, now);
+  assert.equal(liveWithRental.opsrental, 'active');
 });
 
 test('requests require Preview configuration and do not use a service role in the browser', async () => {
@@ -520,4 +534,43 @@ test('snapshot retains company trial isolation and never grants Coming Soon appl
   f.trial.organization_id = null;
   f.tables.myops_products[0].launch_status = 'coming_soon';
   assert.equal((await call(f.handler.entitlement, f.request())).statusCode, 403);
+});
+
+test('scoped OpsRental administrator is verified against current session and active organization role', async () => {
+  const org = '4bc79d9a-e917-4bab-bf29-b318a4f5542c';
+  const body = { session_id: sessionId, product: 'opsrental', organization_id: org };
+  const request = () => signedRequest({ path:'/api/app/entitlement', body });
+  for (const [adminId, role, active, sessionActive, expected] of [
+    [userId, 'owner', true, true, 200], [userId, 'admin', true, true, 200],
+    [userId, 'manager', true, true, 403], [userId, 'owner', false, true, 403],
+    ['another-user', 'owner', true, true, 403], [userId, 'owner', true, false, 403],
+  ]) {
+    const fixture = make({ product:'opsrental', sessionActive, env:{...baseEnv, MYOPS_ADMIN_USER_IDS:adminId} });
+    fixture.admin.from = table => {
+      const filters = {};
+      const query = { select() { return this; }, eq(key,value) { filters[key] = value; return this; },
+        async maybeSingle() { return { data: table === 'myops_platform_administrators'
+          ? (adminId === userId && filters.user_id === userId ? { user_id:userId, status:'active' } : null)
+          : active && filters.user_id === userId && filters.organization_id === org && filters.status === 'active'
+          ? { organization_id: org, role } : null, error:null }; } };
+      return query;
+    };
+    const res = await call(fixture.handler.entitlement, request());
+    assert.equal(res.statusCode, expected);
+    if (expected === 200) { assert.equal(res.body.access_mode,'admin'); assert.equal(res.body.organization_id,org); }
+  }
+});
+
+test('scoped admin authorization reads registry again after revocation and fails closed on lookup outage', async () => {
+  const org='4bc79d9a-e917-4bab-bf29-b318a4f5542c';
+  const fixture=make({product:'opsrental',env:{...baseEnv,MYOPS_ADMIN_USER_IDS:userId}});
+  let status='active', unavailable=false;
+  fixture.admin.from = table => ({ select(){return this;}, eq(){return this;}, async maybeSingle(){
+    if (table==='myops_platform_administrators') return unavailable ? {data:null,error:{message:'unavailable'}} : {data:{user_id:userId,status},error:null};
+    return {data:{organization_id:org,role:'owner'},error:null};
+  }});
+  const run=()=>call(fixture.handler.entitlement,signedRequest({path:'/api/app/entitlement',body:{session_id:sessionId,product:'opsrental',organization_id:org}}));
+  assert.equal((await run()).statusCode,200);
+  status='revoked'; assert.equal((await run()).statusCode,403);
+  unavailable=true; assert.equal((await run()).statusCode,503);
 });

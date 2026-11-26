@@ -25,7 +25,7 @@ test('central trial: exact 168h, one use, no billing/grants, RLS and passive log
   assert.equal(Date.parse(trial.expires_at)-Date.parse(trial.started_at),168*3600*1000);
   const consume=(app,feature,operation)=>one('SELECT myops_consume_trial_quota($1,$2,$3,$4,$5) value',[user,login,app,feature,operation]);
   const operation=n=>`00000000-0000-4000-8000-${String(n).padStart(12,'0')}`;
-  for(const [app,feature,limit] of [['opsfinance','transactions',30],['opsfinance','bank_statements',2],['opsfinance','invoice_receipt_documents',5],['opsflow','workflows',2],['opsp','projects',2]]) {
+  for(const [app,feature,limit] of [['opsfinance','transactions',30],['opsflow','transactions',30],['opsp','transactions',30],['opsfinance','bank_statements',2],['opsfinance','invoice_receipt_documents',5],['opsflow','workflows',2],['opsp','projects',2]]) {
    for(let i=1;i<=limit;i++) assert.equal((await consume(app,feature,operation(i))).used,i);
    assert.equal((await consume(app,feature,operation(limit+1))).reason,'trial_limit_reached');
    const replay=await consume(app,feature,operation(1));assert.equal(replay.allowed,true);assert.equal(replay.replayed,true);assert.equal(replay.used,limit);

@@ -421,8 +421,9 @@ export function createAppAccess({ env = process.env, adminFactory = createClient
       auth = await authenticate(req, res, 'entitlement');
       if (!auth || typeof auth.statusCode === 'number') return auth;
       const { admin, appId, clientData, body, reply } = auth;
-      if (Object.keys(body).some((key) => !['session_id', 'product', 'sensitive', 'activity', 'profile'].includes(key))
+      if (Object.keys(body).some((key) => !['session_id', 'product', 'sensitive', 'activity', 'profile', 'organization_id'].includes(key))
           || !SESSION_ID.test(body.session_id || '') || body.product !== clientData.product_slug
+          || (body.organization_id !== undefined && (!USER_ID.test(body.organization_id) || body.product !== 'opsrental'))
           || (body.sensitive !== undefined && typeof body.sensitive !== 'boolean')
           || (body.activity !== undefined && typeof body.activity !== 'boolean')
           || (body.profile !== undefined && typeof body.profile !== 'boolean')
@@ -448,6 +449,26 @@ export function createAppAccess({ env = process.env, adminFactory = createClient
           p_session_id: body.session_id, p_reason: 'entitlement_revoked',
         });
         return reply(403, { entitled: false, session_active: false });
+      }
+      // A platform administrator receives no organization privilege from the
+      // platform role alone. Verify the requested scope freshly on each call.
+      if (body.organization_id !== undefined) {
+        // The organization-level decision must never rely on an environment
+        // allowlist or a previously issued claim. Read the current record.
+        const authority = await admin.from('myops_platform_administrators').select('user_id,status')
+          .eq('user_id', appSession.user_id).maybeSingle();
+        if (authority.error) return reply(503, { entitled: false, error: 'Administrator status could not be verified.' });
+        if (!authority.data || authority.data.user_id !== appSession.user_id || authority.data.status !== 'active') {
+          return reply(403, { entitled: false });
+        }
+        const membership = await admin.from('myops_memberships').select('organization_id,role')
+          .eq('user_id', appSession.user_id).eq('organization_id', body.organization_id)
+          .eq('status', 'active').maybeSingle();
+        if (membership.error) return reply(503, { entitled: false, error: 'Organization access could not be verified.' });
+        if (!membership.data || membership.data.organization_id !== body.organization_id
+            || !['owner', 'admin'].includes(membership.data.role)) return reply(403, { entitled: false });
+        return reply(200, { entitled: true, session_active: true, access_mode: 'admin',
+          organization_id: body.organization_id, checked_at: new Date(now()).toISOString() });
       }
       let mode = { access_mode:'paid' };
       if(trialAppsForEnvironment(env).includes(body.product)) {
