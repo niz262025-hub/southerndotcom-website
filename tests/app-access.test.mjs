@@ -521,3 +521,101 @@ test('snapshot retains company trial isolation and never grants Coming Soon appl
   f.tables.myops_products[0].launch_status = 'coming_soon';
   assert.equal((await call(f.handler.entitlement, f.request())).statusCode, 403);
 });
+
+test('bound HTTP flow uses only the selected organization for issue, redemption and refresh', async () => {
+  const organization = 'ffdfca04-db7d-4ff4-89c5-cdbc95c3099d';
+  const other = '9cacc056-c964-456f-ab28-68711928607e';
+  const env = { ...baseEnv, MYOPS_ORGANIZATION_BOUND_PRODUCTS: 'opsp',
+    VITE_SUPABASE_URL: 'https://wengxxiqwtosirealghx.supabase.co', MYOPS_USE_ISOLATED_STAGING: 'true',
+    MYOPS_ENABLE_STAGING_TRIAL_ACCESS: 'true', MYOPS_TRIAL_READY_APPS: 'opsp', MYOPS_OPSPS_TRIAL_UAT_READY: 'true' };
+  const { handler, admin, calls } = make({ env });
+  const previousRpc = admin.rpc;
+  let subscriptionStatus = 'active';
+  let trialOrganization = null;
+  const data = () => ({
+    myops_products: [{ slug: appId, launch_status: 'live' }],
+    myops_memberships: [{ organization_id: organization, user_id: userId, status: 'active', role: 'admin' }],
+    myops_subscriptions: [
+      { organization_id: organization, product_slug: appId, status: subscriptionStatus },
+      { organization_id: other, product_slug: appId, status: 'active' },
+    ],
+    myops_app_grants: [{ organization_id: organization, user_id: userId, product_slug: appId }],
+    myops_trials: trialOrganization ? [{ id: 'trial-1', user_id: userId, organization_id: trialOrganization,
+      status: 'active', policy_version: 1, started_at: new Date(NOW - 1000).toISOString(), expires_at: new Date(NOW - 1000 + 7 * 86400000).toISOString() }] : [],
+    myops_organizations: [{ id: organization, owner_user_id: userId }],
+  });
+  admin.from = table => ({
+    select() { return this; },
+    eq(key, value) { this.filters ??= []; this.filters.push([key, value]); return this; },
+    maybeSingle() { return Promise.resolve({ data: data()[table].filter(row => (this.filters || []).every(([key, value]) => row[key] === value))[0] || null, error: null }); },
+    then(resolve) {
+      return resolve({ data: data()[table].filter(row => this.filters.every(([key, value]) => row[key] === value)), error: null });
+    },
+  });
+  admin.rpc = async (name, args) => {
+    if (name === 'myops_issue_org_app_ticket') {
+      calls.push([name, args]);
+      return { data: { status: 'issued' }, error: null };
+    }
+    if (name === 'myops_redeem_org_app_ticket' || name === 'myops_validate_org_app_session') {
+      calls.push([name, args]);
+      return { data: { status: 'redeemed', active: true, user_id: userId, session_id: sessionId,
+        product_slug: appId, organization_id: organization }, error: null };
+    }
+    return previousRpc(name, args);
+  };
+  const launch = organizationId => handler.issueTicket({ userId, product: appId, loginSessionId, organizationId });
+  assert.equal((await launch(undefined)).status, 400);
+  assert.equal((await launch(other)).status, 403);
+  assert.equal((await launch(organization)).status, 200);
+  assert.equal(calls.find(([name]) => name === 'myops_issue_org_app_ticket')[1].p_organization_id, organization);
+  const redeemed = await call(handler.redeem, signedRequest({ path: '/api/app/redeem', body: { ticket: 'x'.repeat(43) } }));
+  assert.equal(redeemed.statusCode, 200);
+  assert.equal(redeemed.body.organization_id, organization);
+
+  const validate = organization_id => call(handler.entitlement, signedRequest({
+    path: '/api/app/entitlement', body: { session_id: sessionId, product: appId, activity: true, organization_id },
+  }));
+  assert.equal((await validate(other)).statusCode, 403);
+  assert.equal(calls.some(([name, args]) => name === 'myops_validate_org_app_session' && args.p_touch), false);
+  assert.equal((await validate(organization)).body.organization_id, organization);
+  assert.equal((await validate(organization)).body.access_mode, 'paid');
+  assert.equal(calls.filter(([name, args]) => name === 'myops_validate_org_app_session' && args.p_touch).length, 2);
+  subscriptionStatus = 'expired';
+  assert.equal((await validate(organization)).statusCode, 403);
+  assert.ok(calls.some(([name, args]) => name === 'myops_revoke_app_session' && args.p_session_id === sessionId));
+  trialOrganization = other;
+  assert.equal((await validate(organization)).statusCode, 403);
+  trialOrganization = organization;
+  const trialResponse = await validate(organization);
+  assert.equal(trialResponse.statusCode, 200);
+  assert.equal(trialResponse.body.access_mode, 'trial');
+  assert.equal(trialResponse.body.trial.id, 'trial-1');
+});
+
+
+test('staging redemption diagnostics contain only bounded request ID and fixed stages', async () => {
+  const events = [];
+  const original = console.warn;
+  console.warn = (...args) => events.push(args);
+  try {
+    const ticket = 'x'.repeat(43);
+    const body = { ticket };
+    const request = signedRequest({ path: '/api/app/redeem', body, headers: {
+      'x-vercel-id': 'cle1:iad1::h5tbr-1795540282123-2287494cc987',
+    } });
+    const response = await call(make().handler.redeem, request);
+    assert.equal(response.statusCode, 200);
+    const logs = events.filter(([name]) => name === 'myops_redeem_trace').map(([, value]) => value);
+    assert.deepEqual(logs.map(item => item.stage), ['handler_entry', 'authentication_entry', 'authentication_passed', 'redemption_succeeded']);
+    assert.ok(logs.every(item => item.requestId === 'cle1:iad1::h5tbr-1795540282123-2287494cc987'));
+    assert.doesNotMatch(JSON.stringify(logs), new RegExp(ticket));
+    events.length = 0;
+    const bad = signedRequest({ path: '/api/app/redeem', body, signatureKey: generateKeyPairSync('ed25519').privateKey, headers: { 'x-vercel-id': ticket } });
+    assert.equal((await call(make().handler.redeem, bad)).statusCode, 401);
+    const rejected = events.filter(([name]) => name === 'myops_redeem_trace').map(([, value]) => value);
+    assert.ok(rejected.some(item => item.stage === 'signature_rejected' && item.status === 401));
+    assert.ok(rejected.every(item => item.requestId === null));
+    assert.doesNotMatch(JSON.stringify(rejected), new RegExp(ticket));
+  } finally { console.warn = original; }
+});

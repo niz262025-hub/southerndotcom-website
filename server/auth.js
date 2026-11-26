@@ -5,7 +5,7 @@ import { createHmac, timingSafeEqual } from 'node:crypto';
 import { createClient } from '@supabase/supabase-js';
 import { profileFields, descriptiveProfile } from './profile-fields.js';
 import { changeProfileLogo, decodeLogo, ownedLogoPath, profileLogoUrl } from './profile-logo.js';
-import { createAppAccess, loadCurrentEntitlements } from './app-access.js';
+import { createAppAccess, loadCurrentEntitlements, organizationBindingEnabled } from './app-access.js';
 import { createPayments, paymentGateway } from './payments.js';
 import { PRODUCT_SLUGS, hasLifetime, resolveProductStates, isPlatformAdmin } from './entitlements.js';
 
@@ -348,7 +348,7 @@ export function createAuthHandler({ env = process.env, clientFactory = createCli
       const productionAccountActions = ['register', 'verify_signup_otp', 'resend_signup_otp', 'login', 'forgot', 'callback', 'logout', 'session', 'account', 'reset', 'profile', 'profile-logo', 'founders'];
       if (production && !productionAccountActions.includes(action)
           && !(action === 'admin_audit' && env.MYOPS_ENABLE_PLATFORM_ADMIN === 'true')
-          && !(action === 'launch' && productionAppAccessEnabled)
+          && !(['launch', 'launch-options'].includes(action) && productionAppAccessEnabled)
           && !(['trial_start','trial_status'].includes(action) && trialAppsForEnvironment(env).length)
           && !(action === 'checkout' && productionPaymentsEnabled)) {
         return reply(404, { error: 'This feature is not enabled.' });
@@ -527,7 +527,7 @@ export function createAuthHandler({ env = process.env, clientFactory = createCli
         return runRevocationWorker({ env, headers: req.headers, body, appAccess, reply });
       }
       if (action === 'founders') return reply(200, await payments.founders());
-      if (!['account', 'reset', 'profile', 'profile-logo', 'session', 'launch', 'checkout', 'payment_reconcile', 'admin_audit', 'trial_start', 'trial_status'].includes(action)) return reply(400, { error: 'Unknown operation.' });
+      if (!['account', 'reset', 'profile', 'profile-logo', 'session', 'launch', 'launch-options', 'checkout', 'payment_reconcile', 'admin_audit', 'trial_start', 'trial_status'].includes(action)) return reply(400, { error: 'Unknown operation.' });
       let active = saved[SESSION] && activityValid(secret, saved[ACTIVITY], now());
       const { data: identity, error: identityError } = saved[SESSION]
         ? await client.auth.getUser(saved[SESSION]) : { data: {}, error: true };
@@ -593,15 +593,35 @@ export function createAuthHandler({ env = process.env, clientFactory = createCli
         const result = await payments.audit({ userId: identity.user.id });
         return reply(result.status, result.body);
       }
+      if (action === 'launch-options') {
+        if (typeof body.product !== 'string' || !SLUG.test(body.product)) return reply(400, { error: 'Unknown product.' });
+        if (!organizationBindingEnabled(env, body.product)) return reply(200, { organizationRequired: false });
+        const key = serverServiceKey(env.MYOPS_SERVICE_ROLE_KEY, PROJECT);
+        if (!key) return reply(503, { error: 'Organization selection is unavailable.' });
+        const admin = clientFactory(PROJECT, key, { auth: { persistSession: false, autoRefreshToken: false } });
+        const members = await admin.from('myops_memberships').select('organization_id').eq('user_id', identity.user.id).eq('status', 'active');
+        if (members.error) return reply(503, { error: 'Organization selection is unavailable.' });
+        const ids = [...new Set((members.data || []).map(row => row.organization_id).filter(id => typeof id === 'string'))];
+        if (!ids.length) return reply(200, { organizationRequired: true, organizations: [] });
+        const organizations = await admin.from('myops_organizations').select('id,name').in('id', ids);
+        if (organizations.error) return reply(503, { error: 'Organization selection is unavailable.' });
+        return reply(200, { organizationRequired: true, organizations: (organizations.data || []).filter(row => ids.includes(row.id)).map(row => ({ id: row.id, name: row.name })) });
+      }
       if (action === 'launch') {
         if (typeof body.product !== 'string' || !SLUG.test(body.product)) return reply(400, { error: 'Unknown product.' });
-        const products = await loadProductStates(client, identity.user.id, now(), env, clientFactory);
-        if (!products) return reply(503, { error: 'Subscription status is unavailable. Try again later.' });
-        if (!products[body.product]) return reply(400, { error: 'Unknown product.' });
-        if (products[body.product] !== 'active') return reply(403, { error: 'An active subscription is required for this application.' });
+        const bound = organizationBindingEnabled(env, body.product);
+        if (!bound) {
+          if (body.organization_id !== undefined) return reply(400, { error: 'Organization launch is unavailable for this application.' });
+          const products = await loadProductStates(client, identity.user.id, now(), env, clientFactory);
+          if (!products) return reply(503, { error: 'Subscription status is unavailable. Try again later.' });
+          if (!products[body.product]) return reply(400, { error: 'Unknown product.' });
+          if (products[body.product] !== 'active') return reply(403, { error: 'An active subscription is required for this application.' });
+        }
         // Tickets bind to a verified, live login-session record; without one, fail closed.
         if (!loginSessionId) return reply(401, { error: 'Sign in again to launch applications.', reason: 'login_required' });
-        const launch = await appAccess.issueTicket({ userId: identity.user.id, product: body.product, loginSessionId });
+        const launch = await appAccess.issueTicket({ userId: identity.user.id, product: body.product, loginSessionId, ...(bound ? { organizationId: body.organization_id } : {}) });
+        if (launch?.status === 400) return reply(400, { error: 'Select a valid organization to launch this application.' });
+        if (launch?.status === 403) return reply(403, { error: 'Application access is not authorized for this organization.' });
         if (launch?.status === 429) return reply(429, { error: 'Please wait before trying again.' });
         if (!launch || launch.status !== 200) return reply(503, { error: 'Secure application launch is unavailable. Try again later.' });
         return reply(200, { next: launch.next });

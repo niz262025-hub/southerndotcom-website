@@ -4,10 +4,12 @@ import { authRequest as request } from './authRequest';
 import { jumpToFounders } from './foundersNav';
 import { ProfileLogo } from './ProfileLogo';
 import { FreeTrial } from './FreeTrial';
+import { useOrganizationLaunch } from './organizationLaunch';
 
 const productLabels = { opsp: 'OpsPS', opsfinance: 'OpsFinance', opsflow: 'OpsFlow', opswms: 'OpsWMS', opshr: 'OpsHR' };
 
 export function AuthPortal({ mode, production = false }) {
+  const { launch, chooser } = useOrganizationLaunch();
   const [message, setMessage] = useState('');
   const [busy, setBusy] = useState(false);
   const [account, setAccount] = useState(null);
@@ -81,8 +83,9 @@ export function AuthPortal({ mode, production = false }) {
   async function openTrialApp(product) {
     if(busy) return;
     setBusy(true);setMessage('');
-    try {const result=await request('launch',{product});window.location.assign(result.next);}
-    catch(error){setMessage(error.message);setBusy(false);}
+    try {await launch(product);}
+    catch(error){setMessage(error.message);}
+    finally{setBusy(false);}
   }
 
   async function logout() {
@@ -104,6 +107,7 @@ export function AuthPortal({ mode, production = false }) {
         {mode === 'register' && <p><strong>7 Days Free — RM0.</strong> Verify your email to access your MYOPS account. MYOPS applications: OpsPS, OpsFinance, OpsFlow and OpsHR. Free-trial access is available only for applications confirmed as eligible in your account; registration does not automatically activate every application. No card or auto-renewal for eligible trials.</p>}
         {mode === 'dashboard' && account && <>
           <FreeTrial />
+          {chooser}
           <p>Signed in as {account.email}</p>
           <ProfileLogo profile={account.profile} refresh={async () => { const data = await request('account'); setAccount(data); }} />
           {account.profile?.company_name && <p>{account.profile.company_name}</p>}

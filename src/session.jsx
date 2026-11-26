@@ -2,6 +2,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useRef, use
 import PropTypes from 'prop-types';
 import { authRequest } from './authRequest';
 import { jumpToFounders } from './foundersNav';
+import { useOrganizationLaunch } from './organizationLaunch';
 
 const PROBE_INTERVAL_MS = 60 * 1000;
 const SignedOut = { status: 'ready', signedIn: false, products: null, lifetime: false };
@@ -104,6 +105,7 @@ export function ProductAction({ product, arrow = false }) {
   const session = useSession();
   const [message, setMessage] = useState('');
   const [busy, setBusy] = useState(false);
+  const { launch, chooser } = useOrganizationLaunch();
   if (product.comingSoon) return <div className="product-action"><span className="coming-soon-label">Coming Soon</span></div>;
   if (!session.enabled) return product.slug === 'opsrental' ? <div className="product-action"><a className="btn btn-secondary" href="/login">Subscribe</a></div> : null;
   if (session.status === 'unavailable') return arrow ? <a className="card-link" href="/login" aria-label={`Subscribe to ${product.slug}`}><span aria-hidden="true">→</span></a> : <div className="product-action"><a className="btn btn-secondary" href="/login">Subscribe</a></div>;
@@ -113,8 +115,7 @@ export function ProductAction({ product, arrow = false }) {
     if (busy) return;
     setBusy(true); setMessage('');
     try {
-      const result = await authRequest('launch', { product: product.slug });
-      window.location.assign(result.next);
+      await launch(product.slug);
     } catch (error) {
       setMessage(error.message);
       if (error.status === 401) session.refresh(false);
@@ -126,12 +127,14 @@ export function ProductAction({ product, arrow = false }) {
       <div className="product-action">
         <button type="button" className="card-link" aria-label={`Open ${product.slug}`} disabled={busy} onClick={open}><span aria-hidden="true">→</span></button>
         <p role="status" aria-live="polite">{message}</p>
+        {chooser}
       </div>
     );
     return (
       <div className="product-action">
         <button type="button" className="btn btn-primary" disabled={busy} onClick={open}>Open App</button>
         <p role="status" aria-live="polite">{message}</p>
+        {chooser}
       </div>
     );
   }

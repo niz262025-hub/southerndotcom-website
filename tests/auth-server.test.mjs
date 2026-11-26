@@ -1073,3 +1073,29 @@ test('logo upload and account readback keep the verified owner and expose only a
  assert.equal(metadata.logo_path,null);
  const removed=await run({action:'account'},{headers,client});assert.equal(removed.data.profile.has_logo,undefined);
 });
+
+test('organization launch options include only active memberships of verified identity', async () => {
+  const selected = 'f1dfca04-db7d-4ff4-89c5-cdbc95c3099d';
+  const second = 'f2dfca04-db7d-4ff4-89c5-cdbc95c3099d';
+  const other = 'f3dfca04-db7d-4ff4-89c5-cdbc95c3099d';
+  const filters = [];
+  const admin = { from(table) {
+    return {
+      select() { return this; },
+      eq(key, value) { filters.push([table, key, value]); return this; },
+      in(key, ids) { assert.equal(key, 'id'); assert.deepEqual(ids, [selected, second]); return this; },
+      then(resolve) { return resolve({ error: null, data: table === 'myops_memberships'
+        ? [{ organization_id: selected }, { organization_id: second }]
+        : [{ id: selected, name: 'First' }, { id: second, name: 'Second' }, { id: other, name: 'Other' }] }); },
+    };
+  } };
+  const config = { ...env, MYOPS_ENVIRONMENT: 'staging', MYOPS_ORGANIZATION_BOUND_PRODUCTS: 'opsp', MYOPS_SERVICE_ROLE_KEY: 'sb_secret_fixture' };
+  const options = { env: config, headers: { cookie: signedIn() }, factory: (_url, key) => key === 'sb_secret_fixture' ? admin : mock() };
+  assert.equal((await run({ action: 'launch-options', product: 'opsp' }, { env: config })).code, 401);
+  const response = await run({ action: 'launch-options', product: 'opsp', userId: 'other-user' }, options);
+  assert.equal(response.code, 200);
+  assert.deepEqual(response.data.organizations, [{ id: selected, name: 'First' }, { id: second, name: 'Second' }]);
+  assert.ok(filters.some(([table, key, value]) => table === 'myops_memberships' && key === 'user_id' && value === user.id));
+  assert.ok(filters.some(([table, key, value]) => table === 'myops_memberships' && key === 'status' && value === 'active'));
+  assert.deepEqual((await run({ action: 'launch-options', product: 'opsfinance' }, options)).data, { organizationRequired: false });
+});
